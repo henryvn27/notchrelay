@@ -1,0 +1,33 @@
+cask "cowlick" do
+  version "__VERSION__"
+  sha256 "__SHA256__"
+
+  url "https://github.com/henryvn27/cowlick/releases/download/v#{version}/Cowlick-#{version}.dmg"
+  name "Cowlick"
+  desc "Local Codex activity and approvals around the MacBook notch"
+  homepage "https://github.com/henryvn27/cowlick"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  depends_on macos: ">= :sonoma"
+
+  app "Cowlick.app"
+
+  uninstall quit: "com.henryvn27.Cowlick"
+
+  zap trash: [
+    "~/Library/Application Support/Cowlick",
+    "~/Library/Preferences/com.henryvn27.Cowlick.plist",
+  ]
+
+  caveats <<~EOS
+    Open Cowlick once and complete onboarding to install the local Codex hooks.
+    The app never modifies Codex configuration from a Homebrew install script.
+
+    Before uninstalling, choose Remove Codex Integration in Cowlick Settings.
+    `brew uninstall --zap cowlick` also removes preferences and local runtime data.
+  EOS
+end

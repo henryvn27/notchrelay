@@ -19,25 +19,31 @@ jobs:
       - name: Generate project
         run: xcodegen generate
       - name: Formatting
-        run: xcrun swift-format lint --recursive --strict NotchRelay NotchRelayHook NotchRelayTests NotchRelayUITests
+        run: xcrun swift-format lint --recursive --strict Cowlick CowlickHook CowlickTests CowlickUITests
       - name: Unit tests
-        run: xcodebuild -project NotchRelay.xcodeproj -scheme NotchRelay-UnitTests -derivedDataPath DerivedData -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UnitTests -derivedDataPath DerivedData -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
       - name: Build UI test bundle
-        run: xcodebuild -project NotchRelay.xcodeproj -scheme NotchRelay-UITests -derivedDataPath DerivedData -destination 'platform=macOS' build-for-testing
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData -destination 'platform=macOS' build-for-testing
       - name: Static analysis
-        run: xcodebuild -project NotchRelay.xcodeproj -scheme NotchRelay -configuration Debug -derivedDataPath DerivedData -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO analyze
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Debug -derivedDataPath DerivedData -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO analyze
       - name: Verify installer script
-        run: swiftc -typecheck Scripts/install_hooks.swift
+        run: |
+          swiftc -typecheck Scripts/install_hooks.swift
+          ./Scripts/test_hook_installer.sh
+      - name: Verify release scripts
+        run: |
+          zsh -n Scripts/*.sh
+          ./Scripts/test_release_scripts.sh
       - name: Build release candidate
-        run: xcodebuild -project NotchRelay.xcodeproj -scheme NotchRelay -configuration Release -derivedDataPath DerivedData -destination 'generic/platform=macOS' CODE_SIGN_IDENTITY=- build
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Release -derivedDataPath DerivedData -destination 'generic/platform=macOS' CODE_SIGN_IDENTITY=- build
       - name: Verify Sparkle signing pipeline
         run: ./Scripts/verify_update_signing.sh
       - name: Upload app for main
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: NotchRelay-unsigned-inspection
-          path: DerivedData/Build/Products/Release/NotchRelay.app
+          name: Cowlick-unsigned-inspection
+          path: DerivedData/Build/Products/Release/Cowlick.app
           if-no-files-found: error
           retention-days: 7
 

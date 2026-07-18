@@ -14,11 +14,11 @@ enum InstallerFailure: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .usage:
-      "usage: install_hooks.swift <install|remove|status> [--helper /path/to/notchrelay-hook]"
+      "usage: install_hooks.swift <install|remove|status> [--helper /path/to/cowlick-hook]"
     case .invalidRoot: "hooks.json must contain a JSON object."
     case .invalidHooks: "The existing hooks field must be a JSON object."
-    case .helperMissing: "The specified NotchRelay helper does not exist."
-    case .shimConflict: "~/.local/bin/notchrelay-hook exists and is not NotchRelay's symlink."
+    case .helperMissing: "The specified Cowlick helper does not exist."
+    case .shimConflict: "~/.local/bin/cowlick-hook exists and is not Cowlick's symlink."
     case .configurationChanged:
       "hooks.json changed during installation; no configuration was overwritten. Try again."
     case .fileOperation(let code): "A protected file operation failed (errno \(code))."
@@ -29,11 +29,15 @@ enum InstallerFailure: LocalizedError {
 let fileManager = FileManager.default
 let environment = ProcessInfo.processInfo.environment
 let home = URL(
-  fileURLWithPath: environment["NOTCHRELAY_HOME"] ?? NSHomeDirectory(), isDirectory: true)
+  fileURLWithPath: environment["COWLICK_HOME"] ?? environment["NOTCHRELAY_HOME"]
+    ?? NSHomeDirectory(), isDirectory: true)
 let hooksURL = home.appendingPathComponent(".codex/hooks.json")
 let installedHelper = home.appendingPathComponent(
+  "Library/Application Support/Cowlick/bin/cowlick-hook")
+let shim = home.appendingPathComponent(".local/bin/cowlick-hook")
+let legacyInstalledHelper = home.appendingPathComponent(
   "Library/Application Support/NotchRelay/bin/notchrelay-hook")
-let shim = home.appendingPathComponent(".local/bin/notchrelay-hook")
+let legacyShim = home.appendingPathComponent(".local/bin/notchrelay-hook")
 let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
 
 func shellQuote(_ value: String) -> String {
@@ -41,15 +45,36 @@ func shellQuote(_ value: String) -> String {
 }
 
 let hookCommand = "\(shellQuote(shim.path)) hook"
+let legacyHookCommand = "\(shellQuote(legacyShim.path)) hook"
 
-func isOurs(_ handler: [String: Any]) -> Bool {
+func normalized(_ value: String) -> String {
+  value.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+func handlerCommand(_ handler: [String: Any]) -> String? {
+  (handler["command"] as? String).map(normalized)
+}
+
+func isCurrent(_ handler: [String: Any]) -> Bool {
+  if let marker = handler["cowlick"] as? [String: Any],
+    marker["product"] as? String == "Cowlick"
+  {
+    return true
+  }
+  return handlerCommand(handler) == normalized(hookCommand)
+}
+
+func isLegacy(_ handler: [String: Any]) -> Bool {
   if let marker = handler["notchRelay"] as? [String: Any],
     marker["product"] as? String == "NotchRelay"
   {
     return true
   }
-  guard let command = handler["command"] as? String else { return false }
-  return command.trimmingCharacters(in: .whitespacesAndNewlines) == hookCommand
+  return handlerCommand(handler) == normalized(legacyHookCommand)
+}
+
+func isOurs(_ handler: [String: Any]) -> Bool {
+  isCurrent(handler) || isLegacy(handler)
 }
 
 func root(from data: Data) throws -> [String: Any] {
@@ -65,7 +90,7 @@ func containsCommand(_ root: [String: Any], event: String) -> Bool {
   else { return false }
   return groups.contains { group in
     (group["hooks"] as? [[String: Any]])?.contains {
-      isOurs($0)
+      isCurrent($0)
     } == true
   }
 }
@@ -79,11 +104,34 @@ func encoded(_ root: [String: Any]) throws -> Data {
   return data
 }
 
+func removingHandlers(
+  from original: [String: Any],
+  where shouldRemove: ([String: Any]) -> Bool
+) -> [String: Any] {
+  var value = original
+  guard var hooks = value["hooks"] as? [String: Any] else { return value }
+  for event in events {
+    guard let groups = hooks[event] as? [[String: Any]] else { continue }
+    let updated: [[String: Any]] = groups.compactMap { group in
+      guard let handlers = group["hooks"] as? [[String: Any]] else { return group }
+      let remaining = handlers.filter { !shouldRemove($0) }
+      guard !remaining.isEmpty else { return nil }
+      var copy = group
+      copy["hooks"] = remaining
+      return copy
+    }
+    if updated.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = updated }
+  }
+  value["hooks"] = hooks
+  return value
+}
+
 func merge(_ original: Data) throws -> Data {
   var value = try root(from: original)
   if value["hooks"] != nil, !(value["hooks"] is [String: Any]) {
     throw InstallerFailure.invalidHooks
   }
+  value = removingHandlers(from: value, where: isLegacy)
   var hooks = value["hooks"] as? [String: Any] ?? [:]
   for event in events where !containsCommand(value, event: event) {
     var groups = hooks[event] as? [[String: Any]] ?? []
@@ -93,8 +141,8 @@ func merge(_ original: Data) throws -> Data {
           "type": "command",
           "command": hookCommand,
           "timeout": event == "PermissionRequest" ? 75 : 5,
-          "statusMessage": "NotchRelay",
-          "notchRelay": ["product": "NotchRelay", "protocol": 1],
+          "statusMessage": "Cowlick",
+          "cowlick": ["product": "Cowlick", "protocol": 1],
         ]
       ]
     ])
@@ -105,23 +153,7 @@ func merge(_ original: Data) throws -> Data {
 }
 
 func remove(_ original: Data) throws -> Data {
-  var value = try root(from: original)
-  guard var hooks = value["hooks"] as? [String: Any] else { return original }
-  for event in events {
-    guard let groups = hooks[event] as? [[String: Any]] else { continue }
-    let updated: [[String: Any]] = groups.compactMap { group in
-      guard let handlers = group["hooks"] as? [[String: Any]] else { return group }
-      let remaining = handlers.filter {
-        !isOurs($0)
-      }
-      guard !remaining.isEmpty else { return nil }
-      var copy = group
-      copy["hooks"] = remaining
-      return copy
-    }
-    if updated.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = updated }
-  }
-  value["hooks"] = hooks
+  let value = removingHandlers(from: try root(from: original), where: isOurs)
   return try encoded(value)
 }
 
@@ -156,7 +188,7 @@ func replaceHooks(with data: Data, expected original: Data?) throws {
     try writePrivateFile(original, to: backup)
   }
   let temporary = hooksURL.deletingLastPathComponent().appendingPathComponent(
-    ".hooks.notchrelay-\(UUID().uuidString).tmp")
+    ".hooks.cowlick-\(UUID().uuidString).tmp")
   try writePrivateFile(data, to: temporary)
   defer { try? fileManager.removeItem(at: temporary) }
   _ = try root(from: Data(contentsOf: temporary))
@@ -176,7 +208,7 @@ func withConfigurationLock<Result>(_ body: () throws -> Result) throws -> Result
   try fileManager.createDirectory(
     at: hooksURL.deletingLastPathComponent(), withIntermediateDirectories: true)
   let lock = hooksURL.deletingLastPathComponent().appendingPathComponent(
-    ".hooks.json.notchrelay.lock")
+    ".hooks.json.cowlick.lock")
   let descriptor = Darwin.open(lock.path, O_RDWR | O_CREAT, 0o600)
   guard descriptor >= 0 else { throw InstallerFailure.fileOperation(errno) }
   guard flock(descriptor, LOCK_EX) == 0 else {
@@ -206,10 +238,8 @@ func installHelper(from source: URL) throws {
     at: shim.deletingLastPathComponent(), withIntermediateDirectories: true)
   try fileManager.setAttributes(
     [.posixPermissions: 0o700], ofItemAtPath: installedHelper.deletingLastPathComponent().path)
-  try fileManager.setAttributes(
-    [.posixPermissions: 0o700], ofItemAtPath: shim.deletingLastPathComponent().path)
   let temporary = installedHelper.deletingLastPathComponent().appendingPathComponent(
-    ".notchrelay-hook-\(UUID().uuidString).tmp")
+    ".cowlick-hook-\(UUID().uuidString).tmp")
   defer { try? fileManager.removeItem(at: temporary) }
   try fileManager.copyItem(at: source, to: temporary)
   try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: temporary.path)
@@ -222,6 +252,15 @@ func installHelper(from source: URL) throws {
     return
   } else {
     try fileManager.createSymbolicLink(at: shim, withDestinationURL: installedHelper)
+  }
+}
+
+func removeHelper(shim helperShim: URL, installedHelper helper: URL) throws {
+  if (try? fileManager.destinationOfSymbolicLink(atPath: helperShim.path)) == helper.path {
+    try fileManager.removeItem(at: helperShim)
+  }
+  if fileManager.fileExists(atPath: helper.path) {
+    try fileManager.removeItem(at: helper)
   }
 }
 
@@ -240,6 +279,7 @@ do {
       let updated = try merge(existing)
       if updated != existing { try replaceHooks(with: updated, expected: existed ? existing : nil) }
     }
+    try removeHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
     print("Installed SessionStart, UserPromptSubmit, PermissionRequest, and Stop hooks.")
   case "remove":
     try withConfigurationLock {
@@ -251,7 +291,9 @@ do {
       let updated = try remove(existing)
       if updated != existing { try replaceHooks(with: updated, expected: existing) }
     }
-    print("Removed only NotchRelay hook handlers.")
+    try removeHelper(shim: shim, installedHelper: installedHelper)
+    try removeHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
+    print("Removed only Cowlick and legacy NotchRelay hook handlers.")
   case "status":
     let existing =
       fileManager.fileExists(atPath: hooksURL.path)

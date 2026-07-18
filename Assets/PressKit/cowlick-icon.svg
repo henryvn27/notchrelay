@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="paper" x1="128" y1="96" x2="896" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0EFEA"/>
+      <stop offset="1" stop-color="#D8D4CB"/>
+    </linearGradient>
+    <linearGradient id="graphite" x1="512" y1="32" x2="512" y2="702" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1C1B19"/>
+      <stop offset="1" stop-color="#090909"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#paper)"/>
+
+  <!-- The whole upper edge is the mark: a single lock turns the notch silhouette into a cowlick. -->
+  <path
+    d="M32 256C32 132 132 32 256 32H768C892 32 992 132 992 256V421
+       C905 397 829 394 765 410
+       C696 427 654 463 647 512
+       C639 566 671 612 741 650
+       C657 671 577 654 522 604
+       C462 550 447 481 477 407
+       C399 444 313 458 220 449
+       C153 443 90 428 32 405V256Z"
+    fill="url(#graphite)"/>
+</svg>

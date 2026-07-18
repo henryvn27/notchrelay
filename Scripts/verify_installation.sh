@@ -10,20 +10,20 @@ while [[ $# -gt 0 ]]; do
     *) print -u2 "Unknown option: $1"; exit 2 ;;
   esac
 done
-[[ -n "$app_path" ]] || app_path="$HOME/Applications/NotchRelay.app"
+[[ -n "$app_path" ]] || app_path="$HOME/Applications/Cowlick.app"
 
-helper="$app_path/Contents/Helpers/notchrelay-hook"
+helper="$app_path/Contents/Helpers/cowlick-hook"
 [[ -d "$app_path" ]] || { print -u2 "Missing app: $app_path"; exit 1; }
 [[ -x "$helper" ]] || { print -u2 "Missing bundled helper: $helper"; exit 1; }
 plutil -lint "$app_path/Contents/Info.plist" >/dev/null
 codesign --verify --deep --strict "$app_path"
-"$helper" version | grep -q '^NotchRelay hook 1\.0\.0$'
+"$helper" version | grep -q '^Cowlick hook 1\.0\.0$'
 
-if [[ -x "$HOME/.local/bin/notchrelay-hook" ]]; then
-  diagnostics_file="$(mktemp "${TMPDIR%/}/notchrelay-diagnostics.XXXXXX")"
+if [[ -x "$HOME/.local/bin/cowlick-hook" ]]; then
+  diagnostics_file="$(mktemp "${TMPDIR%/}/cowlick-diagnostics.XXXXXX")"
   chmod 600 "$diagnostics_file"
   trap 'rm -f "$diagnostics_file"' EXIT
-  "$HOME/.local/bin/notchrelay-hook" diagnostics >"$diagnostics_file"
+  "$HOME/.local/bin/cowlick-hook" diagnostics >"$diagnostics_file"
   plutil -lint "$diagnostics_file" >/dev/null 2>&1 || python3 -m json.tool "$diagnostics_file" >/dev/null
   rm -f "$diagnostics_file"
   trap - EXIT

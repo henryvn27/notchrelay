@@ -1,6 +1,6 @@
 # Contributing
 
-Keep changes inside NotchRelay's local Codex companion scope and preserve fail-safe approval behavior.
+Keep changes inside Cowlick's local Codex companion scope and preserve fail-safe approval behavior.
 
 1. Discuss significant behavior changes in an issue.
 2. Create a focused branch from `main`.

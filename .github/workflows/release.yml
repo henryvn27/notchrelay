@@ -4,6 +4,10 @@ on:
   push:
     tags: ['v*']
 
+concurrency:
+  group: cowlick-release
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -15,13 +19,44 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - name: Install XcodeGen
         run: brew install xcodegen
+      - name: Validate release inputs
+        env:
+          APPLE_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_PRIVATE_KEY_BASE64: ${{ secrets.NOTARY_PRIVATE_KEY_BASE64 }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          ./Scripts/release_preflight.sh "$version" --source-only
+          missing=()
+          for variable_name in \
+            APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 \
+            APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD \
+            APPLE_TEAM_ID \
+            NOTARY_KEY_ID \
+            NOTARY_ISSUER_ID \
+            NOTARY_PRIVATE_KEY_BASE64 \
+            SPARKLE_PRIVATE_KEY \
+            HOMEBREW_TAP_TOKEN; do
+            [[ -n "${!variable_name}" ]] || missing+=("$variable_name")
+          done
+          if (( ${#missing[@]} )); then
+            printf 'Missing release secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          git fetch origin main --depth=1
+          git merge-base --is-ancestor HEAD origin/main
       - name: Import Developer ID certificate
         env:
           CERTIFICATE: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
         run: |
-          keychain="$RUNNER_TEMP/notchrelay.keychain-db"
-          certificate="$RUNNER_TEMP/notchrelay.p12"
+          keychain="$RUNNER_TEMP/cowlick.keychain-db"
+          certificate="$RUNNER_TEMP/cowlick.p12"
           echo "$CERTIFICATE" | base64 -D > "$certificate"
           chmod 600 "$certificate"
           security create-keychain -p actions "$keychain"
@@ -40,7 +75,7 @@ jobs:
           key="$RUNNER_TEMP/AuthKey.p8"
           echo "$NOTARY_PRIVATE_KEY" | base64 -D > "$key"
           chmod 600 "$key"
-          xcrun notarytool store-credentials notchrelay-notary --key "$key" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --keychain "$NOTARYTOOL_KEYCHAIN"
+          xcrun notarytool store-credentials cowlick-notary --key "$key" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --keychain "$NOTARYTOOL_KEYCHAIN"
       - name: Resolve Developer ID identity
         run: |
           identity="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)"
@@ -49,30 +84,30 @@ jobs:
       - name: Build, sign, notarize, and staple
         env:
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
-          NOTARYTOOL_PROFILE: notchrelay-notary
+          NOTARYTOOL_PROFILE: cowlick-notary
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: ./Scripts/create_release.sh "${GITHUB_REF_NAME#v}"
       - name: Render Homebrew cask
-        run: ./Scripts/render_homebrew_cask.sh "${GITHUB_REF_NAME#v}" "build/release-${GITHUB_REF_NAME#v}/NotchRelay-${GITHUB_REF_NAME#v}.dmg"
+        run: ./Scripts/render_homebrew_cask.sh "${GITHUB_REF_NAME#v}" "build/release-${GITHUB_REF_NAME#v}/Cowlick-${GITHUB_REF_NAME#v}.dmg"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" \
-            "build/release-$version/NotchRelay-$version.dmg" \
-            "build/release-$version/NotchRelay-$version.zip" \
+            "build/release-$version/Cowlick-$version.dmg" \
+            "build/release-$version/Cowlick-$version.zip" \
             "build/release-$version/checksums.txt" \
             "build/release-$version/appcast.xml" \
-            --title "NotchRelay $version" \
+            --title "Cowlick $version" \
             --notes-file CHANGELOG.md \
             --verify-tag
       - name: Update Homebrew tap
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          content="$(base64 < Config/Homebrew/notchrelay.rb | tr -d '\n')"
-          existing_sha="$(gh api repos/henryvn27/homebrew-notchrelay/contents/Casks/notchrelay.rb --jq .sha 2>/dev/null || true)"
-          args=(-X PUT -f message="Update NotchRelay to ${GITHUB_REF_NAME#v}" -f content="$content" -f branch=main)
+          content="$(base64 < Config/Homebrew/cowlick.rb | tr -d '\n')"
+          existing_sha="$(gh api repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb --jq .sha 2>/dev/null || true)"
+          args=(-X PUT -f message="Update Cowlick to ${GITHUB_REF_NAME#v}" -f content="$content" -f branch=main)
           if [[ -n "$existing_sha" ]]; then args+=(-f sha="$existing_sha"); fi
-          gh api repos/henryvn27/homebrew-notchrelay/contents/Casks/notchrelay.rb "${args[@]}"
+          gh api repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb "${args[@]}"

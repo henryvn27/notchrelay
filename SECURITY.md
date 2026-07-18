@@ -1,6 +1,6 @@
 # Security policy
 
-Report suspected vulnerabilities through a private [GitHub security advisory](https://github.com/henryvn27/notchrelay/security/advisories/new). Do not include secrets, private prompts, or approval commands in a public issue. Supported security fixes are provided for the latest release.
+Report suspected vulnerabilities through a private [GitHub security advisory](https://github.com/henryvn27/cowlick/security/advisories/new). Do not include secrets, private prompts, or approval commands in a public issue. Supported security fixes are provided for the latest release.
 
 ## Security invariants
 
@@ -15,5 +15,5 @@ Report suspected vulnerabilities through a private [GitHub security advisory](ht
 
 Credential exposure, approval spoofing or reuse, arbitrary execution from bridge input, update-signature bypass, destructive configuration mutation, and diagnostics disclosure are reportable.
 
-Repository: NotchRelay
+Repository: Cowlick
 Version: development snapshot

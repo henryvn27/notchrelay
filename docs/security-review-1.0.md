@@ -1,4 +1,4 @@
-# NotchRelay 1.0 security review
+# Cowlick 1.0 security review
 
 This review covers the public v1 source tree. It treats hook input, tool input, prompts, local IPC clients, existing hook configuration, update metadata, and release workflow inputs as security-sensitive boundaries.
 

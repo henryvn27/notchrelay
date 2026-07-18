@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>NotchRelay</string>
+    <string>Cowlick</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIconName</key>
@@ -29,13 +29,13 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright © 2026 NotchRelay contributors. MIT licensed.</string>
+    <string>Copyright © 2026 Cowlick contributors. MIT licensed.</string>
     <key>SUEnableAutomaticChecks</key>
     <true/>
     <key>SUEnableInstallerLauncherService</key>
     <true/>
     <key>SUFeedURL</key>
-    <string>https://github.com/henryvn27/notchrelay/releases/latest/download/appcast.xml</string>
+    <string>https://github.com/henryvn27/cowlick/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>jdfVgATZX2FxlG7vDWmIFurSoELcZ/qJbnkQbaWg4H4=</string>
     <key>SURequireSignedFeed</key>

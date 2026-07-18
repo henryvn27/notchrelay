@@ -1,6 +1,6 @@
 # Changelog
 
-NotchRelay follows [Semantic Versioning](https://semver.org/).
+Cowlick follows [Semantic Versioning](https://semver.org/).
 
 ## 1.0.0 — 2026-07-18
 

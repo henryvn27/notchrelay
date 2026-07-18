@@ -22,7 +22,7 @@ func islandIsVisible() -> Bool {
   else { return false }
 
   return windowInfo.contains { window in
-    guard window[kCGWindowOwnerName as String] as? String == "NotchRelay",
+    guard window[kCGWindowOwnerName as String] as? String == "Cowlick",
       let bounds = window[kCGWindowBounds as String] as? [String: Any],
       let width = bounds["Width"] as? Double,
       let height = bounds["Height"] as? Double
@@ -40,7 +40,7 @@ let helper = Process()
 helper.executableURL = helperURL
 helper.arguments = ["demo", event]
 var environment = ProcessInfo.processInfo.environment
-environment["NOTCHRELAY_DEMO_SESSION_ID"] = "latency-session"
+environment["COWLICK_DEMO_SESSION_ID"] = "latency-session"
 helper.environment = environment
 helper.standardOutput = FileHandle.nullDevice
 helper.standardError = FileHandle.nullDevice

@@ -13,7 +13,7 @@ struct LaunchAssetGenerator {
     screenshots = root.appendingPathComponent("Assets/Screenshots")
     guard
       let loadedIcon = NSImage(
-        contentsOf: root.appendingPathComponent("Assets/AppIcon/notchrelay-icon-1024.png"))
+        contentsOf: root.appendingPathComponent("Assets/AppIcon/cowlick-icon-1024.png"))
     else { throw AssetError.missing("1024-point app icon") }
     icon = loadedIcon
   }
@@ -33,75 +33,59 @@ struct LaunchAssetGenerator {
     let pressKit = root.appendingPathComponent("Assets/PressKit")
     try FileManager.default.createDirectory(at: pressKit, withIntermediateDirectories: true)
     try replaceCopy(
-      root.appendingPathComponent("Assets/AppIcon/notchrelay-icon.svg"),
-      pressKit.appendingPathComponent("notchrelay-icon.svg"))
+      root.appendingPathComponent("Assets/AppIcon/cowlick-icon.svg"),
+      pressKit.appendingPathComponent("cowlick-icon.svg"))
     try replaceCopy(
-      root.appendingPathComponent("Assets/AppIcon/notchrelay-icon-1024.png"),
-      pressKit.appendingPathComponent("notchrelay-icon-1024.png"))
+      root.appendingPathComponent("Assets/AppIcon/cowlick-icon-1024.png"),
+      pressKit.appendingPathComponent("cowlick-icon-1024.png"))
     try replaceCopy(
       screenshots.appendingPathComponent("hero.png"),
-      pressKit.appendingPathComponent("notchrelay-hero.png"))
+      pressKit.appendingPathComponent("cowlick-hero.png"))
   }
 
   private func drawHero(size: CGSize, destination: URL) throws {
     let scale = size.width / 1_600
     let approval = try loadScreenshot("approval.png")
-    let sessions = try loadScreenshot("multi-session.png")
-    let working = try loadScreenshot("working.png")
-    let completed = try loadScreenshot("completed.png")
     let bitmap = try makeCanvas(size: size) {
-      NSGradient(
-        colors: [
-          NSColor(red: 0.015, green: 0.022, blue: 0.035, alpha: 1),
-          NSColor(red: 0.03, green: 0.035, blue: 0.055, alpha: 1),
-        ])!.draw(in: CGRect(origin: .zero, size: size), angle: -28)
+      let background = NSGradient(
+        starting: NSColor(red: 0.12, green: 0.115, blue: 0.105, alpha: 1),
+        ending: NSColor(red: 0.045, green: 0.045, blue: 0.042, alpha: 1))
+      background?.draw(in: CGRect(origin: .zero, size: size), angle: -32)
+      drawGrain(in: size)
 
-      let glow = NSBezierPath(
-        ovalIn: CGRect(
-          x: size.width * 0.56, y: -120 * scale, width: 820 * scale,
-          height: 820 * scale))
-      NSColor(red: 0.14, green: 0.74, blue: 0.88, alpha: 0.075).setFill()
-      glow.fill()
-
-      icon.draw(
+      // The actual product surface owns the top center. It meets the edge exactly as it does on
+      // a notched display; the empty center is where the camera housing sits on the MacBook.
+      approval.draw(
         in: CGRect(
-          x: 96 * scale, y: size.height - 196 * scale, width: 92 * scale,
-          height: 92 * scale))
-      drawText(
-        "NotchRelay", at: CGPoint(x: 216 * scale, y: size.height - 164 * scale),
-        font: .systemFont(ofSize: 58 * scale, weight: .bold), color: .white)
-      drawText(
-        "Local Codex status and safe approvals, right at the notch.",
-        at: CGPoint(x: 100 * scale, y: size.height - 250 * scale),
-        font: .systemFont(ofSize: 26 * scale, weight: .medium),
-        color: NSColor.white.withAlphaComponent(0.72))
+          x: 420 * scale,
+          y: size.height - 388 * scale,
+          width: 760 * scale,
+          height: 388 * scale),
+        from: .zero,
+        operation: .sourceOver,
+        fraction: 1)
 
-      let commandRect = CGRect(
-        x: 100 * scale, y: size.height - 330 * scale, width: 560 * scale,
-        height: 54 * scale)
-      NSColor(red: 0.05, green: 0.065, blue: 0.085, alpha: 1).setFill()
-      NSBezierPath(roundedRect: commandRect, xRadius: 14 * scale, yRadius: 14 * scale)
-        .fill()
       drawText(
-        "Source available: github.com/henryvn27/notchrelay",
-        at: CGPoint(x: 122 * scale, y: commandRect.minY + 16 * scale),
-        font: .monospacedSystemFont(ofSize: 17 * scale, weight: .medium),
-        color: NSColor(red: 0.49, green: 0.91, blue: 1, alpha: 1))
+        "Cowlick", at: CGPoint(x: 96 * scale, y: 246 * scale),
+        font: .systemFont(ofSize: 86 * scale, weight: .semibold),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 1))
+      drawText(
+        "Codex status and safe approvals,\nright at the notch.",
+        at: CGPoint(x: 650 * scale, y: 282 * scale),
+        font: .systemFont(ofSize: 30 * scale, weight: .regular),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.7))
 
-      drawPanel(
-        approval,
-        in: CGRect(x: 100 * scale, y: 92 * scale, width: 665 * scale, height: 273 * scale))
-      label("APPROVAL", at: CGPoint(x: 112 * scale, y: 60 * scale), scale: scale)
-      drawPanel(
-        sessions,
-        in: CGRect(x: 845 * scale, y: 96 * scale, width: 594 * scale, height: 231 * scale))
-      label("MULTI-SESSION", at: CGPoint(x: 857 * scale, y: 64 * scale), scale: scale)
-      drawPanel(
-        working,
-        in: CGRect(x: 950 * scale, y: 426 * scale, width: 316 * scale, height: 68 * scale))
-      drawPanel(
-        completed,
-        in: CGRect(x: 1_100 * scale, y: 362 * scale, width: 316 * scale, height: 68 * scale))
+      drawText(
+        "Open source. Local only. No analytics.",
+        at: CGPoint(x: 654 * scale, y: 208 * scale),
+        font: .systemFont(ofSize: 18 * scale, weight: .medium),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.46))
+
+      drawText(
+        "$ brew install --cask henryvn27/cowlick/cowlick",
+        at: CGPoint(x: 654 * scale, y: 118 * scale),
+        font: .monospacedSystemFont(ofSize: 18 * scale, weight: .regular),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.82))
     }
 
     try writePNG(bitmap, to: destination)
@@ -110,17 +94,21 @@ struct LaunchAssetGenerator {
   private func drawIconSheet() throws {
     let size = CGSize(width: 1_400, height: 900)
     let bitmap = try makeCanvas(size: size) {
-      NSColor(red: 0.018, green: 0.023, blue: 0.034, alpha: 1).setFill()
-      NSBezierPath(rect: CGRect(origin: .zero, size: size)).fill()
+      let background = NSGradient(
+        starting: NSColor(red: 0.12, green: 0.115, blue: 0.105, alpha: 1),
+        ending: NSColor(red: 0.045, green: 0.045, blue: 0.042, alpha: 1))
+      background?.draw(in: CGRect(origin: .zero, size: size), angle: -32)
+      drawGrain(in: size)
       drawText(
-        "NotchRelay app icon", at: CGPoint(x: 80, y: 796),
-        font: .systemFont(ofSize: 44, weight: .bold), color: .white)
+        "Cowlick app icon", at: CGPoint(x: 80, y: 796),
+        font: .systemFont(ofSize: 44, weight: .semibold),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 1))
       drawText(
-        "A local relay signal in the negative space of a MacBook notch.",
+        "One continuous surface. One deliberate break in the edge.",
         at: CGPoint(x: 82, y: 748), font: .systemFont(ofSize: 22, weight: .medium),
-        color: NSColor.white.withAlphaComponent(0.62))
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.58))
 
-      let sizes: [CGFloat] = [16, 32, 64, 128, 256, 512]
+      let sizes: [CGFloat] = [16, 32, 64, 128, 256]
       var x: CGFloat = 80
       for side in sizes {
         let shown = max(side, 48)
@@ -132,35 +120,36 @@ struct LaunchAssetGenerator {
         x += shown + 48
       }
 
-      icon.draw(in: CGRect(x: 870, y: 278, width: 420, height: 420))
+      icon.draw(in: CGRect(x: 820, y: 210, width: 500, height: 500))
       drawText(
-        "SOURCE: SVG  •  MASTER: 1024 × 1024", at: CGPoint(x: 880, y: 238),
-        font: .monospacedSystemFont(ofSize: 15, weight: .medium),
-        color: NSColor(red: 0.49, green: 0.91, blue: 1, alpha: 0.88))
+        "512", at: CGPoint(x: 820, y: 164),
+        font: .monospacedSystemFont(ofSize: 16, weight: .medium),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.52))
+      drawText(
+        "Editable SVG · 1024 px master", at: CGPoint(x: 880, y: 164),
+        font: .systemFont(ofSize: 16, weight: .medium),
+        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.52))
     }
     try writePNG(
-      bitmap, to: root.appendingPathComponent("Assets/AppIcon/notchrelay-icon-sheet.png"))
-  }
-
-  private func drawPanel(_ image: NSImage, in rect: CGRect) {
-    let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(0.58)
-    shadow.shadowBlurRadius = 24
-    shadow.shadowOffset = CGSize(width: 0, height: -8)
-    NSGraphicsContext.saveGraphicsState()
-    shadow.set()
-    image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-    NSGraphicsContext.restoreGraphicsState()
-  }
-
-  private func label(_ value: String, at point: CGPoint, scale: CGFloat) {
-    drawText(
-      value, at: point, font: .monospacedSystemFont(ofSize: 13 * scale, weight: .semibold),
-      color: NSColor.white.withAlphaComponent(0.42))
+      bitmap, to: root.appendingPathComponent("Assets/AppIcon/cowlick-icon-sheet.png"))
   }
 
   private func drawText(_ value: String, at point: CGPoint, font: NSFont, color: NSColor) {
     value.draw(at: point, withAttributes: [.font: font, .foregroundColor: color])
+  }
+
+  private func drawGrain(in size: CGSize) {
+    var state: UInt64 = 0xC0_57_1C_A1
+    let sampleCount = max(1, Int(size.width * size.height / 180))
+    for _ in 0..<sampleCount {
+      state = state &* 6_364_136_223_846_793_005 &+ 1
+      let x = CGFloat(state & 0xFFFF) / CGFloat(UInt16.max) * size.width
+      state = state &* 6_364_136_223_846_793_005 &+ 1
+      let y = CGFloat(state & 0xFFFF) / CGFloat(UInt16.max) * size.height
+      let isLight = state & 1 == 0
+      NSColor(white: isLight ? 1 : 0, alpha: isLight ? 0.018 : 0.012).setFill()
+      NSBezierPath(rect: CGRect(x: x, y: y, width: 1, height: 1)).fill()
+    }
   }
 
   private func loadScreenshot(_ name: String) throws -> NSImage {

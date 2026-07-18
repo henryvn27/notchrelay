@@ -21,15 +21,17 @@ done
 
 cd "$project_root"
 
-existing_pids=(${(f)"$(pgrep -x NotchRelay 2>/dev/null || true)"})
-for process_id in $existing_pids; do
-  process_path="$(ps -p "$process_id" -o command= 2>/dev/null || true)"
-  if [[ "$process_path" == *"/NotchRelay.app/Contents/MacOS/NotchRelay"* ]]; then
-    kill "$process_id"
-  fi
+for process_name in Cowlick NotchRelay; do
+  existing_pids=(${(f)"$(pgrep -x "$process_name" 2>/dev/null || true)"})
+  for process_id in $existing_pids; do
+    process_path="$(ps -p "$process_id" -o command= 2>/dev/null || true)"
+    if [[ "$process_path" == *"/$process_name.app/Contents/MacOS/$process_name"* ]]; then
+      kill "$process_id"
+    fi
+  done
 done
 for _ in {1..50}; do
-  pgrep -x NotchRelay >/dev/null 2>&1 || break
+  ! pgrep -x Cowlick >/dev/null 2>&1 && ! pgrep -x NotchRelay >/dev/null 2>&1 && break
   sleep 0.1
 done
 
@@ -40,23 +42,23 @@ fi
 
 xcodegen generate
 xcodebuild \
-  -project NotchRelay.xcodeproj \
-  -scheme NotchRelay \
+  -project Cowlick.xcodeproj \
+  -scheme Cowlick \
   -configuration "$configuration" \
   -derivedDataPath "$derived_data" \
   -destination 'platform=macOS,arch=arm64' \
   build
 
-app_path="$derived_data/Build/Products/$configuration/NotchRelay.app"
+app_path="$derived_data/Build/Products/$configuration/Cowlick.app"
 [[ -d "$app_path" ]] || { print -u2 "Fresh app bundle not found at $app_path"; exit 1; }
 
 if $local_telemetry; then
-  NOTCHRELAY_LOCAL_TELEMETRY=1 "$app_path/Contents/MacOS/NotchRelay" >/dev/null 2>&1 &!
+  COWLICK_LOCAL_TELEMETRY=1 "$app_path/Contents/MacOS/Cowlick" >/dev/null 2>&1 &!
 else
   open -n "$app_path"
 fi
 
-helper="$app_path/Contents/Helpers/notchrelay-hook"
+helper="$app_path/Contents/Helpers/cowlick-hook"
 bridge_ready=false
 for _ in {1..100}; do
   if [[ -x "$helper" ]] && "$helper" ping >/dev/null 2>&1; then
@@ -65,14 +67,14 @@ for _ in {1..100}; do
   fi
   sleep 0.1
 done
-$bridge_ready || { print -u2 "NotchRelay launched but its authenticated bridge did not become ready"; exit 1; }
+$bridge_ready || { print -u2 "Cowlick launched but its authenticated bridge did not become ready"; exit 1; }
 
 if $run_verify; then
   "$script_dir/verify_installation.sh" --app "$app_path" --development
 fi
 
 if $show_logs; then
-  log stream --style compact --level info --predicate 'subsystem == "com.henryvn27.NotchRelay"'
+  log stream --style compact --level info --predicate 'subsystem == "com.henryvn27.Cowlick"'
 fi
 
-print "NotchRelay launched from $app_path"
+print "Cowlick launched from $app_path"

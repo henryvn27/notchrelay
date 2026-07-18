@@ -1,4 +1,4 @@
-name: NotchRelay
+name: Cowlick
 options:
   createIntermediateGroups: true
   deploymentTarget:
@@ -15,38 +15,39 @@ settings:
     CLANG_ENABLE_MODULES: YES
     ENABLE_HARDENED_RUNTIME: YES
     DEAD_CODE_STRIPPING: YES
-    ENABLE_APP_INTENTS_METADATA: NO
     SWIFT_STRICT_CONCURRENCY: complete
     VERSIONING_SYSTEM: apple-generic
 targets:
-  NotchRelay:
+  Cowlick:
     type: application
     platform: macOS
     sources:
-      - path: NotchRelay
+      - path: Cowlick
     entitlements:
-      path: Config/NotchRelay.entitlements
+      path: Config/Cowlick.entitlements
     dependencies:
       - package: Sparkle
         product: Sparkle
-      - target: NotchRelayHook
+      - sdk: Security.framework
+      - target: CowlickHook
         embed: false
         link: false
     postBuildScripts:
-      - name: Embed NotchRelay Hook
+      - name: Embed Cowlick Hook
         basedOnDependencyAnalysis: false
         script: |
           set -euo pipefail
           helper_dir="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers"
           mkdir -p "$helper_dir"
-          cp "$BUILT_PRODUCTS_DIR/notchrelay-hook" "$helper_dir/notchrelay-hook"
-          chmod 755 "$helper_dir/notchrelay-hook"
+          cp "$BUILT_PRODUCTS_DIR/cowlick-hook" "$helper_dir/cowlick-hook"
+          chmod 755 "$helper_dir/cowlick-hook"
         outputFiles:
-          - $(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/notchrelay-hook
+          - $(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/cowlick-hook
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.NotchRelay
-        PRODUCT_NAME: NotchRelay
+        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.Cowlick
+        PRODUCT_NAME: Cowlick
+        PRODUCT_MODULE_NAME: Cowlick
         MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: 1
         CODE_SIGN_STYLE: Automatic
@@ -55,80 +56,87 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
-  NotchRelayHook:
+  CowlickHook:
     type: tool
     platform: macOS
     sources:
-      - path: NotchRelayHook
+      - path: CowlickHook
+      - path: Cowlick/Support/ProductVersion.swift
+      - path: Cowlick/Support/LifecycleLedger.swift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.NotchRelay.Hook
-        PRODUCT_NAME: notchrelay-hook
-        PRODUCT_MODULE_NAME: NotchRelayHook
+        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.Cowlick.Hook
+        PRODUCT_NAME: cowlick-hook
+        PRODUCT_MODULE_NAME: CowlickHook
         MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: 1
         CODE_SIGN_STYLE: Automatic
-  NotchRelayTests:
+  CowlickTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: NotchRelayTests
-      - path: NotchRelayHook
+      - path: CowlickTests
+      - path: CowlickHook
         excludes:
           - main.swift
+      - path: Cowlick/Support/ProductVersion.swift
+      - path: Cowlick/Support/LifecycleLedger.swift
     dependencies:
-      - target: NotchRelay
+      - target: Cowlick
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.NotchRelayTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.CowlickTests
         GENERATE_INFOPLIST_FILE: YES
-  NotchRelayUITests:
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Cowlick.app/Contents/MacOS/Cowlick
+        BUNDLE_LOADER: $(TEST_HOST)
+  CowlickUITests:
     type: bundle.ui-testing
     platform: macOS
     sources:
-      - path: NotchRelayUITests
+      - path: CowlickUITests
     dependencies:
-      - target: NotchRelay
+      - target: Cowlick
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.NotchRelayUITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.henryvn27.CowlickUITests
         GENERATE_INFOPLIST_FILE: YES
+        ENABLE_HARDENED_RUNTIME: NO
 schemes:
-  NotchRelay:
+  Cowlick:
     build:
       targets:
-        NotchRelay: all
-        NotchRelayHook: all
-        NotchRelayTests: [test]
-        NotchRelayUITests: [test]
+        Cowlick: all
+        CowlickHook: all
+        CowlickTests: [test]
+        CowlickUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       gatherCoverageData: true
       targets:
-        - NotchRelayTests
-        - NotchRelayUITests
+        - CowlickTests
+        - CowlickUITests
     archive:
       config: Release
-  NotchRelay-UnitTests:
+  Cowlick-UnitTests:
     build:
       targets:
-        NotchRelay: all
-        NotchRelayHook: all
-        NotchRelayTests: [test]
+        Cowlick: all
+        CowlickHook: all
+        CowlickTests: [test]
     test:
       config: Debug
       gatherCoverageData: true
       targets:
-        - NotchRelayTests
-  NotchRelay-UITests:
+        - CowlickTests
+  Cowlick-UITests:
     build:
       targets:
-        NotchRelay: all
-        NotchRelayHook: all
-        NotchRelayUITests: [test]
+        Cowlick: all
+        CowlickHook: all
+        CowlickUITests: [test]
     test:
       config: Debug
       targets:
-        - NotchRelayUITests
+        - CowlickUITests

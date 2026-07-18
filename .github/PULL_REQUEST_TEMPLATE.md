@@ -13,6 +13,8 @@ Describe the user-visible or maintenance outcome.
 - [ ] UI/visual behavior inspected when applicable
 - [ ] `git diff --check` passes
 - [ ] No private prompts, commands, paths, tokens, or credentials added
+- [ ] User-facing names, links, screenshots, and install commands match the shipped product
+- [ ] Signing, notarization, update, and download claims are backed by release evidence
 
 ## Safety
 

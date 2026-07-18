@@ -3,10 +3,10 @@ set -euo pipefail
 
 script_dir="${0:A:h}"
 project_root="${script_dir:h}"
-app="${1:-$project_root/DerivedData/Build/Products/Release/NotchRelay.app}"
+app="${1:-$project_root/DerivedData/Build/Products/Release/Cowlick.app}"
 [[ -d "$app" ]] || { print -u2 "Release app not found: $app"; exit 1; }
 
-proof_directory="$(mktemp -d "${TMPDIR%/}/notchrelay-update-proof.XXXXXX")"
+proof_directory="$(mktemp -d "${TMPDIR%/}/cowlick-update-proof.XXXXXX")"
 chmod 700 "$proof_directory"
 trap 'rm -rf "$proof_directory"' EXIT
 
@@ -23,18 +23,18 @@ KEY_PATH="$proof_directory/private-key" PUB_PATH="$proof_directory/public-key" s
 '
 chmod 600 "$proof_directory/private-key"
 
-ditto "$app" "$proof_directory/NotchRelay.app"
+ditto "$app" "$proof_directory/Cowlick.app"
 public_key="$(/bin/cat "$proof_directory/public-key")"
 /usr/libexec/PlistBuddy \
   -c "Set :SUPublicEDKey $public_key" \
-  "$proof_directory/NotchRelay.app/Contents/Info.plist"
-codesign --force --deep --sign - "$proof_directory/NotchRelay.app" >/dev/null
+  "$proof_directory/Cowlick.app/Contents/Info.plist"
+codesign --force --deep --sign - "$proof_directory/Cowlick.app" >/dev/null
 
 artifact_directory="$proof_directory/artifacts"
 mkdir -p "$artifact_directory"
 ditto -c -k --sequesterRsrc --keepParent \
-  "$proof_directory/NotchRelay.app" \
-  "$artifact_directory/NotchRelay-1.0.0.zip"
+  "$proof_directory/Cowlick.app" \
+  "$artifact_directory/Cowlick-1.0.0.zip"
 
 private_key="$(/bin/cat "$proof_directory/private-key")"
 SPARKLE_PRIVATE_KEY="$private_key" \
@@ -53,7 +53,7 @@ archive_signature="$(xmllint --xpath \
 "$sign_tool" \
   --verify \
   --ed-key-file "$proof_directory/private-key" \
-  "$artifact_directory/NotchRelay-1.0.0.zip" \
+  "$artifact_directory/Cowlick-1.0.0.zip" \
   "$archive_signature"
 xmllint --noout "$artifact_directory/appcast.xml"
 

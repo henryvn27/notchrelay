@@ -1,0 +1,1107 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		05D61ACA5A9CA6965279E6AD /* CodexExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30CA3AE3DD687EA18FEE2B26 /* CodexExecutableLocator.swift */; };
+		0EAA1301D37949643D13F5B6 /* ProviderAccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 855F997D51121756D7C809CA /* ProviderAccountStore.swift */; };
+		0FA8B27F0A574E26A4F7DCA5 /* NotchPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8B8AD9C5C611B47BEB6F84 /* NotchPanelController.swift */; };
+		1102B961B8EAD8789FEE3E07 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A141A55413F617D2206DC2 /* SessionStoreTests.swift */; };
+		11792475DD4A7CC56077BB33 /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CAAB05E62D69052440C36A1 /* TestSupport.swift */; };
+		19B123D3F55BA08DB6415839 /* ResetForecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D3AF41288D4F11FD6B15B4 /* ResetForecast.swift */; };
+		20AB9F2ADA6E1012EE0E363C /* ApprovalDecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6086DC4E241BC2EA78C0B63A /* ApprovalDecision.swift */; };
+		2468D98765A20CB44F712EF2 /* HookInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFFFDA9E6FEF3D00D85AF491 /* HookInput.swift */; };
+		25C2DF15A65005AD8036D52E /* DiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B1F188BE42E3AB02A69CBB /* DiagnosticsTests.swift */; };
+		280BEF7D013F811918328516 /* NotchGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13CBA9B585034C9478D3781F /* NotchGeometryTests.swift */; };
+		2F4A3CF340A738D11D86855F /* ApprovalCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8ADE618862771F340A8867C /* ApprovalCoordinator.swift */; };
+		32BB56594065A91E59A51E80 /* ProductVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FB2BBA88C649B3BC17BB1D /* ProductVersion.swift */; };
+		334693E061A840F568A12744 /* UpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62DADE472F1D80532076FACA /* UpdateService.swift */; };
+		373692DF0DE0D766D89DFEA9 /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07233A4A8598DDCF93E74B7F /* AppServices.swift */; };
+		374C855614D755AD7A27BBA8 /* ProviderBillingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E766A9CC67145595397C2E49 /* ProviderBillingStore.swift */; };
+		3802A31B29D0B752ADAA7C02 /* ApprovalRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E823D89D3D5ED1556C99C36F /* ApprovalRequest.swift */; };
+		3A592BFF7EE0A421B7DFF2BC /* UsageProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF03FAEB9588CCCB87772B1 /* UsageProvider.swift */; };
+		3A9C265D3088466508F877D0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 040902D08EEB71A716BDF39E /* Assets.xcassets */; };
+		3ACB7E2384331AEA88D52A5E /* CowlickApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F488BD434A5FB5141530D6 /* CowlickApp.swift */; };
+		401EEC3CCEE1C0DFEAA7BEA1 /* ResetForecastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EEA2BB113CB13D02F76C1A /* ResetForecastService.swift */; };
+		43DBB44C38D96113884CCBCF /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26FDEC8C7D862C4B28943DF2 /* SessionStore.swift */; };
+		45DA80766A8AF77E9CB28890 /* HookCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07C61D9A6E253E32ECF5B0F /* HookCommand.swift */; };
+		498D61D4BA4E4A5F6067B8DD /* ExpandedIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16AA23683DDD8FCF0E50599B /* ExpandedIslandView.swift */; };
+		4BD51E93EF53560037F8C5A8 /* HookOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44F0B7EA2F5B2EF6E98A6E8 /* HookOutput.swift */; };
+		4ECA030B4CAE91ECD2B1E0C9 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 36AE3445A5BC5D1D33FE0494 /* Sparkle */; };
+		519296BB76C25C5C9CB7AD29 /* CapsLockSignalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02ADF6742F705A79BFD1F25E /* CapsLockSignalTests.swift */; };
+		56A5976E38FAB79105A75563 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72107190257BB6F3F1A763C2 /* Security.framework */; };
+		57CB98F35E5F1C5C36FC5DBD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CB3752D75079A36E6788A0 /* SettingsView.swift */; };
+		5847E564B62D29CE82809CC8 /* HookInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7460D3E8AEE6556ACE71437A /* HookInstaller.swift */; };
+		59B87D2759E2C993CCF9C981 /* NotchGeometryResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F93858CBFC7AB46896AF0F5 /* NotchGeometryResolver.swift */; };
+		5E577BA227739D458D55343A /* LifecycleLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEF7180FDAC277C032065547 /* LifecycleLedgerTests.swift */; };
+		5EA6C7D869AB97C5E619EE4C /* ProjectNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0A178274EB2BA51ED6696F /* ProjectNameResolver.swift */; };
+		63DE36817BEEDCFFC2FB2F4B /* HookProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40D11073EEB9076D14C0EE8 /* HookProtocolTests.swift */; };
+		6DFA89A4305D81C716883D26 /* HookOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44F0B7EA2F5B2EF6E98A6E8 /* HookOutput.swift */; };
+		6E75B3E2CE80A3908451998E /* HookInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFFFDA9E6FEF3D00D85AF491 /* HookInput.swift */; };
+		6EA569CF89CC3562AFDDE60C /* CowlickUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF47108CEFB5C90BE8AB0BD /* CowlickUITests.swift */; };
+		6F46C6DE2EF96EBBE7CF7A79 /* CodexUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75654446D4FBE87C22FF7FD /* CodexUsageService.swift */; };
+		7460A4FFB08FABD64B657ED5 /* LegacyMigrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED240338A14E5AD0106B003 /* LegacyMigrationService.swift */; };
+		74618BCF917D8DDB644174E5 /* NotchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E2BA60554FE6E48CE5294D /* NotchRootView.swift */; };
+		74B4B2C4E2934EE03052102A /* ProjectNameResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEDE94BB9B610FA091712E4 /* ProjectNameResolverTests.swift */; };
+		750A2443E3BA5974479344E5 /* LifecycleLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */; };
+		7B218C8C52D3E4922082235B /* CapsLockSignalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AB75B90DFE478F9E58804F /* CapsLockSignalService.swift */; };
+		7BD37F706FF3F446092EE259 /* CollapsedIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5975C0B5D5E68661DB6EF1 /* CollapsedIslandView.swift */; };
+		7E55B9345585BA5684A2883D /* DiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D59D05A03D746971D939704 /* DiagnosticsService.swift */; };
+		809528534D6F5C05251CF572 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */; };
+		82A978BC7EC0B0E45EB5D27A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4A920B7BBA7C42B9E6473E /* OnboardingView.swift */; };
+		8958A7C719F44CBE7E83BD52 /* UsagePlanningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6080E9C79459106F29BEF54A /* UsagePlanningTests.swift */; };
+		9556AC0B863F62C2371D320C /* ProviderBilling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14FBD7EF15E1E70F2D401E73 /* ProviderBilling.swift */; };
+		9A9EA8D5BDF0EB4594DE2645 /* NotchSwipeInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88ED5A412FE03AEA6626B118 /* NotchSwipeInterpreterTests.swift */; };
+		9BADE6962880887AF572E4F7 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22095EDA92103DBF8E98E176 /* LaunchAtLoginService.swift */; };
+		9EC14FDFFC2E6F445E58228C /* CodexUsageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6344453156A3CDC276DB49CF /* CodexUsageTests.swift */; };
+		A2FD0E5E7709F6A649440CC1 /* UsageSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D0238E0BD27674B640C3D43 /* UsageSectionView.swift */; };
+		A7E738D40998DFB2BE208F22 /* CodexHookTrustServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE732DF92FFC25F889A600B /* CodexHookTrustServiceTests.swift */; };
+		A8A7FF4ADACCFF33D2892329 /* CodexHookTrustService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0879F6B4406A86E13BD5C08 /* CodexHookTrustService.swift */; };
+		AAB96E84ADA69539A322F8D8 /* LifecycleLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */; };
+		AB242FD4ACEC41815BAAAE54 /* AgentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 050BDC46F755BC18C4B9D418 /* AgentSession.swift */; };
+		B0D71888B1383B820B1C4E35 /* ApprovalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB68BCE5DFE298AF9EA9199 /* ApprovalView.swift */; };
+		B1035E3E86568C62C9847033 /* UsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3723611B2465DB0C20B81BC6 /* UsageStore.swift */; };
+		B184006F374DBF59D2AD561D /* ResetForecastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F628A17699849441BBA57045 /* ResetForecastTests.swift */; };
+		B2CCBC0F553002ABED5A6E21 /* AppSupportPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CD2EE68C0E654673C113AD /* AppSupportPaths.swift */; };
+		B653FDDE6F3AA8B4867BC2D3 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A58695F1EBE5049F02915B8 /* main.swift */; };
+		B7E39FE4128792CD66A419FB /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0308A22E543881272810EEED /* SettingsStore.swift */; };
+		BA260A553A74C83105127119 /* ProductVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FB2BBA88C649B3BC17BB1D /* ProductVersion.swift */; };
+		C1F3BEC24142BC6BCFB023B3 /* LocalSocketServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D4DF843AF60195B58086E6 /* LocalSocketServer.swift */; };
+		C414DEA5287D254F1F99BB83 /* NotchSwipeInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C374DFD255DF630CB2AC7AC3 /* NotchSwipeInterpreter.swift */; };
+		C5792C97BF474E1A4A23C241 /* ProductVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FB2BBA88C649B3BC17BB1D /* ProductVersion.swift */; };
+		C7149358CEACF1326296F613 /* CodexActivationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0DAB84AA88DE3A5EABA5FE /* CodexActivationService.swift */; };
+		C78D3F328AB29F347B138261 /* EventLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8004147F2B081192B2BFC286 /* EventLogger.swift */; };
+		CC21B909A29D2D152CE25718 /* HookBridgeClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B878E474CB8E0BDC72B1A5C /* HookBridgeClientTests.swift */; };
+		CC4AEAD68FDED2AD526D8C6F /* CredentialSecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EA8D01D28A2D7D6D23C2513 /* CredentialSecretStore.swift */; };
+		D0AE3CD14BC9BB9A91C33C6E /* AgentStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8080D6AFA994B87213689AFC /* AgentStatus.swift */; };
+		D4576E7B62C4577E365A3B69 /* HookBridgeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D1915591D78BF5127C51F2E /* HookBridgeClient.swift */; };
+		D45CCAC0D6EA207C0664C792 /* LocalSocketServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17E3A7161E00D5EFD2DA2B5 /* LocalSocketServerTests.swift */; };
+		D4D12121351CD65A766D645D /* HookCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07C61D9A6E253E32ECF5B0F /* HookCommand.swift */; };
+		D5765310BD62C3F1B4467D88 /* UpdateConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1594E6652349760A9BCE9B7 /* UpdateConfigurationTests.swift */; };
+		D58DD21CF530370998EE8503 /* ProviderAccountStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FC1BD8D1B2681E9B43971F /* ProviderAccountStoreTests.swift */; };
+		D7434E82C77CFDF35B1B0007 /* ProductIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02ED80D98E6155B5DDE68FF6 /* ProductIdentity.swift */; };
+		D9E3142029F6CB8C9A500847 /* UsagePlanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE7A0F09EEA0325C13FEFCF /* UsagePlanning.swift */; };
+		DBAF2BF8619261A79F9B6AE3 /* ProviderCostServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0302FE20D40F6EECCAC2509C /* ProviderCostServiceTests.swift */; };
+		DFD5D887DAD59817EF75FD11 /* ProviderCostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D730D384C7D37A77A7BEC6 /* ProviderCostService.swift */; };
+		E09258C14D6917BC6786E4D6 /* WindowCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E040C9DEDBFFC3B36C9BDF /* WindowCoordinator.swift */; };
+		E3F031D137F152FE3FA9EB0A /* LifecycleLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */; };
+		E8A4C8D84B6CC705929999CB /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CCC525610FBDB7ADF74B712 /* DiagnosticsView.swift */; };
+		EB3BF4D14E4A4CAC02753E51 /* ProviderBillingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30ECF7F3AC168F8424EB04B0 /* ProviderBillingStoreTests.swift */; };
+		F62DD0B32CB43E10B3C0A4B7 /* NotchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811BDA18626AE1D5BE2E3914 /* NotchTheme.swift */; };
+		F82DB65C3743A6D7802781BD /* SettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3AE5AB922321A6B776ACE9 /* SettingsStoreTests.swift */; };
+		F87A203C54AE5A68C4B2B115 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71270AF38889FC3C33CF4407 /* AppDelegate.swift */; };
+		FA3587BF1D082C8812D9A9C1 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45690028E62EE54D08B6588E /* MenuBarContentView.swift */; };
+		FC643AC2763A3EF7297F29FA /* HookBridgeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D1915591D78BF5127C51F2E /* HookBridgeClient.swift */; };
+		FD508F9A14D61BF56C1636CA /* BridgeEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE80FB8AB883D6453448BD5D /* BridgeEvent.swift */; };
+		FD752F4E85F19B027BF97228 /* CodexUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2D09214687330BDFA8A9AA8 /* CodexUsage.swift */; };
+		FD7987E1AC086F67EB3BFEEC /* HookInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDAEED31699C9CB31C4504D /* HookInstallerTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3D6826C6B6E7A1FED1BC97FF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 71039BD9B579B55A49E06A61 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B50885B50E26EEC0AB0B51E3;
+			remoteInfo = Cowlick;
+		};
+		CD0A27CD8367A1FC59121C85 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 71039BD9B579B55A49E06A61 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0CD224D5E9E5BD6967DB28B;
+			remoteInfo = CowlickHook;
+		};
+		F38AB1793BF80DCA453A8C62 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 71039BD9B579B55A49E06A61 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B50885B50E26EEC0AB0B51E3;
+			remoteInfo = Cowlick;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		000F6B4760BE69BA327A3148 /* CowlickHook */ = {isa = PBXFileReference; includeInIndex = 0; path = CowlickHook; sourceTree = BUILT_PRODUCTS_DIR; };
+		02ADF6742F705A79BFD1F25E /* CapsLockSignalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockSignalTests.swift; sourceTree = "<group>"; };
+		02ED80D98E6155B5DDE68FF6 /* ProductIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductIdentity.swift; sourceTree = "<group>"; };
+		0302FE20D40F6EECCAC2509C /* ProviderCostServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCostServiceTests.swift; sourceTree = "<group>"; };
+		0308A22E543881272810EEED /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		040902D08EEB71A716BDF39E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		04AB75B90DFE478F9E58804F /* CapsLockSignalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockSignalService.swift; sourceTree = "<group>"; };
+		050BDC46F755BC18C4B9D418 /* AgentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSession.swift; sourceTree = "<group>"; };
+		07233A4A8598DDCF93E74B7F /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
+		0A3AE5AB922321A6B776ACE9 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
+		0D0238E0BD27674B640C3D43 /* UsageSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSectionView.swift; sourceTree = "<group>"; };
+		0FEDE94BB9B610FA091712E4 /* ProjectNameResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectNameResolverTests.swift; sourceTree = "<group>"; };
+		13CBA9B585034C9478D3781F /* NotchGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchGeometryTests.swift; sourceTree = "<group>"; };
+		14FBD7EF15E1E70F2D401E73 /* ProviderBilling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBilling.swift; sourceTree = "<group>"; };
+		16AA23683DDD8FCF0E50599B /* ExpandedIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedIslandView.swift; sourceTree = "<group>"; };
+		17CB3752D75079A36E6788A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		1A58695F1EBE5049F02915B8 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		1CAAB05E62D69052440C36A1 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
+		1CCC525610FBDB7ADF74B712 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		22095EDA92103DBF8E98E176 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
+		26A141A55413F617D2206DC2 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStoreTests.swift; sourceTree = "<group>"; };
+		26FDEC8C7D862C4B28943DF2 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		2ED240338A14E5AD0106B003 /* LegacyMigrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyMigrationService.swift; sourceTree = "<group>"; };
+		30CA3AE3DD687EA18FEE2B26 /* CodexExecutableLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexExecutableLocator.swift; sourceTree = "<group>"; };
+		30ECF7F3AC168F8424EB04B0 /* ProviderBillingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBillingStoreTests.swift; sourceTree = "<group>"; };
+		33E040C9DEDBFFC3B36C9BDF /* WindowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCoordinator.swift; sourceTree = "<group>"; };
+		3723611B2465DB0C20B81BC6 /* UsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStore.swift; sourceTree = "<group>"; };
+		45690028E62EE54D08B6588E /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
+		471662E80DA80898B3E934F4 /* Cowlick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cowlick.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D1915591D78BF5127C51F2E /* HookBridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookBridgeClient.swift; sourceTree = "<group>"; };
+		4EA8D01D28A2D7D6D23C2513 /* CredentialSecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialSecretStore.swift; sourceTree = "<group>"; };
+		57D4DF843AF60195B58086E6 /* LocalSocketServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSocketServer.swift; sourceTree = "<group>"; };
+		5B878E474CB8E0BDC72B1A5C /* HookBridgeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookBridgeClientTests.swift; sourceTree = "<group>"; };
+		5E8B8AD9C5C611B47BEB6F84 /* NotchPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchPanelController.swift; sourceTree = "<group>"; };
+		6080E9C79459106F29BEF54A /* UsagePlanningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePlanningTests.swift; sourceTree = "<group>"; };
+		6086DC4E241BC2EA78C0B63A /* ApprovalDecision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalDecision.swift; sourceTree = "<group>"; };
+		62DADE472F1D80532076FACA /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
+		6344453156A3CDC276DB49CF /* CodexUsageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageTests.swift; sourceTree = "<group>"; };
+		63FB2BBA88C649B3BC17BB1D /* ProductVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductVersion.swift; sourceTree = "<group>"; };
+		64F488BD434A5FB5141530D6 /* CowlickApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CowlickApp.swift; sourceTree = "<group>"; };
+		6CE7A0F09EEA0325C13FEFCF /* UsagePlanning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePlanning.swift; sourceTree = "<group>"; };
+		6F93858CBFC7AB46896AF0F5 /* NotchGeometryResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchGeometryResolver.swift; sourceTree = "<group>"; };
+		6FE732DF92FFC25F889A600B /* CodexHookTrustServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexHookTrustServiceTests.swift; sourceTree = "<group>"; };
+		71270AF38889FC3C33CF4407 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		72107190257BB6F3F1A763C2 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		7460D3E8AEE6556ACE71437A /* HookInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookInstaller.swift; sourceTree = "<group>"; };
+		74D152E65A95F0FE217A2E3E /* CowlickTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CowlickTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		78E2BA60554FE6E48CE5294D /* NotchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchRootView.swift; sourceTree = "<group>"; };
+		7A4A920B7BBA7C42B9E6473E /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		7C0A178274EB2BA51ED6696F /* ProjectNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectNameResolver.swift; sourceTree = "<group>"; };
+		8004147F2B081192B2BFC286 /* EventLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogger.swift; sourceTree = "<group>"; };
+		8080D6AFA994B87213689AFC /* AgentStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStatus.swift; sourceTree = "<group>"; };
+		811BDA18626AE1D5BE2E3914 /* NotchTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchTheme.swift; sourceTree = "<group>"; };
+		84FC1BD8D1B2681E9B43971F /* ProviderAccountStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountStoreTests.swift; sourceTree = "<group>"; };
+		855F997D51121756D7C809CA /* ProviderAccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountStore.swift; sourceTree = "<group>"; };
+		88ED5A412FE03AEA6626B118 /* NotchSwipeInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchSwipeInterpreterTests.swift; sourceTree = "<group>"; };
+		94D3AF41288D4F11FD6B15B4 /* ResetForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetForecast.swift; sourceTree = "<group>"; };
+		99EEA2BB113CB13D02F76C1A /* ResetForecastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetForecastService.swift; sourceTree = "<group>"; };
+		9C5975C0B5D5E68661DB6EF1 /* CollapsedIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapsedIslandView.swift; sourceTree = "<group>"; };
+		9D59D05A03D746971D939704 /* DiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsService.swift; sourceTree = "<group>"; };
+		A1594E6652349760A9BCE9B7 /* UpdateConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateConfigurationTests.swift; sourceTree = "<group>"; };
+		ADB68BCE5DFE298AF9EA9199 /* ApprovalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalView.swift; sourceTree = "<group>"; };
+		B07C61D9A6E253E32ECF5B0F /* HookCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookCommand.swift; sourceTree = "<group>"; };
+		B6045E7C191CE6C3586C33AF /* CowlickUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CowlickUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B8ADE618862771F340A8867C /* ApprovalCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalCoordinator.swift; sourceTree = "<group>"; };
+		BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleLedger.swift; sourceTree = "<group>"; };
+		BEF03FAEB9588CCCB87772B1 /* UsageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageProvider.swift; sourceTree = "<group>"; };
+		C374DFD255DF630CB2AC7AC3 /* NotchSwipeInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchSwipeInterpreter.swift; sourceTree = "<group>"; };
+		C40D11073EEB9076D14C0EE8 /* HookProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookProtocolTests.swift; sourceTree = "<group>"; };
+		C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
+		CEF47108CEFB5C90BE8AB0BD /* CowlickUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CowlickUITests.swift; sourceTree = "<group>"; };
+		D17E3A7161E00D5EFD2DA2B5 /* LocalSocketServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSocketServerTests.swift; sourceTree = "<group>"; };
+		D2D09214687330BDFA8A9AA8 /* CodexUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsage.swift; sourceTree = "<group>"; };
+		D75654446D4FBE87C22FF7FD /* CodexUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageService.swift; sourceTree = "<group>"; };
+		DEF7180FDAC277C032065547 /* LifecycleLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleLedgerTests.swift; sourceTree = "<group>"; };
+		DFFFDA9E6FEF3D00D85AF491 /* HookInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookInput.swift; sourceTree = "<group>"; };
+		E0879F6B4406A86E13BD5C08 /* CodexHookTrustService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexHookTrustService.swift; sourceTree = "<group>"; };
+		E1D730D384C7D37A77A7BEC6 /* ProviderCostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCostService.swift; sourceTree = "<group>"; };
+		E44F0B7EA2F5B2EF6E98A6E8 /* HookOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookOutput.swift; sourceTree = "<group>"; };
+		E766A9CC67145595397C2E49 /* ProviderBillingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBillingStore.swift; sourceTree = "<group>"; };
+		E823D89D3D5ED1556C99C36F /* ApprovalRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalRequest.swift; sourceTree = "<group>"; };
+		EC0DAB84AA88DE3A5EABA5FE /* CodexActivationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexActivationService.swift; sourceTree = "<group>"; };
+		F5B1F188BE42E3AB02A69CBB /* DiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsTests.swift; sourceTree = "<group>"; };
+		F628A17699849441BBA57045 /* ResetForecastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetForecastTests.swift; sourceTree = "<group>"; };
+		F6CD2EE68C0E654673C113AD /* AppSupportPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSupportPaths.swift; sourceTree = "<group>"; };
+		FCDAEED31699C9CB31C4504D /* HookInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookInstallerTests.swift; sourceTree = "<group>"; };
+		FE80FB8AB883D6453448BD5D /* BridgeEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeEvent.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6607DB03EB35A29581296333 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4ECA030B4CAE91ECD2B1E0C9 /* Sparkle in Frameworks */,
+				56A5976E38FAB79105A75563 /* Security.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		139EA9BF3A80F1CB3678AFD7 /* CowlickTests */ = {
+			isa = PBXGroup;
+			children = (
+				02ADF6742F705A79BFD1F25E /* CapsLockSignalTests.swift */,
+				6FE732DF92FFC25F889A600B /* CodexHookTrustServiceTests.swift */,
+				6344453156A3CDC276DB49CF /* CodexUsageTests.swift */,
+				F5B1F188BE42E3AB02A69CBB /* DiagnosticsTests.swift */,
+				5B878E474CB8E0BDC72B1A5C /* HookBridgeClientTests.swift */,
+				FCDAEED31699C9CB31C4504D /* HookInstallerTests.swift */,
+				C40D11073EEB9076D14C0EE8 /* HookProtocolTests.swift */,
+				DEF7180FDAC277C032065547 /* LifecycleLedgerTests.swift */,
+				D17E3A7161E00D5EFD2DA2B5 /* LocalSocketServerTests.swift */,
+				13CBA9B585034C9478D3781F /* NotchGeometryTests.swift */,
+				88ED5A412FE03AEA6626B118 /* NotchSwipeInterpreterTests.swift */,
+				0FEDE94BB9B610FA091712E4 /* ProjectNameResolverTests.swift */,
+				84FC1BD8D1B2681E9B43971F /* ProviderAccountStoreTests.swift */,
+				30ECF7F3AC168F8424EB04B0 /* ProviderBillingStoreTests.swift */,
+				0302FE20D40F6EECCAC2509C /* ProviderCostServiceTests.swift */,
+				F628A17699849441BBA57045 /* ResetForecastTests.swift */,
+				26A141A55413F617D2206DC2 /* SessionStoreTests.swift */,
+				0A3AE5AB922321A6B776ACE9 /* SettingsStoreTests.swift */,
+				1CAAB05E62D69052440C36A1 /* TestSupport.swift */,
+				A1594E6652349760A9BCE9B7 /* UpdateConfigurationTests.swift */,
+				6080E9C79459106F29BEF54A /* UsagePlanningTests.swift */,
+			);
+			path = CowlickTests;
+			sourceTree = "<group>";
+		};
+		1D3744B0F8CC6D0E169713B7 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				050BDC46F755BC18C4B9D418 /* AgentSession.swift */,
+				8080D6AFA994B87213689AFC /* AgentStatus.swift */,
+				6086DC4E241BC2EA78C0B63A /* ApprovalDecision.swift */,
+				E823D89D3D5ED1556C99C36F /* ApprovalRequest.swift */,
+				FE80FB8AB883D6453448BD5D /* BridgeEvent.swift */,
+				D2D09214687330BDFA8A9AA8 /* CodexUsage.swift */,
+				14FBD7EF15E1E70F2D401E73 /* ProviderBilling.swift */,
+				94D3AF41288D4F11FD6B15B4 /* ResetForecast.swift */,
+				6CE7A0F09EEA0325C13FEFCF /* UsagePlanning.swift */,
+				BEF03FAEB9588CCCB87772B1 /* UsageProvider.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		1EE1DD248F7107A9274C014D /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				ADB68BCE5DFE298AF9EA9199 /* ApprovalView.swift */,
+				9C5975C0B5D5E68661DB6EF1 /* CollapsedIslandView.swift */,
+				1CCC525610FBDB7ADF74B712 /* DiagnosticsView.swift */,
+				16AA23683DDD8FCF0E50599B /* ExpandedIslandView.swift */,
+				45690028E62EE54D08B6588E /* MenuBarContentView.swift */,
+				78E2BA60554FE6E48CE5294D /* NotchRootView.swift */,
+				7A4A920B7BBA7C42B9E6473E /* OnboardingView.swift */,
+				C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */,
+				17CB3752D75079A36E6788A0 /* SettingsView.swift */,
+				0D0238E0BD27674B640C3D43 /* UsageSectionView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		26DCCC4FA0E1F76603C1DDEA /* Bridge */ = {
+			isa = PBXGroup;
+			children = (
+				4D1915591D78BF5127C51F2E /* HookBridgeClient.swift */,
+			);
+			path = Bridge;
+			sourceTree = "<group>";
+		};
+		28E9591800C5615B9E41A810 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				F6CD2EE68C0E654673C113AD /* AppSupportPaths.swift */,
+				8004147F2B081192B2BFC286 /* EventLogger.swift */,
+				BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */,
+				811BDA18626AE1D5BE2E3914 /* NotchTheme.swift */,
+				02ED80D98E6155B5DDE68FF6 /* ProductIdentity.swift */,
+				63FB2BBA88C649B3BC17BB1D /* ProductVersion.swift */,
+				7C0A178274EB2BA51ED6696F /* ProjectNameResolver.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		36DF5AB1ABD7AA32F867E739 /* Windowing */ = {
+			isa = PBXGroup;
+			children = (
+				6F93858CBFC7AB46896AF0F5 /* NotchGeometryResolver.swift */,
+				5E8B8AD9C5C611B47BEB6F84 /* NotchPanelController.swift */,
+				C374DFD255DF630CB2AC7AC3 /* NotchSwipeInterpreter.swift */,
+			);
+			path = Windowing;
+			sourceTree = "<group>";
+		};
+		557C46B693C8B547E2ECECF5 /* Cowlick */ = {
+			isa = PBXGroup;
+			children = (
+				9B282639F337E7110EEB3B21 /* App */,
+				1D3744B0F8CC6D0E169713B7 /* Models */,
+				E3825E4338C0CEBF9F5A9396 /* Resources */,
+				99B863E56158C5D7320EF635 /* Services */,
+				622B04AAA9AEAB1FB6314218 /* Stores */,
+				28E9591800C5615B9E41A810 /* Support */,
+				1EE1DD248F7107A9274C014D /* Views */,
+				36DF5AB1ABD7AA32F867E739 /* Windowing */,
+			);
+			path = Cowlick;
+			sourceTree = "<group>";
+		};
+		5ECAE971FFC51674F606FDDF /* CowlickHook */ = {
+			isa = PBXGroup;
+			children = (
+				1A58695F1EBE5049F02915B8 /* main.swift */,
+				26DCCC4FA0E1F76603C1DDEA /* Bridge */,
+				D18B9B8EFD207D7ED0C6B8D8 /* Commands */,
+				B55FC0C2B81FF3BEBB903433 /* Models */,
+			);
+			path = CowlickHook;
+			sourceTree = "<group>";
+		};
+		622B04AAA9AEAB1FB6314218 /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				855F997D51121756D7C809CA /* ProviderAccountStore.swift */,
+				E766A9CC67145595397C2E49 /* ProviderBillingStore.swift */,
+				26FDEC8C7D862C4B28943DF2 /* SessionStore.swift */,
+				0308A22E543881272810EEED /* SettingsStore.swift */,
+				3723611B2465DB0C20B81BC6 /* UsageStore.swift */,
+			);
+			path = Stores;
+			sourceTree = "<group>";
+		};
+		790C035D65883F21E09B056F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				72107190257BB6F3F1A763C2 /* Security.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		94A7C1031EE78EF79E193551 = {
+			isa = PBXGroup;
+			children = (
+				557C46B693C8B547E2ECECF5 /* Cowlick */,
+				5ECAE971FFC51674F606FDDF /* CowlickHook */,
+				139EA9BF3A80F1CB3678AFD7 /* CowlickTests */,
+				E747EE550A01EE37B8DDA50F /* CowlickUITests */,
+				790C035D65883F21E09B056F /* Frameworks */,
+				C8F065AE0F2C17FBFCB3064B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		99B863E56158C5D7320EF635 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B8ADE618862771F340A8867C /* ApprovalCoordinator.swift */,
+				04AB75B90DFE478F9E58804F /* CapsLockSignalService.swift */,
+				EC0DAB84AA88DE3A5EABA5FE /* CodexActivationService.swift */,
+				30CA3AE3DD687EA18FEE2B26 /* CodexExecutableLocator.swift */,
+				E0879F6B4406A86E13BD5C08 /* CodexHookTrustService.swift */,
+				D75654446D4FBE87C22FF7FD /* CodexUsageService.swift */,
+				4EA8D01D28A2D7D6D23C2513 /* CredentialSecretStore.swift */,
+				9D59D05A03D746971D939704 /* DiagnosticsService.swift */,
+				7460D3E8AEE6556ACE71437A /* HookInstaller.swift */,
+				22095EDA92103DBF8E98E176 /* LaunchAtLoginService.swift */,
+				2ED240338A14E5AD0106B003 /* LegacyMigrationService.swift */,
+				57D4DF843AF60195B58086E6 /* LocalSocketServer.swift */,
+				E1D730D384C7D37A77A7BEC6 /* ProviderCostService.swift */,
+				99EEA2BB113CB13D02F76C1A /* ResetForecastService.swift */,
+				62DADE472F1D80532076FACA /* UpdateService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		9B282639F337E7110EEB3B21 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				71270AF38889FC3C33CF4407 /* AppDelegate.swift */,
+				07233A4A8598DDCF93E74B7F /* AppServices.swift */,
+				64F488BD434A5FB5141530D6 /* CowlickApp.swift */,
+				33E040C9DEDBFFC3B36C9BDF /* WindowCoordinator.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		B55FC0C2B81FF3BEBB903433 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				DFFFDA9E6FEF3D00D85AF491 /* HookInput.swift */,
+				E44F0B7EA2F5B2EF6E98A6E8 /* HookOutput.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C8F065AE0F2C17FBFCB3064B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				471662E80DA80898B3E934F4 /* Cowlick.app */,
+				000F6B4760BE69BA327A3148 /* CowlickHook */,
+				74D152E65A95F0FE217A2E3E /* CowlickTests.xctest */,
+				B6045E7C191CE6C3586C33AF /* CowlickUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D18B9B8EFD207D7ED0C6B8D8 /* Commands */ = {
+			isa = PBXGroup;
+			children = (
+				B07C61D9A6E253E32ECF5B0F /* HookCommand.swift */,
+			);
+			path = Commands;
+			sourceTree = "<group>";
+		};
+		E3825E4338C0CEBF9F5A9396 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				040902D08EEB71A716BDF39E /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		E747EE550A01EE37B8DDA50F /* CowlickUITests */ = {
+			isa = PBXGroup;
+			children = (
+				CEF47108CEFB5C90BE8AB0BD /* CowlickUITests.swift */,
+			);
+			path = CowlickUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5368752CA932898B55110735 /* CowlickUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D48ABF7A3F3634C8F7183C6E /* Build configuration list for PBXNativeTarget "CowlickUITests" */;
+			buildPhases = (
+				5F6E16342DA85E305AFEB283 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8C13BADD3DADF5619F4E64D6 /* PBXTargetDependency */,
+			);
+			name = CowlickUITests;
+			packageProductDependencies = (
+			);
+			productName = CowlickUITests;
+			productReference = B6045E7C191CE6C3586C33AF /* CowlickUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		B50885B50E26EEC0AB0B51E3 /* Cowlick */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0BBBD287E16C815B5EB7D1F3 /* Build configuration list for PBXNativeTarget "Cowlick" */;
+			buildPhases = (
+				9798BF4BCD3C766967A5D0F3 /* Sources */,
+				BF16D8C51426C6C968883BFF /* Resources */,
+				6607DB03EB35A29581296333 /* Frameworks */,
+				BD350C86D33905F7F23B102F /* Embed Cowlick Hook */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				39810FA6D8E77B30D510261A /* PBXTargetDependency */,
+			);
+			name = Cowlick;
+			packageProductDependencies = (
+				36AE3445A5BC5D1D33FE0494 /* Sparkle */,
+			);
+			productName = Cowlick;
+			productReference = 471662E80DA80898B3E934F4 /* Cowlick.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D0CD224D5E9E5BD6967DB28B /* CowlickHook */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97A705877CBDE91BCD686094 /* Build configuration list for PBXNativeTarget "CowlickHook" */;
+			buildPhases = (
+				D8934B88302D21B84E5E6572 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CowlickHook;
+			packageProductDependencies = (
+			);
+			productName = CowlickHook;
+			productReference = 000F6B4760BE69BA327A3148 /* CowlickHook */;
+			productType = "com.apple.product-type.tool";
+		};
+		E71B1D2930651BD58BE2499B /* CowlickTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 788BD102700578D939C88C08 /* Build configuration list for PBXNativeTarget "CowlickTests" */;
+			buildPhases = (
+				D6CBFA61F754794D5C0D30E6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BA719DCF69A07CA3A7284A71 /* PBXTargetDependency */,
+			);
+			name = CowlickTests;
+			packageProductDependencies = (
+			);
+			productName = CowlickTests;
+			productReference = 74D152E65A95F0FE217A2E3E /* CowlickTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		71039BD9B579B55A49E06A61 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					5368752CA932898B55110735 = {
+						TestTargetID = B50885B50E26EEC0AB0B51E3;
+					};
+					B50885B50E26EEC0AB0B51E3 = {
+						ProvisioningStyle = Automatic;
+					};
+					D0CD224D5E9E5BD6967DB28B = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = F90144A96F9D75A9542CF6FB /* Build configuration list for PBXProject "Cowlick" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 94A7C1031EE78EF79E193551;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7BCE27B0F43FDF3606E99E51 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C8F065AE0F2C17FBFCB3064B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B50885B50E26EEC0AB0B51E3 /* Cowlick */,
+				D0CD224D5E9E5BD6967DB28B /* CowlickHook */,
+				E71B1D2930651BD58BE2499B /* CowlickTests */,
+				5368752CA932898B55110735 /* CowlickUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BF16D8C51426C6C968883BFF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3A9C265D3088466508F877D0 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		BD350C86D33905F7F23B102F /* Embed Cowlick Hook */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Cowlick Hook";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/cowlick-hook",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nhelper_dir=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers\"\nmkdir -p \"$helper_dir\"\ncp \"$BUILT_PRODUCTS_DIR/cowlick-hook\" \"$helper_dir/cowlick-hook\"\nchmod 755 \"$helper_dir/cowlick-hook\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5F6E16342DA85E305AFEB283 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6EA569CF89CC3562AFDDE60C /* CowlickUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9798BF4BCD3C766967A5D0F3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB242FD4ACEC41815BAAAE54 /* AgentSession.swift in Sources */,
+				D0AE3CD14BC9BB9A91C33C6E /* AgentStatus.swift in Sources */,
+				F87A203C54AE5A68C4B2B115 /* AppDelegate.swift in Sources */,
+				373692DF0DE0D766D89DFEA9 /* AppServices.swift in Sources */,
+				B2CCBC0F553002ABED5A6E21 /* AppSupportPaths.swift in Sources */,
+				2F4A3CF340A738D11D86855F /* ApprovalCoordinator.swift in Sources */,
+				20AB9F2ADA6E1012EE0E363C /* ApprovalDecision.swift in Sources */,
+				3802A31B29D0B752ADAA7C02 /* ApprovalRequest.swift in Sources */,
+				B0D71888B1383B820B1C4E35 /* ApprovalView.swift in Sources */,
+				FD508F9A14D61BF56C1636CA /* BridgeEvent.swift in Sources */,
+				7B218C8C52D3E4922082235B /* CapsLockSignalService.swift in Sources */,
+				C7149358CEACF1326296F613 /* CodexActivationService.swift in Sources */,
+				05D61ACA5A9CA6965279E6AD /* CodexExecutableLocator.swift in Sources */,
+				A8A7FF4ADACCFF33D2892329 /* CodexHookTrustService.swift in Sources */,
+				FD752F4E85F19B027BF97228 /* CodexUsage.swift in Sources */,
+				6F46C6DE2EF96EBBE7CF7A79 /* CodexUsageService.swift in Sources */,
+				7BD37F706FF3F446092EE259 /* CollapsedIslandView.swift in Sources */,
+				3ACB7E2384331AEA88D52A5E /* CowlickApp.swift in Sources */,
+				CC4AEAD68FDED2AD526D8C6F /* CredentialSecretStore.swift in Sources */,
+				7E55B9345585BA5684A2883D /* DiagnosticsService.swift in Sources */,
+				E8A4C8D84B6CC705929999CB /* DiagnosticsView.swift in Sources */,
+				C78D3F328AB29F347B138261 /* EventLogger.swift in Sources */,
+				498D61D4BA4E4A5F6067B8DD /* ExpandedIslandView.swift in Sources */,
+				5847E564B62D29CE82809CC8 /* HookInstaller.swift in Sources */,
+				9BADE6962880887AF572E4F7 /* LaunchAtLoginService.swift in Sources */,
+				7460A4FFB08FABD64B657ED5 /* LegacyMigrationService.swift in Sources */,
+				750A2443E3BA5974479344E5 /* LifecycleLedger.swift in Sources */,
+				C1F3BEC24142BC6BCFB023B3 /* LocalSocketServer.swift in Sources */,
+				FA3587BF1D082C8812D9A9C1 /* MenuBarContentView.swift in Sources */,
+				59B87D2759E2C993CCF9C981 /* NotchGeometryResolver.swift in Sources */,
+				0FA8B27F0A574E26A4F7DCA5 /* NotchPanelController.swift in Sources */,
+				74618BCF917D8DDB644174E5 /* NotchRootView.swift in Sources */,
+				C414DEA5287D254F1F99BB83 /* NotchSwipeInterpreter.swift in Sources */,
+				F62DD0B32CB43E10B3C0A4B7 /* NotchTheme.swift in Sources */,
+				82A978BC7EC0B0E45EB5D27A /* OnboardingView.swift in Sources */,
+				D7434E82C77CFDF35B1B0007 /* ProductIdentity.swift in Sources */,
+				32BB56594065A91E59A51E80 /* ProductVersion.swift in Sources */,
+				5EA6C7D869AB97C5E619EE4C /* ProjectNameResolver.swift in Sources */,
+				0EAA1301D37949643D13F5B6 /* ProviderAccountStore.swift in Sources */,
+				9556AC0B863F62C2371D320C /* ProviderBilling.swift in Sources */,
+				374C855614D755AD7A27BBA8 /* ProviderBillingStore.swift in Sources */,
+				DFD5D887DAD59817EF75FD11 /* ProviderCostService.swift in Sources */,
+				19B123D3F55BA08DB6415839 /* ResetForecast.swift in Sources */,
+				401EEC3CCEE1C0DFEAA7BEA1 /* ResetForecastService.swift in Sources */,
+				809528534D6F5C05251CF572 /* SessionListView.swift in Sources */,
+				43DBB44C38D96113884CCBCF /* SessionStore.swift in Sources */,
+				B7E39FE4128792CD66A419FB /* SettingsStore.swift in Sources */,
+				57CB98F35E5F1C5C36FC5DBD /* SettingsView.swift in Sources */,
+				334693E061A840F568A12744 /* UpdateService.swift in Sources */,
+				D9E3142029F6CB8C9A500847 /* UsagePlanning.swift in Sources */,
+				3A592BFF7EE0A421B7DFF2BC /* UsageProvider.swift in Sources */,
+				A2FD0E5E7709F6A649440CC1 /* UsageSectionView.swift in Sources */,
+				B1035E3E86568C62C9847033 /* UsageStore.swift in Sources */,
+				E09258C14D6917BC6786E4D6 /* WindowCoordinator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D6CBFA61F754794D5C0D30E6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				519296BB76C25C5C9CB7AD29 /* CapsLockSignalTests.swift in Sources */,
+				A7E738D40998DFB2BE208F22 /* CodexHookTrustServiceTests.swift in Sources */,
+				9EC14FDFFC2E6F445E58228C /* CodexUsageTests.swift in Sources */,
+				25C2DF15A65005AD8036D52E /* DiagnosticsTests.swift in Sources */,
+				D4576E7B62C4577E365A3B69 /* HookBridgeClient.swift in Sources */,
+				CC21B909A29D2D152CE25718 /* HookBridgeClientTests.swift in Sources */,
+				D4D12121351CD65A766D645D /* HookCommand.swift in Sources */,
+				2468D98765A20CB44F712EF2 /* HookInput.swift in Sources */,
+				FD7987E1AC086F67EB3BFEEC /* HookInstallerTests.swift in Sources */,
+				6DFA89A4305D81C716883D26 /* HookOutput.swift in Sources */,
+				63DE36817BEEDCFFC2FB2F4B /* HookProtocolTests.swift in Sources */,
+				AAB96E84ADA69539A322F8D8 /* LifecycleLedger.swift in Sources */,
+				5E577BA227739D458D55343A /* LifecycleLedgerTests.swift in Sources */,
+				D45CCAC0D6EA207C0664C792 /* LocalSocketServerTests.swift in Sources */,
+				280BEF7D013F811918328516 /* NotchGeometryTests.swift in Sources */,
+				9A9EA8D5BDF0EB4594DE2645 /* NotchSwipeInterpreterTests.swift in Sources */,
+				BA260A553A74C83105127119 /* ProductVersion.swift in Sources */,
+				74B4B2C4E2934EE03052102A /* ProjectNameResolverTests.swift in Sources */,
+				D58DD21CF530370998EE8503 /* ProviderAccountStoreTests.swift in Sources */,
+				EB3BF4D14E4A4CAC02753E51 /* ProviderBillingStoreTests.swift in Sources */,
+				DBAF2BF8619261A79F9B6AE3 /* ProviderCostServiceTests.swift in Sources */,
+				B184006F374DBF59D2AD561D /* ResetForecastTests.swift in Sources */,
+				1102B961B8EAD8789FEE3E07 /* SessionStoreTests.swift in Sources */,
+				F82DB65C3743A6D7802781BD /* SettingsStoreTests.swift in Sources */,
+				11792475DD4A7CC56077BB33 /* TestSupport.swift in Sources */,
+				D5765310BD62C3F1B4467D88 /* UpdateConfigurationTests.swift in Sources */,
+				8958A7C719F44CBE7E83BD52 /* UsagePlanningTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8934B88302D21B84E5E6572 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC643AC2763A3EF7297F29FA /* HookBridgeClient.swift in Sources */,
+				45DA80766A8AF77E9CB28890 /* HookCommand.swift in Sources */,
+				6E75B3E2CE80A3908451998E /* HookInput.swift in Sources */,
+				4BD51E93EF53560037F8C5A8 /* HookOutput.swift in Sources */,
+				E3F031D137F152FE3FA9EB0A /* LifecycleLedger.swift in Sources */,
+				C5792C97BF474E1A4A23C241 /* ProductVersion.swift in Sources */,
+				B653FDDE6F3AA8B4867BC2D3 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		39810FA6D8E77B30D510261A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D0CD224D5E9E5BD6967DB28B /* CowlickHook */;
+			targetProxy = CD0A27CD8367A1FC59121C85 /* PBXContainerItemProxy */;
+		};
+		8C13BADD3DADF5619F4E64D6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B50885B50E26EEC0AB0B51E3 /* Cowlick */;
+			targetProxy = F38AB1793BF80DCA453A8C62 /* PBXContainerItemProxy */;
+		};
+		BA719DCF69A07CA3A7284A71 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B50885B50E26EEC0AB0B51E3 /* Cowlick */;
+			targetProxy = 3D6826C6B6E7A1FED1BC97FF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		293F7FAA94CCCB5384233CC0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.Cowlick.Hook;
+				PRODUCT_MODULE_NAME = CowlickHook;
+				PRODUCT_NAME = "cowlick-hook";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		403A3D58FC4A13C562677F5E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/Cowlick.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.Cowlick;
+				PRODUCT_MODULE_NAME = Cowlick;
+				PRODUCT_NAME = Cowlick;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4BC81AD615BB901A3A2F2242 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.CowlickTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cowlick.app/Contents/MacOS/Cowlick";
+			};
+			name = Release;
+		};
+		54290E3CE2FC68162EDBA3D2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.CowlickTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cowlick.app/Contents/MacOS/Cowlick";
+			};
+			name = Debug;
+		};
+		9F12CE45A55F47EDED418EBF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.Cowlick.Hook;
+				PRODUCT_MODULE_NAME = CowlickHook;
+				PRODUCT_NAME = "cowlick-hook";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		A2EDF6E13F176D9206503A66 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		A43C264D510AB69FF5A8F280 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.CowlickUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = Cowlick;
+			};
+			name = Release;
+		};
+		B0E66A7193C7BB7D1CD9259C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/Cowlick.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.Cowlick;
+				PRODUCT_MODULE_NAME = Cowlick;
+				PRODUCT_NAME = Cowlick;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		CC2785D88FCDC3926BD07364 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.henryvn27.CowlickUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = Cowlick;
+			};
+			name = Debug;
+		};
+		D0203B3AE0E7B4A6E8FAAD71 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0BBBD287E16C815B5EB7D1F3 /* Build configuration list for PBXNativeTarget "Cowlick" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				403A3D58FC4A13C562677F5E /* Debug */,
+				B0E66A7193C7BB7D1CD9259C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		788BD102700578D939C88C08 /* Build configuration list for PBXNativeTarget "CowlickTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				54290E3CE2FC68162EDBA3D2 /* Debug */,
+				4BC81AD615BB901A3A2F2242 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		97A705877CBDE91BCD686094 /* Build configuration list for PBXNativeTarget "CowlickHook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				293F7FAA94CCCB5384233CC0 /* Debug */,
+				9F12CE45A55F47EDED418EBF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D48ABF7A3F3634C8F7183C6E /* Build configuration list for PBXNativeTarget "CowlickUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC2785D88FCDC3926BD07364 /* Debug */,
+				A43C264D510AB69FF5A8F280 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F90144A96F9D75A9542CF6FB /* Build configuration list for PBXProject "Cowlick" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A2EDF6E13F176D9206503A66 /* Debug */,
+				D0203B3AE0E7B4A6E8FAAD71 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7BCE27B0F43FDF3606E99E51 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.9.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		36AE3445A5BC5D1D33FE0494 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7BCE27B0F43FDF3606E99E51 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 71039BD9B579B55A49E06A61 /* Project object */;
+}
