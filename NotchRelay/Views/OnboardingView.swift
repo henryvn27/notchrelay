@@ -194,11 +194,9 @@ struct OnboardingView: View {
 
   private func enableAndTestCaps() {
     Task {
-      let support = await services.capsLockService.supportStatus()
-      capsStatus = support.summary
-      guard support == .available else { return }
-      services.settings.capsLockEnabled = true
-      await services.capsLockService.start(.completion)
+      let result = await services.capsLockService.testSignal()
+      capsStatus = result == .available ? "Native HID signal test passed" : result.summary
+      services.settings.capsLockEnabled = result == .available
     }
   }
 

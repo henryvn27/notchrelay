@@ -15,7 +15,7 @@ enum CapsLockSupport: Equatable, Sendable {
 
   var summary: String {
     switch self {
-    case .available: "Native HID control available"
+    case .available: "Native HID control available; run the signal test before enabling"
     case .unavailable(let reason): reason
     }
   }
@@ -23,6 +23,7 @@ enum CapsLockSupport: Equatable, Sendable {
 
 protocol CapsLockSignalService: Sendable {
   func supportStatus() async -> CapsLockSupport
+  func testSignal() async -> CapsLockSupport
   func start(_ pattern: CapsLockPattern) async
   func cancelAndRestore() async
 }
@@ -37,6 +38,7 @@ enum CapsLockError: LocalizedError {
   case openFailed(kern_return_t)
   case readFailed(kern_return_t)
   case writeFailed(kern_return_t)
+  case verificationFailed(String)
 
   var errorDescription: String? {
     switch self {
@@ -45,6 +47,7 @@ enum CapsLockError: LocalizedError {
       "HID system connection failed (\(code)). Input Monitoring or Accessibility permission may be required."
     case .readFailed(let code): "Caps Lock state could not be read (\(code))."
     case .writeFailed(let code): "Caps Lock state could not be changed (\(code))."
+    case .verificationFailed(let reason): "Caps Lock signal verification failed: \(reason)"
     }
   }
 }
@@ -87,6 +90,7 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
   private let unavailableReason: String?
   private var patternTask: Task<Void, Never>?
   private var originalState: Bool?
+  private var verificationFailure: String?
 
   init(controller: (any CapsLockControlling)? = nil) {
     if let controller {
@@ -104,6 +108,7 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
   }
 
   func supportStatus() -> CapsLockSupport {
+    if let verificationFailure { return .unavailable(verificationFailure) }
     guard let controller else {
       return .unavailable(unavailableReason ?? "Native Caps Lock control is unavailable.")
     }
@@ -112,6 +117,38 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
       return .available
     } catch {
       return .unavailable(error.localizedDescription)
+    }
+  }
+
+  func testSignal() async -> CapsLockSupport {
+    patternTask?.cancel()
+    patternTask = nil
+    restoreOriginalState()
+
+    guard let controller else {
+      return .unavailable(unavailableReason ?? "Native Caps Lock control is unavailable.")
+    }
+    do {
+      let initialState = try controller.readState()
+      defer { try? controller.setState(initialState) }
+
+      try controller.setState(!initialState)
+      try await Task.sleep(for: .milliseconds(80))
+      guard try controller.readState() == !initialState else {
+        throw CapsLockError.verificationFailed("the changed state could not be read back")
+      }
+
+      try controller.setState(initialState)
+      try await Task.sleep(for: .milliseconds(50))
+      guard try controller.readState() == initialState else {
+        throw CapsLockError.verificationFailed("the original state was not restored")
+      }
+      verificationFailure = nil
+      return .available
+    } catch {
+      let reason = error.localizedDescription
+      verificationFailure = reason
+      return .unavailable(reason)
     }
   }
 

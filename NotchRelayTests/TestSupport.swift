@@ -46,6 +46,7 @@ actor RecordingCapsLockService: CapsLockSignalService {
   private(set) var cancellationCount = 0
 
   func supportStatus() -> CapsLockSupport { .available }
+  func testSignal() -> CapsLockSupport { .available }
   func start(_ pattern: CapsLockPattern) { patterns.append(pattern) }
   func cancelAndRestore() { cancellationCount += 1 }
 

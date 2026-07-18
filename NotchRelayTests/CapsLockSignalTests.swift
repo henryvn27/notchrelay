@@ -23,7 +23,39 @@ private final class FakeCapsLockController: CapsLockControlling, @unchecked Send
   var recordedWrites: [Bool] { lock.withLock { writes } }
 }
 
+private final class FailingCapsLockController: CapsLockControlling, @unchecked Sendable {
+  func readState() -> Bool { false }
+  func setState(_: Bool) throws { throw CapsLockError.verificationFailed("write rejected") }
+}
+
 final class CapsLockSignalTests: XCTestCase {
+  func testSelfTestReadsChangedStateAndRestoresBeforeEnabling() async {
+    let controller = FakeCapsLockController(initialState: false)
+    let service = NativeCapsLockSignalService(controller: controller)
+
+    let result = await service.testSignal()
+
+    XCTAssertEqual(result, .available)
+    XCTAssertFalse(controller.state)
+    XCTAssertEqual(controller.recordedWrites.first, true)
+    XCTAssertEqual(controller.recordedWrites.last, false)
+  }
+
+  func testSelfTestReportsWriteFailureWithoutChangingOriginalState() async {
+    let controller = FailingCapsLockController()
+    let service = NativeCapsLockSignalService(controller: controller)
+
+    let result = await service.testSignal()
+
+    guard case .unavailable(let reason) = result else {
+      return XCTFail("Expected unavailable support after a rejected write")
+    }
+    XCTAssertTrue(reason.contains("write rejected"))
+    XCTAssertFalse(controller.readState())
+    let reportedSupport = await service.supportStatus()
+    XCTAssertEqual(reportedSupport, .unavailable(reason))
+  }
+
   func testCompletionRestoresOriginalOffState() async {
     let controller = FakeCapsLockController(initialState: false)
     let service = NativeCapsLockSignalService(controller: controller)

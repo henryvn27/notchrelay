@@ -90,7 +90,11 @@ struct SettingsView: View {
             ))
           LabeledContent("Support", value: capsStatus)
           Button("Test Caps Lock Signal") {
-            Task { await services.capsLockService.start(.completion) }
+            Task {
+              let result = await services.capsLockService.testSignal()
+              capsStatus = result == .available ? "Native HID signal test passed" : result.summary
+              if result != .available { settings.capsLockEnabled = false }
+            }
           }
           .disabled(!settings.capsLockEnabled)
           Text(
@@ -213,9 +217,9 @@ struct SettingsView: View {
       return
     }
     Task {
-      let support = await services.capsLockService.supportStatus()
-      capsStatus = support.summary
-      services.settings.capsLockEnabled = support == .available
+      let result = await services.capsLockService.testSignal()
+      capsStatus = result == .available ? "Native HID signal test passed" : result.summary
+      services.settings.capsLockEnabled = result == .available
     }
   }
 
