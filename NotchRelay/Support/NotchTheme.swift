@@ -17,6 +17,25 @@ enum NotchTheme {
 
   static let compactSize = CGSize(width: 158, height: 34)
   static let approvalSize = CGSize(width: 380, height: 156)
+  static let attachedWingWidth: CGFloat = 82
+
+  static func attachedSize(
+    baseSize: CGSize,
+    notchGapWidth: CGFloat,
+    safeAreaTop: CGFloat,
+    expanded: Bool
+  ) -> CGSize {
+    if expanded {
+      return CGSize(
+        width: max(baseSize.width, notchGapWidth + 48),
+        height: baseSize.height + safeAreaTop
+      )
+    }
+    return CGSize(
+      width: max(baseSize.width, notchGapWidth + attachedWingWidth * 2),
+      height: max(baseSize.height, safeAreaTop)
+    )
+  }
 
   static func sessionListSize(sessionCount: Int) -> CGSize {
     CGSize(width: 360, height: 76 + CGFloat(min(5, max(1, sessionCount))) * 32)

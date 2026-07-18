@@ -12,6 +12,11 @@ final class NotchRelayUITests: XCTestCase {
     XCTAssertTrue(visible)
   }
 
+  func testSimulatedNotchWorkingStateIsAccessible() {
+    let app = launch(arguments: ["--simulate-notch", "--state=working"])
+    XCTAssertTrue(app.buttons["Scoutly, Working"].waitForExistence(timeout: 3))
+  }
+
   func testApprovalActionsAreAccessibleAndAllowIsNotDefault() {
     let app = launch(state: "approvalRequested")
     let deny = app.buttons["Deny"]
