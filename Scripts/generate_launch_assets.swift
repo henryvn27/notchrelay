@@ -83,7 +83,7 @@ struct LaunchAssetGenerator {
       NSBezierPath(roundedRect: commandRect, xRadius: 14 * scale, yRadius: 14 * scale)
         .fill()
       drawText(
-        "brew install --cask henryvn27/notchrelay/notchrelay",
+        "Source available: github.com/henryvn27/notchrelay",
         at: CGPoint(x: 122 * scale, y: commandRect.minY + 16 * scale),
         font: .monospacedSystemFont(ofSize: 17 * scale, weight: .medium),
         color: NSColor(red: 0.49, green: 0.91, blue: 1, alpha: 1))
