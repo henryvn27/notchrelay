@@ -5,9 +5,9 @@ import XCTest
 @MainActor
 final class DiagnosticsTests: XCTestCase {
   func testSanitizesPathsAndSecrets() {
-    let input = "failed /Users/henry/private token=abc123 password:letmein"
+    let input = "failed /Users/example/private token=abc123 password:letmein"
     let output = EventLogger.sanitizeError(input)
-    XCTAssertFalse(output.contains("henry"))
+    XCTAssertFalse(output.contains("example"))
     XCTAssertFalse(output.contains("abc123"))
     XCTAssertFalse(output.contains("letmein"))
     XCTAssertTrue(output.contains("token=<redacted>"))
