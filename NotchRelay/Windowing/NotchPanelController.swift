@@ -1,5 +1,21 @@
 import AppKit
+import Observation
+import QuartzCore
 import SwiftUI
+
+@MainActor
+@Observable
+final class NotchPanelPresentation {
+  private(set) var isAttached = false
+  private(set) var notchGapWidth: CGFloat = 0
+  private(set) var safeAreaTop: CGFloat = 0
+
+  func update(from geometry: ResolvedNotchGeometry) {
+    isAttached = geometry.hasNotch
+    notchGapWidth = geometry.notchGapWidth
+    safeAreaTop = geometry.safeAreaTop
+  }
+}
 
 @MainActor
 final class NotchPanel: NSPanel {
@@ -12,6 +28,7 @@ final class NotchPanel: NSPanel {
 final class NotchPanelController {
   private let store: SessionStore
   private let panel: NotchPanel
+  private let presentation = NotchPanelPresentation()
   private var observers: [NSObjectProtocol] = []
   private var presentationUpdateScheduled = false
   private(set) var currentGeometry: ResolvedNotchGeometry?
@@ -25,35 +42,53 @@ final class NotchPanelController {
       defer: false
     )
     configurePanel()
-    panel.contentView = NSHostingView(rootView: NotchRootView(store: store))
+    panel.contentView = NSHostingView(
+      rootView: NotchRootView(store: store, presentation: presentation))
     installObservers()
     store.presentationDidChange = { [weak self] in self?.schedulePresentationUpdate() }
   }
 
   func updatePresentation() {
-    let contentSize: CGSize
+    let baseSize: CGSize
     if store.currentApproval != nil {
-      contentSize = NotchTheme.approvalSize
+      baseSize = NotchTheme.approvalSize
     } else if store.isExpanded {
-      contentSize = NotchTheme.sessionListSize(sessionCount: store.sessionSummaries.count)
+      baseSize = NotchTheme.sessionListSize(sessionCount: store.sessionSummaries.count)
     } else {
-      contentSize = NotchTheme.compactSize
+      baseSize = NotchTheme.compactSize
     }
 
     guard store.shouldShowOverlay,
-      let screen = NotchGeometryResolver.preferredScreen(store.settings.preferredDisplay),
-      let geometry = NotchGeometryResolver.resolve(
-        screen: screen,
-        contentSize: contentSize,
-        showOnNonNotch: store.settings.showOnNonNotch
-      )
+      let screen = NotchGeometryResolver.preferredScreen(store.settings.preferredDisplay)
     else {
       panel.orderOut(nil)
       currentGeometry = nil
       return
     }
 
+    let isExpanded = store.currentApproval != nil || store.isExpanded
+    let contentSize: CGSize
+    if let metrics = resolvedNotchMetrics(for: screen) {
+      contentSize = NotchTheme.attachedSize(
+        baseSize: baseSize,
+        notchGapWidth: metrics.gapWidth,
+        safeAreaTop: metrics.safeAreaTop,
+        expanded: isExpanded
+      )
+    } else {
+      contentSize = baseSize
+    }
+
+    guard let geometry = resolvedGeometry(screen: screen, contentSize: contentSize)
+    else {
+      panel.orderOut(nil)
+      currentGeometry = nil
+      return
+    }
+
+    let previousGeometry = currentGeometry
     currentGeometry = geometry
+    presentation.update(from: geometry)
     let interactiveApproval = store.currentApproval != nil
     panel.permitsKeyInteraction = interactiveApproval
     panel.ignoresMouseEvents = false
@@ -66,13 +101,38 @@ final class NotchPanelController {
     // Do not force a hosting-view layout here. Ordering the panel performs the
     // required layout once; forcing a display first can re-enter SwiftUI text
     // layout when an approval changes the panel's key-window behavior.
-    panel.setFrame(geometry.panelFrame, display: false)
+    let reduceMotion =
+      store.settings.reducedAnimation || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    let shouldAnimate =
+      panel.isVisible && previousGeometry?.displayID == geometry.displayID && !reduceMotion
+    if shouldAnimate, panel.frame != geometry.panelFrame {
+      let expanding = geometry.panelFrame.height > panel.frame.height
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = expanding ? 0.28 : 0.22
+        context.timingFunction = CAMediaTimingFunction(
+          name: expanding ? .easeOut : .easeInEaseOut)
+        panel.animator().setFrame(geometry.panelFrame, display: true)
+      }
+    } else {
+      panel.setFrame(geometry.panelFrame, display: false)
+    }
 
+    let wasVisible = panel.isVisible
     if interactiveApproval {
       NSApp.activate(ignoringOtherApps: true)
       panel.makeKeyAndOrderFront(nil)
     } else {
       panel.orderFrontRegardless()
+    }
+    if !wasVisible, !reduceMotion {
+      panel.alphaValue = 0
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = 0.14
+        context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        panel.animator().alphaValue = 1
+      }
+    } else {
+      panel.alphaValue = 1
     }
   }
 
@@ -105,6 +165,53 @@ final class NotchPanelController {
     panel.isReleasedWhenClosed = false
     panel.animationBehavior = .none
     panel.acceptsMouseMovedEvents = true
+  }
+
+  private func resolvedNotchMetrics(for screen: NSScreen) -> NotchMetrics? {
+    #if DEBUG
+      if CommandLine.arguments.contains("--simulate-notch") {
+        return NotchMetrics(gapWidth: 212, safeAreaTop: 38)
+      }
+    #endif
+    return NotchGeometryResolver.notchMetrics(screen: screen)
+  }
+
+  private func resolvedGeometry(screen: NSScreen, contentSize: CGSize)
+    -> ResolvedNotchGeometry?
+  {
+    #if DEBUG
+      if CommandLine.arguments.contains("--simulate-notch") {
+        let safeAreaTop: CGFloat = 38
+        let gapWidth: CGFloat = 212
+        let auxiliaryWidth = (screen.frame.width - gapWidth) / 2
+        let auxiliaryY = screen.frame.maxY - safeAreaTop
+        return NotchGeometryResolver.resolve(
+          screenFrame: screen.frame,
+          visibleFrame: screen.visibleFrame,
+          safeAreaTop: safeAreaTop,
+          auxiliaryTopLeftArea: CGRect(
+            x: screen.frame.minX,
+            y: auxiliaryY,
+            width: auxiliaryWidth,
+            height: safeAreaTop
+          ),
+          auxiliaryTopRightArea: CGRect(
+            x: screen.frame.midX + gapWidth / 2,
+            y: auxiliaryY,
+            width: auxiliaryWidth,
+            height: safeAreaTop
+          ),
+          requestedContentSize: contentSize,
+          displayID: screen.displayID,
+          showOnNonNotch: true
+        )
+      }
+    #endif
+    return NotchGeometryResolver.resolve(
+      screen: screen,
+      contentSize: contentSize,
+      showOnNonNotch: store.settings.showOnNonNotch
+    )
   }
 
   private func installObservers() {

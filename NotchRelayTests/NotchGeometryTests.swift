@@ -20,6 +20,42 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertTrue(result.hasNotch)
     XCTAssertEqual(result.panelFrame.width, 212)
     XCTAssertEqual(result.panelFrame.maxY, 982)
+    XCTAssertEqual(result.notchGapWidth, 212)
+    XCTAssertEqual(result.safeAreaTop, 38)
+  }
+
+  func testAttachedCompactReservesVisibleWingsBesideCameraGap() {
+    let size = NotchTheme.attachedSize(
+      baseSize: NotchTheme.compactSize,
+      notchGapWidth: 212,
+      safeAreaTop: 38,
+      expanded: false
+    )
+
+    XCTAssertEqual(size.width, 376)
+    XCTAssertEqual(size.height, 38)
+  }
+
+  func testAttachedExpansionGrowsDownwardFromStableTopEdge() throws {
+    let compactSize = NotchTheme.attachedSize(
+      baseSize: NotchTheme.compactSize,
+      notchGapWidth: 212,
+      safeAreaTop: 38,
+      expanded: false
+    )
+    let expandedSize = NotchTheme.attachedSize(
+      baseSize: NotchTheme.approvalSize,
+      notchGapWidth: 212,
+      safeAreaTop: 38,
+      expanded: true
+    )
+    let compact = try XCTUnwrap(resolveNotched(contentSize: compactSize))
+    let expanded = try XCTUnwrap(resolveNotched(contentSize: expandedSize))
+
+    XCTAssertEqual(compact.panelFrame.maxY, 982)
+    XCTAssertEqual(expanded.panelFrame.maxY, compact.panelFrame.maxY)
+    XCTAssertLessThan(expanded.panelFrame.minY, compact.panelFrame.minY)
+    XCTAssertEqual(expanded.panelFrame.height, 194)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {
@@ -68,5 +104,18 @@ final class NotchGeometryTests: XCTestCase {
       ))
     XCTAssertEqual(result.panelFrame.size, CGSize(width: 380, height: 156))
     XCTAssertEqual(result.displayID, 9)
+  }
+
+  private func resolveNotched(contentSize: CGSize) -> ResolvedNotchGeometry? {
+    NotchGeometryResolver.resolve(
+      screenFrame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 944),
+      safeAreaTop: 38,
+      auxiliaryTopLeftArea: CGRect(x: 0, y: 944, width: 650, height: 38),
+      auxiliaryTopRightArea: CGRect(x: 862, y: 944, width: 650, height: 38),
+      requestedContentSize: contentSize,
+      displayID: 7,
+      showOnNonNotch: true
+    )
   }
 }

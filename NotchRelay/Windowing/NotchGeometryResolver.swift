@@ -1,9 +1,16 @@
 import AppKit
 import CoreGraphics
 
+struct NotchMetrics: Equatable, Sendable {
+  let gapWidth: CGFloat
+  let safeAreaTop: CGFloat
+}
+
 struct ResolvedNotchGeometry: Equatable, Sendable {
   let panelFrame: CGRect
   let hasNotch: Bool
+  let notchGapWidth: CGFloat
+  let safeAreaTop: CGFloat
   let displayID: CGDirectDisplayID
 }
 
@@ -18,13 +25,18 @@ enum NotchGeometryResolver {
     displayID: CGDirectDisplayID,
     showOnNonNotch: Bool
   ) -> ResolvedNotchGeometry? {
-    let notchGap = notchGapWidth(left: auxiliaryTopLeftArea, right: auxiliaryTopRightArea)
-    let hasNotch = safeAreaTop > 0 && notchGap != nil
+    let metrics = notchMetrics(
+      safeAreaTop: safeAreaTop,
+      auxiliaryTopLeftArea: auxiliaryTopLeftArea,
+      auxiliaryTopRightArea: auxiliaryTopRightArea
+    )
+    let hasNotch = metrics != nil
     guard hasNotch || showOnNonNotch else { return nil }
 
     let width =
-      hasNotch ? max(requestedContentSize.width, notchGap ?? 0) : requestedContentSize.width
-    let height = max(requestedContentSize.height, hasNotch ? safeAreaTop : 0)
+      hasNotch
+      ? max(requestedContentSize.width, metrics?.gapWidth ?? 0) : requestedContentSize.width
+    let height = max(requestedContentSize.height, metrics?.safeAreaTop ?? 0)
     let x = screenFrame.midX - width / 2
     let y =
       hasNotch
@@ -35,6 +47,8 @@ enum NotchGeometryResolver {
         x: x.rounded(.toNearestOrAwayFromZero), y: y.rounded(.toNearestOrAwayFromZero),
         width: width, height: height),
       hasNotch: hasNotch,
+      notchGapWidth: metrics?.gapWidth ?? 0,
+      safeAreaTop: metrics?.safeAreaTop ?? 0,
       displayID: displayID
     )
   }
@@ -66,11 +80,28 @@ enum NotchGeometryResolver {
       return NSScreen.main ?? screens.first
     case .automatic:
       return screens.first(where: {
-        CGDisplayIsBuiltin($0.displayID) != 0
-          && $0.safeAreaInsets.top > 0
-          && notchGapWidth(left: $0.auxiliaryTopLeftArea, right: $0.auxiliaryTopRightArea) != nil
+        CGDisplayIsBuiltin($0.displayID) != 0 && notchMetrics(screen: $0) != nil
       }) ?? NSScreen.main ?? screens.first
     }
+  }
+
+  static func notchMetrics(screen: NSScreen) -> NotchMetrics? {
+    notchMetrics(
+      safeAreaTop: screen.safeAreaInsets.top,
+      auxiliaryTopLeftArea: screen.auxiliaryTopLeftArea,
+      auxiliaryTopRightArea: screen.auxiliaryTopRightArea
+    )
+  }
+
+  static func notchMetrics(
+    safeAreaTop: CGFloat,
+    auxiliaryTopLeftArea: CGRect?,
+    auxiliaryTopRightArea: CGRect?
+  ) -> NotchMetrics? {
+    guard safeAreaTop > 0,
+      let gapWidth = notchGapWidth(left: auxiliaryTopLeftArea, right: auxiliaryTopRightArea)
+    else { return nil }
+    return NotchMetrics(gapWidth: gapWidth, safeAreaTop: safeAreaTop)
   }
 
   private static func notchGapWidth(left: CGRect?, right: CGRect?) -> CGFloat? {
