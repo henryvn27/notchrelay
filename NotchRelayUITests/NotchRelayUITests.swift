@@ -25,20 +25,20 @@ final class NotchRelayUITests: XCTestCase {
     XCTAssertTrue(deny.exists)
   }
 
-  func testDenyResolvesApproval() {
+  func testDenyClearsLocalApprovalDemo() {
     let app = launch(state: "approvalRequested")
     let deny = app.buttons["Deny"]
     XCTAssertTrue(deny.waitForExistence(timeout: 3))
     deny.click()
-    XCTAssertTrue(app.buttons["ActivityPilot, Working"].waitForExistence(timeout: 3))
+    XCTAssertTrue(deny.waitForNonExistence(timeout: 3))
   }
 
-  func testAllowOnceResolvesApproval() {
+  func testAllowOnceClearsLocalApprovalDemo() {
     let app = launch(state: "approvalRequested")
     let allow = app.buttons["Allow once"]
     XCTAssertTrue(allow.waitForExistence(timeout: 3))
     allow.click()
-    XCTAssertTrue(app.buttons["ActivityPilot, Working"].waitForExistence(timeout: 3))
+    XCTAssertTrue(allow.waitForNonExistence(timeout: 3))
   }
 
   func testCompletedStateIsAccessible() {
