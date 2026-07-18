@@ -79,6 +79,35 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertTrue(store.approvalQueue.isEmpty)
   }
 
+  func testApprovalTimeoutDoesNotLeaveAnActiveSession() async {
+    let settings = makeTestSettings()
+    settings.approvalTimeout = 0.05
+    let store = SessionStore(settings: settings)
+    let event = makeBridgeEvent(
+      event: .approvalRequested,
+      toolName: "Bash",
+      toolInput: .object(["command": .string("git push")])
+    )
+
+    let decision = await store.receive(event)
+
+    XCTAssertEqual(decision, .deferDecision)
+    XCTAssertEqual(store.activeSessionCount, 0)
+    XCTAssertNil(store.displaySession)
+    XCTAssertTrue(store.approvalQueue.isEmpty)
+  }
+
+  func testLocalApprovalDemoClearsAfterDecision() {
+    let store = SessionStore(settings: makeTestSettings())
+    store.testState(.approvalRequested)
+    let requestID = store.currentApproval!.id
+
+    XCTAssertTrue(store.decide(requestID: requestID, decision: .allow))
+    XCTAssertEqual(store.activeSessionCount, 0)
+    XCTAssertNil(store.displaySession)
+    XCTAssertTrue(store.approvalQueue.isEmpty)
+  }
+
   func testDuplicateApprovalRequestIDDefersWithoutAliasingDecision() async {
     let settings = makeTestSettings()
     settings.approvalTimeout = 10

@@ -94,4 +94,8 @@ final class HookProtocolTests: XCTestCase {
     let input = try JSONDecoder().decode(HookInput.self, from: data)
     XCTAssertEqual(HookCommand.event(from: input).prompt?.count, 65_536)
   }
+
+  func testDemoCommandsReuseOneDefaultSession() {
+    XCTAssertEqual(HookCommand.defaultDemoSessionID, "notchrelay-demo")
+  }
 }

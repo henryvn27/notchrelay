@@ -3,6 +3,7 @@ import Foundation
 
 enum HookCommand {
   static let version = "1.0.0"
+  static let defaultDemoSessionID = "notchrelay-demo"
 
   enum InputReadResult {
     case data(Data)
@@ -123,7 +124,7 @@ enum HookCommand {
     let event = HookBridgeEvent(
       event: eventName,
       sessionId: ProcessInfo.processInfo.environment["NOTCHRELAY_DEMO_SESSION_ID"]
-        ?? "demo-\(UUID().uuidString)",
+        ?? defaultDemoSessionID,
       turnId: "demo-turn",
       cwd: cwd,
       prompt: name == "working" ? "Prepare the release verification" : nil,

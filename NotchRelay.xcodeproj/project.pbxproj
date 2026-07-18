@@ -494,6 +494,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		FD1E8FFA34DB152182CB8314 /* Embed NotchRelay Hook */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);

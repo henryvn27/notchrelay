@@ -122,7 +122,7 @@ final class SessionStore {
     guard localDemoApprovalIDs.remove(requestID) != nil else { return false }
     approvalQueue.removeAll { $0.id == requestID }
     if var session = sessions[currentApproval.sessionID] {
-      session.status = .working(prompt: nil)
+      session.status = .idle
       session.updatedAt = Date()
       sessions[session.id] = session
     }
@@ -294,7 +294,7 @@ final class SessionStore {
       case .awaitingApproval(let pending) = session.status,
       pending.id == request.id
     {
-      session.status = .working(prompt: nil)
+      session.status = decision == .deferDecision ? .idle : .working(prompt: nil)
       session.updatedAt = Date()
       sessions[request.sessionID] = session
     }
