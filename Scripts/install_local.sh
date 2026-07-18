@@ -5,6 +5,39 @@ script_dir="${0:A:h}"
 project_root="${script_dir:h}"
 derived_data="$project_root/DerivedData"
 destination="$HOME/Applications/NotchRelay.app"
+backup=""
+install_started=false
+
+rollback_install() {
+  local exit_code="$1"
+  if [[ "$exit_code" -eq 0 || "$install_started" != true ]]; then
+    return "$exit_code"
+  fi
+
+  set +e
+  print -u2 "Local installation failed; restoring the previous NotchRelay installation."
+  rollback_pids=(${(f)"$(pgrep -x NotchRelay 2>/dev/null || true)"})
+  for process_id in $rollback_pids; do
+    process_path="$(ps -p "$process_id" -o command= 2>/dev/null || true)"
+    [[ "$process_path" == *"/NotchRelay.app/Contents/MacOS/NotchRelay"* ]] && kill "$process_id" 2>/dev/null
+  done
+  [[ -d "$destination" ]] && /bin/rm -rf "$destination"
+  if [[ -n "$backup" && -d "$backup" ]]; then
+    mv "$backup" "$destination"
+    open -n "$destination" >/dev/null 2>&1
+    print -u2 "Previous local app restored."
+  else
+    swift "$script_dir/install_hooks.swift" remove >/dev/null 2>&1
+    helper_path="$HOME/Library/Application Support/NotchRelay/bin/notchrelay-hook"
+    shim_path="$HOME/.local/bin/notchrelay-hook"
+    [[ -L "$shim_path" && "$(readlink "$shim_path")" == "$helper_path" ]] && rm "$shim_path"
+    [[ -f "$helper_path" ]] && rm "$helper_path"
+    print -u2 "Partial local installation removed."
+  fi
+  return "$exit_code"
+}
+
+trap 'rollback_install $?' EXIT
 
 cd "$project_root"
 command -v xcodegen >/dev/null 2>&1 || { print -u2 "Install XcodeGen first: brew install xcodegen"; exit 1; }
@@ -42,12 +75,12 @@ for process_id in $stopped_pids; do
 done
 
 mkdir -p "$HOME/Applications"
-backup=""
 if [[ -d "$destination" ]]; then
   backup="$HOME/Applications/NotchRelay.app.backup-$(date +%Y%m%d-%H%M%S)"
   mv "$destination" "$backup"
   print "Previous local app moved to $backup"
 fi
+install_started=true
 ditto "$source_app" "$destination"
 
 swift "$script_dir/install_hooks.swift" install --helper "$destination/Contents/Helpers/notchrelay-hook"
@@ -65,6 +98,7 @@ $bridge_ready || { print -u2 "Installed app did not start its authenticated brid
 if [[ -n "$backup" && "$backup" == "$HOME/Applications/NotchRelay.app.backup-"* ]]; then
   /bin/rm -rf "$backup"
 fi
+install_started=false
 
 print "Installed NotchRelay locally at $destination"
 print "Open Codex /hooks once to review and trust the four NotchRelay commands if prompted."

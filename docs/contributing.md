@@ -19,3 +19,5 @@ git diff --check
 ```
 
 Protocol, approval, and bridge changes require negative-path tests. Visible states require accessibility labels and rendered inspection.
+
+The macOS UI suite requires an interactive WindowServer session in which Xcode's test runner can launch and control an `LSUIElement` application. Hosted CI builds the complete UI test bundle with `build-for-testing`; it does not claim to execute UI tests in a headless session. Run the UI-test command above on an unlocked, logged-in Mac before a release. If `testmanagerd` starts the runner but emits no `Test Case` event and never launches NotchRelay, record that host limitation instead of reporting a pass.
