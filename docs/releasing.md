@@ -34,7 +34,7 @@ SPARKLE_PRIVATE_KEY="…" \
 
 `create_release.sh` runs distribution preflight, including an exact Sparkle private/public-key match. Run `./Scripts/verify_update_signing.sh` separately to prove archive and signed-feed verification with an ephemeral test key. Execute the UI suite on an interactive logged-in Mac; hosted CI compiles it but intentionally does not claim headless execution.
 
-Pushing `v1.0.0` from a commit on protected `main` runs the release workflow: isolated ephemeral keychain setup, universal archive, Developer ID export, app notarization and stapling, final DMG notarization and stapling, signed appcast, GitHub release, and real-SHA cask update. The workflow refuses a tag that does not match `MARKETING_VERSION`, is not on `main`, or lacks any required secret.
+Pushing `v1.0.0` from the current head of protected `main` runs the release workflow: isolated ephemeral keychain setup, universal archive, Developer ID export, app notarization and stapling, final DMG notarization and stapling, signed appcast, GitHub release, and real-SHA cask update. The workflow refuses a tag that does not match `MARKETING_VERSION`, is not the exact current `main` commit, or lacks any required secret.
 
 After publishing, verify from a clean user account:
 
