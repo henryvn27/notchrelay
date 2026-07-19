@@ -82,6 +82,36 @@ for rejected_guard in \
   fi
 done
 
+[[ "$("$script_dir/release_run_mutation.sh" /bin/sh -c \
+  'kill -TERM $$; printf mutation-survived')" == mutation-survived ]]
+if RELEASE_MUTATION_TIMEOUT_SECONDS=1 "$script_dir/release_run_mutation.sh" \
+  /bin/sh -c 'sleep 5' >/dev/null 2>&1; then
+  print -u2 -- "release mutation runner did not enforce its deadline"
+  exit 1
+fi
+
+delayed_stability="$temporary_directory/delayed-mutation-stability"
+initial_rollback_state="$("$script_dir/release_tap_rollback_guard.sh" \
+  present prior-content "$tap_fixture/prior.rb" \
+  present prior-content "$tap_fixture/prior.rb" \
+  published-content published-commit published-commit "$tap_fixture/desired.rb")"
+[[ "$("$script_dir/release_stability_guard.sh" \
+  "$delayed_stability" "$initial_rollback_state:prior-object:prior-commit" 4)" == pending ]]
+delayed_rollback_state="$("$script_dir/release_tap_rollback_guard.sh" \
+  present prior-content "$tap_fixture/prior.rb" \
+  present published-content "$tap_fixture/published.rb" \
+  published-content published-commit published-commit "$tap_fixture/desired.rb")"
+[[ "$("$script_dir/release_stability_guard.sh" \
+  "$delayed_stability" "$delayed_rollback_state:published-object:cowlick-run-marker" 4)" == pending ]]
+for expected_state in pending pending pending stable; do
+  actual_state="$("$script_dir/release_stability_guard.sh" \
+    "$delayed_stability" "$initial_rollback_state:prior-object:rollback-commit" 4)"
+  [[ "$actual_state" == "$expected_state" ]] || {
+    print -u2 -- "delayed mutation was accepted before rollback restabilized"
+    exit 1
+  }
+done
+
 fake_bin="$temporary_directory/fake-bin"
 mkdir -p "$fake_bin"
 /usr/bin/printf '%s\n' \
@@ -166,6 +196,8 @@ package_script="$script_dir/package_release.sh"
 artifact_verifier="$script_dir/verify_release_artifacts.sh"
 create_release_script="$script_dir/create_release.sh"
 tap_rollback_guard="$script_dir/release_tap_rollback_guard.sh"
+mutation_runner="$script_dir/release_run_mutation.sh"
+stability_guard="$script_dir/release_stability_guard.sh"
 grep -Fq 'derived_data="$project_root/DerivedData"' "$package_script"
 grep -Fq -- '-derivedDataPath "$derived_data"' "$package_script"
 grep -Fq '"$script_dir/verify_release_artifacts.sh" "$version" "$output"' \
@@ -230,7 +262,8 @@ homebrew_snapshot_line="$(grep -n 'name: Capture Homebrew tap state' "$release_w
 rollback_snapshot_line="$(grep -n 'name: Persist rollback snapshot' "$release_workflow" | cut -d: -f1)"
 homebrew_line="$(grep -n 'name: Update Homebrew tap' "$release_workflow" | cut -d: -f1)"
 canonical_homebrew_line="$(grep -n 'name: Verify canonical Homebrew installation' "$release_workflow" | cut -d: -f1)"
-rollback_line="$(grep -n 'name: Restore failed or cancelled publication state' "$release_workflow" | cut -d: -f1)"
+release_rollback_line="$(grep -n 'rollback_release:' "$release_workflow" | cut -d: -f1)"
+tap_rollback_line="$(grep -n 'rollback_tap:' "$release_workflow" | cut -d: -f1)"
 main_recheck_line="$(grep -n 'name: Require main to remain at the release commit' "$release_workflow" | cut -d: -f1)"
 tag_line="$(grep -n 'name: Create or verify release tag' "$release_workflow" | cut -d: -f1)"
 (( main_recheck_line < tag_line )) \
@@ -243,19 +276,26 @@ tag_line="$(grep -n 'name: Create or verify release tag' "$release_workflow" | c
   && public_verify_line < homebrew_verify_line \
   && homebrew_verify_line < homebrew_line \
   && homebrew_line < canonical_homebrew_line \
-  && canonical_homebrew_line < rollback_line )) \
+  && canonical_homebrew_line < release_rollback_line \
+  && release_rollback_line < tap_rollback_line )) \
   || { print -u2 -- "release publication steps are out of order"; exit 1; }
-[[ "$(tail -n +"$rollback_line" "$release_workflow" | grep -c '^[[:space:]]*- name:')" == 1 ]] \
-  || { print -u2 -- "release rollback is not the final workflow step"; exit 1; }
 if grep -Fq 'if: ${{ failure() }}' "$release_workflow"; then
   print -u2 -- "release rollback still depends on same-job failure state"
   exit 1
 fi
 grep -Fq -- '--draft=true --latest=false' "$release_workflow"
-grep -Fq "needs.release.result == 'cancelled'" "$release_workflow"
-grep -Fq 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093' \
-  "$release_workflow"
-grep -Fq 'name: Require durable rollback snapshot' "$release_workflow"
+rollback_condition="if: \${{ always() && (needs.release.result == 'failure' || needs.release.result == 'cancelled') }}"
+[[ "$(grep -Fc "$rollback_condition" "$release_workflow")" == 2 ]] \
+  || { print -u2 -- "release and tap rollback jobs are not independently conditional"; exit 1; }
+[[ "$(grep -Fc 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093' \
+  "$release_workflow")" == 2 ]] \
+  || { print -u2 -- "each rollback job must download the durable snapshot"; exit 1; }
+[[ "$(grep -Fc 'name: Require durable rollback snapshot' "$release_workflow")" == 2 ]] \
+  || { print -u2 -- "each rollback job must require its durable snapshot"; exit 1; }
+grep -Fq 'name: Restore failed or cancelled GitHub release state' "$release_workflow"
+grep -Fq 'name: Restore failed or cancelled Homebrew tap state' "$release_workflow"
+grep -Fq 'timeout-minutes: 6' "$release_workflow"
+grep -Fq 'timeout-minutes: 8' "$release_workflow"
 if grep -Eq '(^|[^[:alnum:]_])(mapfile|readarray)([^[:alnum:]_]|$)' "$release_workflow"; then
   print -u2 -- "release workflow uses a shell builtin unavailable in macOS Bash 3.2"
   exit 1
@@ -272,9 +312,19 @@ grep -Fq './Scripts/release_tap_rollback_guard.sh' "$release_workflow"
 grep -Fq 'Restore Cowlick cask after failed release' "$release_workflow"
 grep -Fq 'Remove Cowlick cask after failed release' "$release_workflow"
 grep -Fq 'refusing to overwrite it' "$tap_rollback_guard"
-grep -Fq 'release_demoted=true' "$release_workflow"
+grep -Fq 'release_restored=true' "$release_workflow"
+grep -Fq "trap '' HUP INT TERM" "$mutation_runner"
+grep -Fq "kill 9, shift" "$mutation_runner"
+grep -Fq './Scripts/release_run_mutation.sh' "$release_workflow"
+grep -Fq './Scripts/release_stability_guard.sh' "$release_workflow"
+grep -Fq 'tap_observation="$current_state|$current_sha|$latest_commit_sha|$latest_commit_message"' \
+  "$release_workflow"
+grep -Fq 'required_count' "$stability_guard"
 publication_marker_line="$(grep -nF 'publication_message="Update Cowlick to $RELEASE_VERSION' "$release_workflow" | head -n 1 | cut -d: -f1)"
-tap_put_line="$(grep -nF 'if ! published_record="$(gh api "$endpoint" "${args[@]}"' "$release_workflow" | cut -d: -f1)"
+[[ "$(grep -Fc 'publication_message="Update Cowlick to $RELEASE_VERSION' \
+  "$release_workflow")" == 2 ]] \
+  || { print -u2 -- "tap publication and rollback do not share the run marker"; exit 1; }
+tap_put_line="$(grep -nF '> "$snapshot/update-response"' "$release_workflow" | cut -d: -f1)"
 published_output_line="$(grep -nF "printf 'published_commit_sha=%s" "$release_workflow" | cut -d: -f1)"
 [[ -n "$publication_marker_line" && -n "$tap_put_line" && -n "$published_output_line" \
   && "$publication_marker_line" -lt "$tap_put_line" \
