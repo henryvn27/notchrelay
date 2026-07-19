@@ -174,6 +174,61 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertEqual(EventLogger.sanitizeError("Bearer\n, public"), "Bearer, public")
   }
 
+  func testRemovedBearerBoundaryRestorationIsLinearAndContextAware() {
+    for separator in ["\n", "\u{2060}", "\u{E000}"] {
+      XCTAssertEqual(
+        EventLogger.sanitizeError("note\(separator)Bearer\(separator)MASKME; public"),
+        "note bearer=<redacted>; public"
+      )
+      XCTAssertEqual(
+        EventLogger.sanitizeError("note\(separator)Be\(separator)ar-er\(separator)MASKME"),
+        "note bearer=<redacted>"
+      )
+    }
+    XCTAssertEqual(
+      EventLogger.sanitizeError("😀\u{2060}“Be-arer”\u{E000}“MASKME”"),
+      "😀 bearer=<redacted>"
+    )
+    for input in [
+      "note\u{2060}\\\"Bearer\\\"\u{2060}MASKME",
+      "note\u{2060}“Bearer”\u{2060}MASKME",
+      "note\u{2060}「Bearer」\u{2060}MASKME",
+    ] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertTrue(output.contains("<redacted>"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+
+    for (input, expected) in [
+      ("éBearer\u{2060}MASKME", "éBearerMASKME"),
+      ("/tmp/@Bearer\u{2060}MASKME", "/tmp/@BearerMASKME"),
+      ("/tmp/@\nBearer\u{2060}MASKME", "/tmp/@BearerMASKME"),
+      ("C:\\temp\\@Bearer\u{2060}MASKME", "C:\\temp\\@BearerMASKME"),
+      ("C:\\temp\\@\n\"Bearer\"\u{2060}MASKME", "C:\\temp\\@\"Bearer\"MASKME"),
+      ("/tmp/@\n\\\"Bearer\\\"\u{2060}MASKME", "/tmp/@\\\"Bearer\\\"MASKME"),
+      ("/tmp/@\n「Bearer」\u{2060}MASKME", "/tmp/@「Bearer」MASKME"),
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), expected)
+    }
+
+    func adversarialInput(scalarCount: Int) -> String {
+      var scalars = Array("Bearer\nMASKME;".unicodeScalars)
+      while scalars.count + 3 <= scalarCount {
+        scalars.append("\u{2060}")
+        scalars.append("\u{E000}")
+        scalars.append("a")
+      }
+      while scalars.count < scalarCount { scalars.append("\u{2060}") }
+      return String(String.UnicodeScalarView(scalars))
+    }
+
+    for scalarCount in [4_096, 8_191] {
+      let output = EventLogger.sanitizeError(adversarialInput(scalarCount: scalarCount))
+      XCTAssertTrue(output.hasPrefix("bearer=<redacted>;"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+  }
+
   func testRedactsPrefixedSuffixedAndCommonCredentialIdentifiers() {
     let secrets = [
       "openai-secret", "access-secret", "refresh-secret", "client-secret", "anthropic-secret",

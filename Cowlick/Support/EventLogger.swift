@@ -133,22 +133,67 @@ final class EventLogger {
   private static func restoringBearerValueBoundaries(in input: CanonicalInput) -> CanonicalInput {
     guard !input.removedBoundaryOffsets.isEmpty else { return input }
     let scalars = Array(input.value.unicodeScalars)
+    let utf16Offsets = scalarUTF16Offsets(in: scalars)
+    let pathContexts = bearerPathContexts(in: scalars)
     var insertionIndexes: Set<Int> = []
-    var originalOffset = 0
-    for index in scalars.indices {
-      if input.removedBoundaryOffsets.contains(originalOffset),
-        hasStandaloneBearerLabel(in: scalars, endingAt: index),
-        isBearerValueScalar(scalars[index])
-      {
-        insertionIndexes.insert(index)
+
+    var runStart = 0
+    while runStart < scalars.count {
+      guard isIdentifierScalar(scalars[runStart]) else {
+        runStart += 1
+        continue
       }
-      originalOffset += scalars[index].value > 0xFFFF ? 2 : 1
+      var runEnd = runStart + 1
+      while runEnd < scalars.count, isIdentifierScalar(scalars[runEnd]) { runEnd += 1 }
+
+      var normalizedIndexes: [Int] = []
+      normalizedIndexes.reserveCapacity(runEnd - runStart)
+      for index in runStart..<runEnd where !isIdentifierJoiner(scalars[index]) {
+        normalizedIndexes.append(index)
+      }
+      if normalizedIndexes.count >= 6 {
+        for normalizedStart in 0...(normalizedIndexes.count - 6) {
+          let labelIndexes = normalizedIndexes[normalizedStart..<(normalizedStart + 6)]
+          guard isBearerSequence(in: scalars, at: labelIndexes) else { continue }
+
+          let identifierStart = labelIndexes.first!
+          let tokenStart = credentialLabelOpeningStart(in: scalars, before: identifierStart)
+          let hasRemovedStart =
+            input.removedBoundaryOffsets.contains(utf16Offsets[tokenStart])
+            || input.removedBoundaryOffsets.contains(utf16Offsets[identifierStart])
+          guard normalizedStart == 0 || hasRemovedStart else { continue }
+          guard
+            isStandaloneBearerStart(
+              in: scalars,
+              at: tokenStart,
+              hasRemovedStart: hasRemovedStart,
+              pathContexts: pathContexts
+            )
+          else { continue }
+
+          let identifierEnd = labelIndexes.last! + 1
+          for boundary in bearerValueBoundaryIndexes(
+            in: scalars,
+            afterIdentifierAt: identifierEnd,
+            utf16Offsets: utf16Offsets,
+            removedBoundaryOffsets: input.removedBoundaryOffsets
+          ) {
+            insertionIndexes.insert(boundary)
+            if hasRemovedStart, tokenStart > 0,
+              !CharacterSet.whitespacesAndNewlines.contains(scalars[tokenStart - 1])
+            {
+              insertionIndexes.insert(tokenStart)
+            }
+          }
+        }
+      }
+      runStart = runEnd
     }
     guard !insertionIndexes.isEmpty else { return input }
 
     var restored = ""
     var adjustedOffsets: Set<Int> = []
-    originalOffset = 0
+    var originalOffset = 0
     var insertedCount = 0
     for index in 0...scalars.count {
       let restoresBoundary = insertionIndexes.contains(index)
@@ -166,42 +211,139 @@ final class EventLogger {
     return CanonicalInput(value: restored, removedBoundaryOffsets: adjustedOffsets)
   }
 
-  private static func hasStandaloneBearerLabel(
-    in scalars: [UnicodeScalar],
-    endingAt end: Int
-  ) -> Bool {
-    var identifierEnd = end
-    if let terminatorStart = credentialLabelTerminatorStart(in: scalars, endingAt: end) {
-      identifierEnd = terminatorStart
-      while true {
-        var previousEnd = identifierEnd
-        while previousEnd > 0,
-          CharacterSet.whitespacesAndNewlines.contains(scalars[previousEnd - 1])
-        {
-          previousEnd -= 1
-        }
-        guard
-          let previousStart = credentialLabelTerminatorStart(
-            in: scalars, endingAt: previousEnd)
-        else { break }
-        identifierEnd = previousStart
+  private static func scalarUTF16Offsets(in scalars: [UnicodeScalar]) -> [Int] {
+    var offsets = [Int]()
+    offsets.reserveCapacity(scalars.count + 1)
+    var offset = 0
+    for scalar in scalars {
+      offsets.append(offset)
+      offset += scalar.value > 0xFFFF ? 2 : 1
+    }
+    offsets.append(offset)
+    return offsets
+  }
+
+  private static func bearerPathContexts(in scalars: [UnicodeScalar]) -> [Bool] {
+    var contexts = Array(repeating: false, count: scalars.count + 1)
+    var isInsidePathComponent = false
+    for index in scalars.indices {
+      contexts[index] = isInsidePathComponent
+      let scalar = scalars[index]
+      if scalar.value == 0x2F || scalar.value == 0x5C {
+        isInsidePathComponent = true
+      } else if CharacterSet.whitespacesAndNewlines.contains(scalar)
+        || [0x2C, 0x3A, 0x3B, 0x3D].contains(scalar.value)
+      {
+        isInsidePathComponent = false
       }
     }
-    var labelStart = identifierEnd
-    while labelStart > 0, isIdentifierScalar(scalars[labelStart - 1]) {
-      labelStart -= 1
-    }
-    guard labelStart < identifierEnd,
-      normalizedIdentifier(scalars[labelStart..<identifierEnd]) == "bearer"
-    else { return false }
+    contexts[scalars.count] = isInsidePathComponent
+    return contexts
+  }
 
-    let tokenStart =
-      labelStart > 0 && isCredentialLabelQuote(scalars[labelStart - 1])
-      ? labelStart - 1 : labelStart
+  private static func isBearerSequence(
+    in scalars: [UnicodeScalar],
+    at indexes: ArraySlice<Int>
+  ) -> Bool {
+    let expected: [UInt32] = [0x62, 0x65, 0x61, 0x72, 0x65, 0x72]
+    guard indexes.count == expected.count else { return false }
+    for (index, expectedValue) in zip(indexes, expected) {
+      let value = scalars[index].value
+      let lowercase = value >= 0x41 && value <= 0x5A ? value + 0x20 : value
+      guard lowercase == expectedValue else { return false }
+    }
+    return true
+  }
+
+  private static func credentialLabelOpeningStart(
+    in scalars: [UnicodeScalar],
+    before identifierStart: Int
+  ) -> Int {
+    var start = identifierStart
+    while start > 0 {
+      if start > 1, scalars[start - 2].value == 0x5C,
+        isCredentialLabelQuote(scalars[start - 1])
+      {
+        start -= 2
+      } else if isCredentialLabelQuote(scalars[start - 1]) {
+        start -= 1
+      } else {
+        break
+      }
+    }
+    return start
+  }
+
+  private static func isStandaloneBearerStart(
+    in scalars: [UnicodeScalar],
+    at tokenStart: Int,
+    hasRemovedStart: Bool,
+    pathContexts: [Bool]
+  ) -> Bool {
+    guard !pathContexts[tokenStart] else { return false }
     guard tokenStart > 0 else { return true }
     let precedingScalar = scalars[tokenStart - 1]
-    return !isIdentifierScalar(precedingScalar)
+    if scalars[tokenStart].value == 0x5C, precedingScalar.value == 0x3A {
+      return false
+    }
+    if hasRemovedStart { return true }
+    return !isIdentifierContextScalar(precedingScalar)
       && precedingScalar.value != 0x2F && precedingScalar.value != 0x5C
+  }
+
+  private static func bearerValueBoundaryIndexes(
+    in scalars: [UnicodeScalar],
+    afterIdentifierAt identifierEnd: Int,
+    utf16Offsets: [Int],
+    removedBoundaryOffsets: Set<Int>
+  ) -> [Int] {
+    var boundaries: [Int] = []
+    var cursor = identifierEnd
+    while cursor < scalars.count, isIdentifierJoiner(scalars[cursor]) {
+      if removedBoundaryOffsets.contains(utf16Offsets[cursor]),
+        isBearerValueScalar(scalars[cursor])
+      {
+        boundaries.append(cursor)
+      }
+      cursor += 1
+    }
+    if cursor < scalars.count, removedBoundaryOffsets.contains(utf16Offsets[cursor]),
+      isBearerValueScalar(scalars[cursor])
+    {
+      boundaries.append(cursor)
+    }
+
+    var terminatorCursor = identifierEnd
+    var foundTerminator = false
+    while let terminatorEnd = credentialLabelTerminatorEnd(
+      in: scalars, from: terminatorCursor)
+    {
+      foundTerminator = true
+      terminatorCursor = terminatorEnd
+      if terminatorCursor < scalars.count,
+        removedBoundaryOffsets.contains(utf16Offsets[terminatorCursor]),
+        isBearerValueScalar(scalars[terminatorCursor])
+      {
+        boundaries.append(terminatorCursor)
+        break
+      }
+      let next = skipWhitespace(in: scalars, from: terminatorCursor)
+      if next < scalars.count, removedBoundaryOffsets.contains(utf16Offsets[next]),
+        isBearerValueScalar(scalars[next])
+      {
+        boundaries.append(next)
+        break
+      }
+      guard credentialLabelTerminatorEnd(in: scalars, from: next) != nil else { break }
+      terminatorCursor = next
+    }
+    if foundTerminator, terminatorCursor < scalars.count,
+      removedBoundaryOffsets.contains(utf16Offsets[terminatorCursor]),
+      isBearerValueScalar(scalars[terminatorCursor])
+    {
+      boundaries.append(terminatorCursor)
+    }
+    return boundaries
   }
 
   private static func isBearerValueScalar(_ scalar: UnicodeScalar) -> Bool {
@@ -433,14 +575,6 @@ final class EventLogger {
     return nil
   }
 
-  private static func credentialLabelTerminatorStart(
-    in scalars: [UnicodeScalar],
-    endingAt end: Int
-  ) -> Int? {
-    guard end > 0, isCredentialLabelQuote(scalars[end - 1]) else { return nil }
-    return end > 1 && scalars[end - 2].value == 0x5C ? end - 2 : end - 1
-  }
-
   private static func credentialValueEnd(in scalars: [UnicodeScalar], from start: Int) -> Int? {
     guard start < scalars.count else { return nil }
     if isQuote(scalars[start]) {
@@ -655,6 +789,17 @@ final class EventLogger {
       || (value >= 0x41 && value <= 0x5A)
       || (value >= 0x61 && value <= 0x7A)
       || value == 0x2D || value == 0x2E || value == 0x5F
+  }
+
+  private static func isIdentifierJoiner(_ scalar: UnicodeScalar) -> Bool {
+    scalar.value == 0x2D || scalar.value == 0x2E || scalar.value == 0x5F
+  }
+
+  private static func isIdentifierContextScalar(_ scalar: UnicodeScalar) -> Bool {
+    isIdentifierScalar(scalar) || CharacterSet.alphanumerics.contains(scalar)
+      || scalar.properties.generalCategory == .nonspacingMark
+      || scalar.properties.generalCategory == .spacingMark
+      || scalar.properties.generalCategory == .enclosingMark
   }
 
   private static func isQuote(_ scalar: UnicodeScalar) -> Bool {
