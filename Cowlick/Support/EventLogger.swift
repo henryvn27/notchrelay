@@ -327,9 +327,15 @@ final class EventLogger {
       }
       return scalars.count
     }
+    if isUnicodeQuoteMarker(scalars[start]) { return scalars.count }
 
     var end = start
-    while end < scalars.count, !isValueTerminator(scalars[end]) { end += 1 }
+    while end < scalars.count, !isValueTerminator(scalars[end]) {
+      if isQuote(scalars[end]) || isUnicodeQuoteMarker(scalars[end]) {
+        return scalars.count
+      }
+      end += 1
+    }
     return end > start ? end : nil
   }
 
@@ -364,12 +370,13 @@ final class EventLogger {
         end += 1
         continue
       }
+      if isUnicodeQuoteMarker(scalar) { return scalars.count }
       if isExplicitValueTerminator(scalar) { break }
       if CharacterSet.whitespacesAndNewlines.contains(scalar) {
         let nextField = skipWhitespace(in: scalars, from: end)
         if nextField < scalars.count,
           isQuote(scalars[nextField])
-            || unicodeCredentialValueClosingQuote(for: scalars[nextField]) != nil
+            || isUnicodeQuoteMarker(scalars[nextField])
         {
           end = nextField
           continue
@@ -499,7 +506,12 @@ final class EventLogger {
   }
 
   private static func isCredentialLabelQuote(_ scalar: UnicodeScalar) -> Bool {
-    isQuote(scalar) || scalar.properties.generalCategory == .initialPunctuation
+    isQuote(scalar) || isUnicodeQuoteMarker(scalar)
+  }
+
+  private static func isUnicodeQuoteMarker(_ scalar: UnicodeScalar) -> Bool {
+    scalar.properties.isQuotationMark
+      || scalar.properties.generalCategory == .initialPunctuation
       || scalar.properties.generalCategory == .finalPunctuation
   }
 

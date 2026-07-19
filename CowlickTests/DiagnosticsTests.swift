@@ -166,6 +166,7 @@ final class DiagnosticsTests: XCTestCase {
       EventLogger.sanitizeError("‹AWS secret access key›=guillemet.single"),
       "AWS secret access key=<redacted>"
     )
+    XCTAssertEqual(EventLogger.sanitizeError("「API key」：cjk.secret"), "API key=<redacted>")
 
     for prose in [
       "“API key” names only",
@@ -257,6 +258,45 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertEqual(
       EventLogger.sanitizeError("api.key=secret; visible"),
       "api.key=<redacted>; visible"
+    )
+  }
+
+  func testWrongOrUnsupportedUnicodeValueQuotesFailClosed() {
+    for (input, expected) in [
+      ("token=”alpha beta” visible", "token=<redacted>"),
+      ("token=’alpha,beta’ visible", "token=<redacted>"),
+      ("api.key=»alpha;beta» visible", "api.key=<redacted>"),
+      ("token=⸂alpha beta⸃ visible", "token=<redacted>"),
+      ("api.key=⸃alpha; beta⸃ visible", "api.key=<redacted>"),
+      (#"token=prefix"alpha beta"#, "token=<redacted>"),
+      ("api.key=prefix'alpha,beta visible", "api.key=<redacted>"),
+      ("token=prefix”alpha beta", "token=<redacted>"),
+      ("api.key=prefix“alpha beta” visible", "api.key=<redacted>"),
+      ("token=「alpha beta」 visible", "token=<redacted>"),
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), expected)
+    }
+
+    for input in [
+      "Bearer ”alpha; beta” visible",
+      "Bearer ⸂alpha, beta⸃ visible",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "bearer=<redacted>")
+    }
+    for input in [
+      "Authorization: Bearer »alpha, beta» visible",
+      "Authorization: Bearer ⸃alpha; beta⸃ visible",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "authorization=<redacted>")
+    }
+
+    XCTAssertEqual(
+      EventLogger.sanitizeError("token=(public) visible"),
+      "token=<redacted> visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=—public visible"),
+      "api.key=<redacted> visible"
     )
   }
 
