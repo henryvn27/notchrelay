@@ -45,9 +45,57 @@ if grep -q '__VERSION__\|__SHA256__\|NotchRelay\|notchrelay\|Forelock\|forelock'
 fi
 
 release_workflow="$project_root/.github/workflows/release.yml"
-grep -Fq 'test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"' "$release_workflow"
+grep -Fq 'needs: provenance' "$release_workflow"
+grep -Fq "git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' --depth=1" \
+  "$release_workflow"
+grep -Fq 'contents: read' "$release_workflow"
 if grep -Fq 'git merge-base --is-ancestor HEAD origin/main' "$release_workflow"; then
   print -u2 -- "release workflow still permits a stale main ancestor"
+  exit 1
+fi
+
+release_commit_matches_main() {
+  local repository="$1"
+  local head_sha main_sha
+  head_sha="$(git -C "$repository" rev-parse --verify 'HEAD^{commit}' 2>/dev/null)" || return 1
+  main_sha="$(git -C "$repository" rev-parse --verify \
+    'refs/remotes/origin/main^{commit}' 2>/dev/null)" || return 1
+  [[ "$head_sha" == "$main_sha" ]]
+}
+
+repository="$temporary_directory/provenance"
+git init -q -b main "$repository"
+git -C "$repository" config user.name Cowlick
+git -C "$repository" config user.email cowlick@example.invalid
+print -n -- first > "$repository/release.txt"
+git -C "$repository" add release.txt
+git -C "$repository" commit -qm first
+first_commit="$(git -C "$repository" rev-parse HEAD)"
+git -C "$repository" update-ref refs/remotes/origin/main HEAD
+release_commit_matches_main "$repository"
+
+print -n -- second > "$repository/release.txt"
+git -C "$repository" commit -qam second
+git -C "$repository" update-ref refs/remotes/origin/main HEAD
+git -C "$repository" checkout -q --detach "$first_commit"
+if release_commit_matches_main "$repository"; then
+  print -u2 -- "stale release commit unexpectedly matched current main"
+  exit 1
+fi
+
+git -C "$repository" checkout -q -b divergent "$first_commit"
+print -n -- divergent > "$repository/release.txt"
+git -C "$repository" commit -qam divergent
+if release_commit_matches_main "$repository"; then
+  print -u2 -- "divergent release commit unexpectedly matched current main"
+  exit 1
+fi
+
+git -C "$repository" checkout -q main
+release_commit_matches_main "$repository"
+git -C "$repository" update-ref -d refs/remotes/origin/main
+if release_commit_matches_main "$repository"; then
+  print -u2 -- "release commit unexpectedly matched a missing main ref"
   exit 1
 fi
 
