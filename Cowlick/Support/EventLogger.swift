@@ -58,6 +58,14 @@ final class EventLogger {
   private(set) var recentEvents: [SanitizedBridgeRecord] = []
   private(set) var recentErrors: [String] = []
 
+  #if DEBUG
+    static private(set) var credentialLabelScanCountForTesting = 0
+
+    static func resetCredentialLabelScanCountForTesting() {
+      credentialLabelScanCountForTesting = 0
+    }
+  #endif
+
   private let logger = Logger(subsystem: "com.henryvn27.Cowlick", category: "Bridge")
   private let maximumRecords = 10
 
@@ -730,6 +738,9 @@ final class EventLogger {
     in scalars: [UnicodeScalar],
     from start: Int
   ) -> CredentialLabelScan? {
+    #if DEBUG
+      credentialLabelScanCountForTesting += 1
+    #endif
     guard start < scalars.count else { return nil }
     var cursor = start
     while let markerEnd = credentialLabelTerminatorEnd(in: scalars, from: cursor) {
