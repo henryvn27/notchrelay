@@ -17,14 +17,17 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertTrue(first.showCodexUsage)
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
+    XCTAssertEqual(first.menuBarPresentation, .iconAndDetails)
     first.showPromptPreviews = true
     first.approvalTimeout = 35
     first.usageMetricPreference = .used
+    first.menuBarPresentation = .percentageOnly
 
     let second = SettingsStore(defaults: defaults)
     XCTAssertTrue(second.showPromptPreviews)
     XCTAssertEqual(second.approvalTimeout, 35)
     XCTAssertEqual(second.usageMetricPreference, .used)
+    XCTAssertEqual(second.menuBarPresentation, .percentageOnly)
   }
 
   func testResetRestoresSafeDefaults() {
@@ -35,6 +38,7 @@ final class SettingsStoreTests: XCTestCase {
     settings.showCodexUsage = false
     settings.showResetForecast = true
     settings.usageMetricPreference = .used
+    settings.menuBarPresentation = .statusAndPercentage
     settings.reset()
 
     XCTAssertFalse(settings.showPromptPreviews)
@@ -43,6 +47,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertTrue(settings.showCodexUsage)
     XCTAssertFalse(settings.showResetForecast)
     XCTAssertEqual(settings.usageMetricPreference, .remaining)
+    XCTAssertEqual(settings.menuBarPresentation, .iconAndDetails)
   }
 
   func testInvalidMetricPreferenceFallsBackToRemaining() {
@@ -52,6 +57,15 @@ final class SettingsStoreTests: XCTestCase {
     defaults.set("sideways", forKey: SettingsStore.Key.usageMetricPreference)
 
     XCTAssertEqual(SettingsStore(defaults: defaults).usageMetricPreference, .remaining)
+  }
+
+  func testInvalidMenuBarPresentationFallsBackToIconAndDetails() {
+    let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defaults.set("hologram", forKey: SettingsStore.Key.menuBarPresentation)
+
+    XCTAssertEqual(SettingsStore(defaults: defaults).menuBarPresentation, .iconAndDetails)
   }
 
   func testLegacyPreferencesMigrateOnceWithoutOverwritingCurrentValues() {

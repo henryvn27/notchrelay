@@ -61,6 +61,7 @@ final class SettingsStore {
     static let showCodexUsage = "showCodexUsage"
     static let showResetForecast = "showResetForecast"
     static let usageMetricPreference = "usageMetricPreference"
+    static let menuBarPresentation = "menuBarPresentation"
     static let onboardingComplete = "onboardingComplete"
   }
 
@@ -69,7 +70,8 @@ final class SettingsStore {
     Key.approvalTimeout, Key.autoExpandApprovals, Key.capsLockEnabled,
     Key.showOnNonNotch, Key.preferredDisplay, Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
-    Key.showResetForecast, Key.usageMetricPreference, Key.onboardingComplete,
+    Key.showResetForecast, Key.usageMetricPreference, Key.menuBarPresentation,
+    Key.onboardingComplete,
   ]
 
   private let defaults: UserDefaults
@@ -114,6 +116,9 @@ final class SettingsStore {
   var usageMetricPreference: UsageMetricPreference {
     didSet { defaults.set(usageMetricPreference.rawValue, forKey: Key.usageMetricPreference) }
   }
+  var menuBarPresentation: MenuBarPresentation {
+    didSet { defaults.set(menuBarPresentation.rawValue, forKey: Key.menuBarPresentation) }
+  }
   var onboardingComplete: Bool {
     didSet { defaults.set(onboardingComplete, forKey: Key.onboardingComplete) }
   }
@@ -135,6 +140,7 @@ final class SettingsStore {
       Key.showCodexUsage: true,
       Key.showResetForecast: false,
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
+      Key.menuBarPresentation: MenuBarPresentation.iconAndDetails.rawValue,
       Key.onboardingComplete: false,
     ])
 
@@ -157,6 +163,9 @@ final class SettingsStore {
     usageMetricPreference =
       UsageMetricPreference(rawValue: defaults.string(forKey: Key.usageMetricPreference) ?? "")
       ?? .remaining
+    menuBarPresentation =
+      MenuBarPresentation(rawValue: defaults.string(forKey: Key.menuBarPresentation) ?? "")
+      ?? .iconAndDetails
     onboardingComplete = defaults.bool(forKey: Key.onboardingComplete)
   }
 
@@ -179,6 +188,7 @@ final class SettingsStore {
     showCodexUsage = replacement.showCodexUsage
     showResetForecast = replacement.showResetForecast
     usageMetricPreference = replacement.usageMetricPreference
+    menuBarPresentation = replacement.menuBarPresentation
     onboardingComplete = replacement.onboardingComplete
   }
 }

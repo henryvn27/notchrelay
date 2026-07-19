@@ -23,6 +23,16 @@ struct SettingsView: View {
 
     TabView {
       Form {
+        Section("Menu bar") {
+          Picker("Display", selection: $settings.menuBarPresentation) {
+            ForEach(MenuBarPresentation.allCases) { presentation in
+              Text(presentation.label).tag(presentation)
+            }
+          }
+          Text(settings.menuBarPresentation.guidance)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
         Section("Appearance") {
           Toggle("Show prompt previews", isOn: $settings.showPromptPreviews)
           Toggle("Show result previews", isOn: $settings.showResultPreviews)

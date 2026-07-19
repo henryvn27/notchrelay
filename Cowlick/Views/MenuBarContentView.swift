@@ -26,32 +26,55 @@ struct MenuBarLabelView: View {
   let settings: SettingsStore
 
   var body: some View {
+    let content = MenuBarLabelContent.resolve(
+      presentation: settings.menuBarPresentation,
+      status: store.displaySession?.status,
+      activeSessionCount: store.activeSessionCount,
+      percentageText: percentageText
+    )
     HStack(spacing: 4) {
-      Image(nsImage: Self.menuBarIcon)
-        .renderingMode(.original)
-      if !labelText.isEmpty {
-        Text(labelText)
+      icon(content.icon)
+      if let text = content.text {
+        Text(text)
+          .monospacedDigit()
       }
     }
     .fixedSize()
     .accessibilityLabel(accessibilityText)
   }
 
-  private var labelText: String {
-    let sessions = store.activeSessionCount > 0 ? "\(store.activeSessionCount)" : nil
-    let usage =
-      settings.showCodexUsage
-      ? usageStore.primaryDisplayedPercent.map { "\(Int($0.rounded()))%" }
-      : nil
-    return [sessions, usage].compactMap { $0 }.joined(separator: " · ")
+  @ViewBuilder
+  private func icon(_ icon: MenuBarLabelContent.Icon) -> some View {
+    switch icon {
+    case .app:
+      Image(nsImage: Self.menuBarIcon)
+        .renderingMode(.original)
+    case .status(let systemName):
+      Image(systemName: systemName)
+        .font(.system(size: 13, weight: .semibold))
+        .symbolRenderingMode(.monochrome)
+    case .none:
+      EmptyView()
+    }
+  }
+
+  private var percentageText: String? {
+    guard settings.showCodexUsage, let percent = usageStore.primaryDisplayedPercent else {
+      return nil
+    }
+    return "\(Int(percent.rounded()))%"
   }
 
   private var accessibilityText: String {
     let status = store.displaySession?.status.shortLabel ?? "Idle"
-    guard let usage = usageStore.primaryMetricAccessibilityLabel, settings.showCodexUsage else {
-      return "Cowlick, \(status)"
+    var parts = ["Cowlick", status]
+    if store.activeSessionCount > 1 {
+      parts.append("\(store.activeSessionCount) active sessions")
     }
-    return "Cowlick, \(status), \(usage)"
+    if let usage = usageStore.primaryMetricAccessibilityLabel, settings.showCodexUsage {
+      parts.append(usage)
+    }
+    return parts.joined(separator: ", ")
   }
 }
 
