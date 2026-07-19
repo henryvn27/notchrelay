@@ -250,6 +250,9 @@ struct OnboardingView: View {
     }.value
     integrationStatus = result.status
     integrationInstallState = result.succeeded ? .installed : .failed
+    if result.succeeded {
+      services.settings.integrationIntentionallyRemoved = false
+    }
     integrationTrust = await services.hookTrustService.inspect()
   }
 

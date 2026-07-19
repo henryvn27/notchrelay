@@ -18,16 +18,19 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
     XCTAssertEqual(first.menuBarPresentation, .iconAndDetails)
+    XCTAssertFalse(first.integrationIntentionallyRemoved)
     first.showPromptPreviews = true
     first.approvalTimeout = 35
     first.usageMetricPreference = .used
     first.menuBarPresentation = .percentageOnly
+    first.integrationIntentionallyRemoved = true
 
     let second = SettingsStore(defaults: defaults)
     XCTAssertTrue(second.showPromptPreviews)
     XCTAssertEqual(second.approvalTimeout, 35)
     XCTAssertEqual(second.usageMetricPreference, .used)
     XCTAssertEqual(second.menuBarPresentation, .percentageOnly)
+    XCTAssertTrue(second.integrationIntentionallyRemoved)
   }
 
   func testResetRestoresSafeDefaults() {
@@ -39,6 +42,7 @@ final class SettingsStoreTests: XCTestCase {
     settings.showResetForecast = true
     settings.usageMetricPreference = .used
     settings.menuBarPresentation = .statusAndPercentage
+    settings.integrationIntentionallyRemoved = true
     settings.reset()
 
     XCTAssertFalse(settings.showPromptPreviews)
@@ -48,6 +52,30 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertFalse(settings.showResetForecast)
     XCTAssertEqual(settings.usageMetricPreference, .remaining)
     XCTAssertEqual(settings.menuBarPresentation, .iconAndDetails)
+    XCTAssertFalse(settings.integrationIntentionallyRemoved)
+  }
+
+  func testUnhealthyIntegrationReopensOnboardingUntilRepair() {
+    XCTAssertTrue(
+      AppDelegate.shouldOpenOnboarding(
+        onboardingComplete: true,
+        integrationIntentionallyRemoved: true,
+        integrationHealthy: false))
+    XCTAssertFalse(
+      AppDelegate.shouldOpenOnboarding(
+        onboardingComplete: true,
+        integrationIntentionallyRemoved: true,
+        integrationHealthy: true))
+    XCTAssertTrue(
+      AppDelegate.shouldOpenOnboarding(
+        onboardingComplete: true,
+        integrationIntentionallyRemoved: false,
+        integrationHealthy: false))
+    XCTAssertTrue(
+      AppDelegate.shouldOpenOnboarding(
+        onboardingComplete: false,
+        integrationIntentionallyRemoved: false,
+        integrationHealthy: true))
   }
 
   func testInvalidMetricPreferenceFallsBackToRemaining() {

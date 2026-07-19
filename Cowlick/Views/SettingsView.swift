@@ -248,6 +248,9 @@ struct SettingsView: View {
         }
       }.value
       hookStatus = result.status
+      if result.errorMessage == nil {
+        services.settings.integrationIntentionallyRemoved = false
+      }
       hookTrust = await services.hookTrustService.inspect()
       integrationMessage = result.errorMessage ?? hookTrustGuidance
     }
@@ -270,6 +273,9 @@ struct SettingsView: View {
         }
       }.value
       hookStatus = result.status
+      if result.errorMessage == nil {
+        services.settings.integrationIntentionallyRemoved = true
+      }
       integrationMessage = result.errorMessage ?? "Cowlick hooks and installed helper removed."
     }
   }

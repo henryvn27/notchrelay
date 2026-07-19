@@ -3,6 +3,12 @@ set -euo pipefail
 
 script_dir="${0:A:h}"
 project_root="${script_dir:h}"
+if [[ -z "${COWLICK_LOCAL_LIFECYCLE_LOCK_HELD:-}" ]]; then
+  mkdir -p "$HOME/.codex"
+  export COWLICK_LOCAL_LIFECYCLE_LOCK_HELD=1
+  exec /usr/bin/lockf -k "$HOME/.codex/.cowlick-local-lifecycle.lock" \
+    "$script_dir/install_local.sh" "$@"
+fi
 derived_data="$project_root/DerivedData"
 destination="$HOME/Applications/Cowlick.app"
 legacy_destination="$HOME/Applications/NotchRelay.app"
@@ -10,8 +16,6 @@ backup=""
 install_started=false
 legacy_present=false
 hooks_updated=false
-hooks_existed=false
-hooks_path="$HOME/.codex/hooks.json"
 rollback_directory="$(mktemp -d "${TMPDIR%/}/cowlick-install-rollback.XXXXXX")"
 chmod 700 "$rollback_directory"
 
@@ -33,14 +37,8 @@ rollback_install() {
     [[ "$process_path" == *"/Cowlick.app/Contents/MacOS/Cowlick"* ]] && kill "$process_id" 2>/dev/null
   done
   if $hooks_updated; then
-    if $hooks_existed; then
-      hooks_restore="$HOME/.codex/.hooks.json.cowlick-rollback"
-      ditto "$rollback_directory/hooks.json" "$hooks_restore"
-      chmod 600 "$hooks_restore"
-      mv "$hooks_restore" "$hooks_path"
-    else
-      swift "$script_dir/install_hooks.swift" remove >/dev/null 2>&1
-    fi
+    swift "$script_dir/install_hooks.swift" restore --snapshot "$rollback_directory" \
+      >/dev/null 2>&1
   fi
   [[ -d "$destination" ]] && /bin/rm -rf "$destination"
   if [[ -n "$backup" && -d "$backup" ]]; then
@@ -48,11 +46,6 @@ rollback_install() {
     open -n "$destination" >/dev/null 2>&1
     print -u2 "Previous local Cowlick app restored."
   else
-    swift "$script_dir/install_hooks.swift" remove >/dev/null 2>&1
-    helper_path="$HOME/Library/Application Support/Cowlick/bin/cowlick-hook"
-    shim_path="$HOME/.local/bin/cowlick-hook"
-    [[ -L "$shim_path" && "$(readlink "$shim_path")" == "$helper_path" ]] && rm "$shim_path"
-    [[ -f "$helper_path" ]] && rm "$helper_path"
     print -u2 "Partial Cowlick installation removed."
   fi
   if $legacy_present && [[ -d "$legacy_destination" ]]; then
@@ -110,12 +103,9 @@ fi
 install_started=true
 ditto "$source_app" "$destination"
 
-if [[ -f "$hooks_path" ]]; then
-  hooks_existed=true
-  ditto "$hooks_path" "$rollback_directory/hooks.json"
-  chmod 600 "$rollback_directory/hooks.json"
-fi
-swift "$script_dir/install_hooks.swift" install --helper "$destination/Contents/Helpers/cowlick-hook"
+swift "$script_dir/install_hooks.swift" install \
+  --helper "$destination/Contents/Helpers/cowlick-hook" \
+  --snapshot "$rollback_directory"
 hooks_updated=true
 open -n "$destination"
 bridge_ready=false

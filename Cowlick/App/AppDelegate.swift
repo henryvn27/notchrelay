@@ -62,9 +62,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       await services.sessionStore.restoreLifecycleSessions(recovered)
     }
 
-    if !services.settings.onboardingComplete && !CommandLine.arguments.contains("--ui-testing") {
+    let integrationHealthy = services.hookInstaller.status().isHealthy
+    if services.settings.integrationIntentionallyRemoved, integrationHealthy {
+      services.settings.integrationIntentionallyRemoved = false
+    }
+    if Self.shouldOpenOnboarding(
+      onboardingComplete: services.settings.onboardingComplete,
+      integrationIntentionallyRemoved: services.settings.integrationIntentionallyRemoved,
+      integrationHealthy: integrationHealthy)
+    {
       WindowCoordinator.shared.openOnboarding()
     }
+  }
+
+  static func shouldOpenOnboarding(
+    onboardingComplete: Bool,
+    integrationIntentionallyRemoved _: Bool,
+    integrationHealthy: Bool
+  ) -> Bool {
+    !onboardingComplete || !integrationHealthy
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

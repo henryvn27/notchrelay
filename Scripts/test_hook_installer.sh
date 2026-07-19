@@ -48,6 +48,28 @@ first_hash="$(shasum -a 256 "$hooks_directory/hooks.json" | awk '{print $1}')"
 COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" install --helper "$helper" >/dev/null
 second_hash="$(shasum -a 256 "$hooks_directory/hooks.json" | awk '{print $1}')"
 [[ "$first_hash" == "$second_hash" ]] || { print -u2 "hook installation is not idempotent"; exit 1; }
+helper_hash="$(shasum -a 256 \
+  "$test_home/Library/Application Support/Cowlick/bin/cowlick-hook" | awk '{print $1}')"
+
+assert_installed_fixture_unchanged() {
+  [[ "$(shasum -a 256 "$hooks_directory/hooks.json" | awk '{print $1}')" == "$second_hash" ]]
+  [[ "$(shasum -a 256 \
+      "$test_home/Library/Application Support/Cowlick/bin/cowlick-hook" | awk '{print $1}')" \
+      == "$helper_hash" ]]
+  [[ -L "$test_home/.local/bin/cowlick-hook" ]]
+}
+
+COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" remove --help >/dev/null
+assert_installed_fixture_unchanged
+for invalid_arguments in 'remove --unknown' 'remove extra' 'status extra' \
+  'install --helper /tmp/missing extra'; do
+  if COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" \
+    ${(z)invalid_arguments} >/dev/null 2>&1; then
+    print -u2 "invalid installer arguments unexpectedly succeeded: $invalid_arguments"
+    exit 1
+  fi
+  assert_installed_fixture_unchanged
+done
 
 COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   import Foundation
@@ -66,6 +88,47 @@ COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   }
 '
 
+replacement_helper="$temporary_directory/replacement-cowlick-hook"
+snapshot_directory="$temporary_directory/integration-snapshot"
+print -n -- '#!/bin/zsh\nprint replacement\n' > "$replacement_helper"
+chmod 755 "$replacement_helper"
+COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$replacement_helper" --snapshot "$snapshot_directory" >/dev/null
+grep -Fq 'replacement' \
+  "$test_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
+  import Foundation
+
+  let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!)
+  var root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+  root["concurrent"] = ["preserve": true]
+  var hooks = root["hooks"] as! [String: Any]
+  var groups = hooks["Stop"] as! [[String: Any]]
+  groups.append(["hooks": [["type": "command", "command": "/usr/local/bin/concurrent"]]])
+  hooks["Stop"] = groups
+  root["hooks"] = hooks
+  try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
+    .write(to: url, options: .atomic)
+'
+COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" restore \
+  --snapshot "$snapshot_directory" >/dev/null
+[[ "$(shasum -a 256 \
+    "$test_home/Library/Application Support/Cowlick/bin/cowlick-hook" | awk '{print $1}')" \
+    == "$helper_hash" ]]
+COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
+  import Foundation
+
+  let path = ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!
+  let root = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as! [String: Any]
+  precondition((root["concurrent"] as? [String: Any])?["preserve"] as? Bool == true)
+  let hooks = root["hooks"] as! [String: Any]
+  let stop = hooks["Stop"] as! [[String: Any]]
+  let commands = stop.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+    .compactMap { $0["command"] as? String }
+  precondition(commands.contains("/usr/local/bin/unrelated"))
+  precondition(commands.contains("/usr/local/bin/concurrent"))
+'
+
 COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" remove >/dev/null
 COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   import Foundation
@@ -73,11 +136,12 @@ COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   let path = ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!
   let root = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as! [String: Any]
   precondition((root["future"] as? [String: Any])?["preserve"] as? Bool == true)
+  precondition((root["concurrent"] as? [String: Any])?["preserve"] as? Bool == true)
   let hooks = root["hooks"] as! [String: Any]
   let stop = hooks["Stop"] as! [[String: Any]]
   let handlers = stop.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
-  precondition(handlers.count == 1)
-  precondition(handlers[0]["command"] as? String == "/usr/local/bin/unrelated")
+  let commands = handlers.compactMap { $0["command"] as? String }
+  precondition(Set(commands) == ["/usr/local/bin/unrelated", "/usr/local/bin/concurrent"])
   for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest"] {
     precondition(hooks[event] == nil)
   }

@@ -15,7 +15,7 @@ enum InstallerFailure: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .usage:
-      "usage: install_hooks.swift <install|remove|status> [--helper /path/to/cowlick-hook]"
+      "usage: install_hooks.swift <install --helper /path/to/cowlick-hook [--snapshot /path]|remove|status|restore --snapshot /path>"
     case .invalidRoot: "hooks.json must contain a JSON object."
     case .invalidHooks: "The existing hooks field must be a JSON object."
     case .helperMissing: "The specified Cowlick helper does not exist."
@@ -42,6 +42,45 @@ let legacyInstalledHelper = home.appendingPathComponent(
   "Library/Application Support/NotchRelay/bin/notchrelay-hook")
 let legacyShim = home.appendingPathComponent(".local/bin/notchrelay-hook")
 let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
+
+enum InstallerCommand {
+  case help
+  case install(helper: URL, snapshot: URL?)
+  case remove
+  case status
+  case restore(snapshot: URL)
+}
+
+func parseCommand(_ arguments: [String]) throws -> InstallerCommand {
+  if arguments == ["--help"] || arguments == ["-h"] || arguments == ["help"] {
+    return .help
+  }
+  if arguments.count == 2, ["install", "remove", "status", "restore"].contains(arguments[0]),
+    ["--help", "-h"].contains(arguments[1])
+  {
+    return .help
+  }
+  if arguments.count == 3, arguments[0] == "install", arguments[1] == "--helper",
+    !arguments[2].isEmpty
+  {
+    return .install(helper: URL(fileURLWithPath: arguments[2]), snapshot: nil)
+  }
+  if arguments.count == 5, arguments[0] == "install", arguments[1] == "--helper",
+    !arguments[2].isEmpty, arguments[3] == "--snapshot", !arguments[4].isEmpty
+  {
+    return .install(
+      helper: URL(fileURLWithPath: arguments[2]),
+      snapshot: URL(fileURLWithPath: arguments[4], isDirectory: true))
+  }
+  if arguments == ["remove"] { return .remove }
+  if arguments == ["status"] { return .status }
+  if arguments.count == 3, arguments[0] == "restore", arguments[1] == "--snapshot",
+    !arguments[2].isEmpty
+  {
+    return .restore(snapshot: URL(fileURLWithPath: arguments[2], isDirectory: true))
+  }
+  throw InstallerFailure.usage
+}
 
 func shellQuote(_ value: String) -> String {
   "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
@@ -160,6 +199,37 @@ func remove(_ original: Data) throws -> Data {
   return try encoded(value)
 }
 
+func restoringOwnedHandlers(in current: Data, from snapshot: Data?) throws -> Data {
+  var value = removingHandlers(from: try root(from: current), where: isOurs)
+  guard let snapshot else { return try encoded(value) }
+  let saved = try root(from: snapshot)
+  let savedHooks = saved["hooks"] as? [String: Any] ?? [:]
+  var hooks = value["hooks"] as? [String: Any] ?? [:]
+  if value["hooks"] != nil, !(value["hooks"] is [String: Any]) {
+    throw InstallerFailure.invalidHooks
+  }
+  for event in events {
+    let ownedGroups: [[String: Any]] =
+      (savedHooks[event] as? [[String: Any]] ?? []).compactMap { group in
+        guard let handlers = group["hooks"] as? [[String: Any]] else { return nil }
+        let ownedHandlers = handlers.filter(isOurs)
+        guard !ownedHandlers.isEmpty else { return nil }
+        var copy = group
+        copy["hooks"] = ownedHandlers
+        return copy
+      }
+    guard !ownedGroups.isEmpty else { continue }
+    if hooks[event] != nil, !(hooks[event] is [[String: Any]]) {
+      throw InstallerFailure.invalidHooks
+    }
+    var groups = hooks[event] as? [[String: Any]] ?? []
+    groups.append(contentsOf: ownedGroups)
+    hooks[event] = groups
+  }
+  value["hooks"] = hooks
+  return try encoded(value)
+}
+
 func writePrivateFile(_ data: Data, to url: URL) throws {
   let descriptor = Darwin.open(url.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
   guard descriptor >= 0 else { throw InstallerFailure.fileOperation(errno) }
@@ -244,6 +314,13 @@ func helperMatchesSource(_ helper: URL, source: URL) -> Bool {
   return fileManager.contentsEqual(atPath: helper.path, andPath: source.path)
 }
 
+func isOwnedRegularFile(_ url: URL) -> Bool {
+  var information = stat()
+  return lstat(url.path, &information) == 0
+    && information.st_mode & S_IFMT == S_IFREG
+    && information.st_uid == getuid()
+}
+
 func validateHelperInstallation(from source: URL) throws {
   guard fileManager.isExecutableFile(atPath: source.path) else {
     throw InstallerFailure.helperMissing
@@ -261,24 +338,32 @@ func validateHelperInstallation(from source: URL) throws {
 
 func installHelper(from source: URL) throws {
   try validateHelperInstallation(from: source)
+  try installOwnedHelper(from: source, shim: shim, installedHelper: installedHelper)
+}
+
+func installOwnedHelper(
+  from source: URL,
+  shim helperShim: URL,
+  installedHelper helper: URL
+) throws {
   try fileManager.createDirectory(
-    at: installedHelper.deletingLastPathComponent(), withIntermediateDirectories: true)
+    at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
   try fileManager.createDirectory(
-    at: shim.deletingLastPathComponent(), withIntermediateDirectories: true)
+    at: helperShim.deletingLastPathComponent(), withIntermediateDirectories: true)
   try fileManager.setAttributes(
-    [.posixPermissions: 0o700], ofItemAtPath: installedHelper.deletingLastPathComponent().path)
-  let temporary = installedHelper.deletingLastPathComponent().appendingPathComponent(
+    [.posixPermissions: 0o700], ofItemAtPath: helper.deletingLastPathComponent().path)
+  let temporary = helper.deletingLastPathComponent().appendingPathComponent(
     ".cowlick-hook-\(UUID().uuidString).tmp")
   defer { try? fileManager.removeItem(at: temporary) }
   try fileManager.copyItem(at: source, to: temporary)
   try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: temporary.path)
-  guard rename(temporary.path, installedHelper.path) == 0 else {
+  guard rename(temporary.path, helper.path) == 0 else {
     throw InstallerFailure.fileOperation(errno)
   }
-  if fileManager.fileExists(atPath: shim.path) {
+  if fileManager.fileExists(atPath: helperShim.path) {
     return
   } else {
-    try fileManager.createSymbolicLink(at: shim, withDestinationURL: installedHelper)
+    try fileManager.createSymbolicLink(at: helperShim, withDestinationURL: helper)
   }
 }
 
@@ -300,27 +385,89 @@ func removeOwnedHelper(shim helperShim: URL, installedHelper helper: URL) throws
   }
 }
 
+func snapshotIntegration(to directory: URL) throws {
+  try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+  try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+  if fileManager.fileExists(atPath: hooksURL.path) {
+    try fileManager.copyItem(at: hooksURL, to: directory.appendingPathComponent("hooks.json"))
+  }
+  let helpers = [
+    (shim, installedHelper, "cowlick-hook"),
+    (legacyShim, legacyInstalledHelper, "notchrelay-hook"),
+  ]
+  for (helperShim, helper, name) in helpers
+  where ownsHelper(shim: helperShim, installedHelper: helper) && isOwnedRegularFile(helper) {
+    try fileManager.copyItem(at: helper, to: directory.appendingPathComponent(name))
+  }
+}
+
+func restoreIntegration(from directory: URL) throws {
+  var directoryInformation = stat()
+  guard lstat(directory.path, &directoryInformation) == 0,
+    directoryInformation.st_mode & S_IFMT == S_IFDIR,
+    directoryInformation.st_uid == getuid()
+  else { throw InstallerFailure.fileOperation(EINVAL) }
+
+  let hooksSnapshot = directory.appendingPathComponent("hooks.json")
+  let helperSnapshot = directory.appendingPathComponent("cowlick-hook")
+  let legacyHelperSnapshot = directory.appendingPathComponent("notchrelay-hook")
+  let savedHooks =
+    fileManager.fileExists(atPath: hooksSnapshot.path)
+    ? try Data(contentsOf: hooksSnapshot) : nil
+  if let savedHooks { _ = try root(from: savedHooks) }
+  for source in [helperSnapshot, legacyHelperSnapshot]
+  where fileManager.fileExists(atPath: source.path)
+    && !fileManager.isExecutableFile(atPath: source.path)
+  {
+    throw InstallerFailure.helperMissing
+  }
+
+  try validateHelperRemoval(shim: shim, installedHelper: installedHelper)
+  try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
+  try removeOwnedHelper(shim: shim, installedHelper: installedHelper)
+  try removeOwnedHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
+  if fileManager.fileExists(atPath: helperSnapshot.path) {
+    try installOwnedHelper(from: helperSnapshot, shim: shim, installedHelper: installedHelper)
+  }
+  if fileManager.fileExists(atPath: legacyHelperSnapshot.path) {
+    try installOwnedHelper(
+      from: legacyHelperSnapshot, shim: legacyShim, installedHelper: legacyInstalledHelper)
+  }
+
+  let hooksExist = fileManager.fileExists(atPath: hooksURL.path)
+  let existing = hooksExist ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
+  let restored = try restoringOwnedHandlers(in: existing, from: savedHooks)
+  if restored != existing {
+    try replaceHooks(with: restored, expected: hooksExist ? existing : nil)
+  }
+}
+
 do {
   let arguments = Array(CommandLine.arguments.dropFirst())
-  guard let command = arguments.first else { throw InstallerFailure.usage }
-  switch command {
-  case "install":
-    guard let helperFlag = arguments.firstIndex(of: "--helper"),
-      arguments.indices.contains(helperFlag + 1)
-    else { throw InstallerFailure.usage }
-    let source = URL(fileURLWithPath: arguments[helperFlag + 1])
+  switch try parseCommand(arguments) {
+  case .help:
+    print(InstallerFailure.usage.localizedDescription)
+  case .install(let source, let snapshot):
     try withConfigurationLock {
       try validateHelperInstallation(from: source)
       try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
-      try installHelper(from: source)
-      let existed = fileManager.fileExists(atPath: hooksURL.path)
-      let existing = existed ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
-      let updated = try merge(existing)
-      if updated != existing { try replaceHooks(with: updated, expected: existed ? existing : nil) }
-      try removeOwnedHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
+      if let snapshot { try snapshotIntegration(to: snapshot) }
+      do {
+        try installHelper(from: source)
+        let existed = fileManager.fileExists(atPath: hooksURL.path)
+        let existing = existed ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
+        let updated = try merge(existing)
+        if updated != existing {
+          try replaceHooks(with: updated, expected: existed ? existing : nil)
+        }
+        try removeOwnedHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
+      } catch {
+        if let snapshot { try restoreIntegration(from: snapshot) }
+        throw error
+      }
     }
     print("Installed SessionStart, UserPromptSubmit, PermissionRequest, and Stop hooks.")
-  case "remove":
+  case .remove:
     try withConfigurationLock {
       try validateHelperRemoval(shim: shim, installedHelper: installedHelper)
       try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
@@ -335,7 +482,7 @@ do {
       try removeOwnedHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
     }
     print("Removed only Cowlick and legacy NotchRelay hook handlers.")
-  case "status":
+  case .status:
     let existing =
       fileManager.fileExists(atPath: hooksURL.path)
       ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
@@ -345,7 +492,9 @@ do {
       installed.count == events.count
         ? "healthy"
         : "missing: \(events.filter { !installed.contains($0) }.joined(separator: ", "))")
-  default: throw InstallerFailure.usage
+  case .restore(let snapshot):
+    try withConfigurationLock { try restoreIntegration(from: snapshot) }
+    print("Restored the previous Cowlick integration state.")
   }
 } catch {
   FileHandle.standardError.write(Data("install_hooks.swift: \(error.localizedDescription)\n".utf8))

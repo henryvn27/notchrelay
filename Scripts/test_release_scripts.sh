@@ -203,6 +203,60 @@ print -n -- '#!/bin/zsh\nexit 0\n' > "$uninstall_helper"
 chmod 755 "$uninstall_helper"
 print -n -- '#!/bin/zsh\nexit 1\n' > "$uninstall_fake_bin/pgrep"
 chmod 755 "$uninstall_fake_bin/pgrep"
+real_swift="$(command -v swift)"
+print -r -- '#!/bin/zsh
+set -euo pipefail
+
+pause_at_barrier() {
+  local phase="$1"
+  local call="$2"
+  [[ "${COWLICK_TEST_PAUSE_PHASE:-}" == "$phase" ]] || return 0
+  [[ "${COWLICK_TEST_PAUSE_CALL:-}" == "$call" ]] || return 0
+  : > "$COWLICK_TEST_BARRIER_DIRECTORY/reached"
+  for _ in {1..500}; do
+    [[ -e "$COWLICK_TEST_BARRIER_DIRECTORY/continue" ]] && return 0
+    sleep 0.01
+  done
+  print -u2 "timed out waiting to continue the integration command"
+  exit 1
+}
+
+if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift ]] \
+  && [[ "$2" == "${COWLICK_TEST_BARRIER_COMMAND:-}" ]] \
+  && [[ -n "${COWLICK_TEST_BARRIER_DIRECTORY:-}" ]]; then
+  count_file="$COWLICK_TEST_BARRIER_DIRECTORY/$2-count"
+  count=0
+  [[ -f "$count_file" ]] && IFS= read -r count < "$count_file"
+  (( count += 1 ))
+  print -- "$count" > "$count_file"
+  pause_at_barrier before "$count"
+  "$COWLICK_TEST_REAL_SWIFT" "$@"
+  pause_at_barrier after "$count"
+  exit 0
+fi
+
+exec "$COWLICK_TEST_REAL_SWIFT" "$@"
+' > "$uninstall_fake_bin/swift"
+chmod 755 "$uninstall_fake_bin/swift"
+print -r -- '#!/bin/zsh
+set -euo pipefail
+[[ "${1:-}" == swiftc ]] || exit 64
+output=""
+while (( $# > 0 )); do
+  if [[ "$1" == -o ]]; then
+    output="$2"
+    break
+  fi
+  shift
+done
+[[ -n "$output" ]]
+print -r -- "#!/bin/zsh" > "$output"
+print -r -- "exit 0" >> "$output"
+chmod 755 "$output"
+' > "$uninstall_fake_bin/xcrun"
+chmod 755 "$uninstall_fake_bin/xcrun"
+print -n -- '#!/bin/zsh\nexit 0\n' > "$uninstall_fake_bin/defaults"
+chmod 755 "$uninstall_fake_bin/defaults"
 print -n -- 'preserve-local-state' \
   > "$uninstall_home/Library/Application Support/Cowlick/preserved-state"
 print -n -- 'onboardingComplete=true' \
@@ -240,7 +294,8 @@ grep -Fq 'usage:' "$uninstall_unknown"
 assert_uninstall_fixture_intact
 
 env PATH="$uninstall_fake_bin:$PATH" HOME="$uninstall_home" COWLICK_HOME="$uninstall_home" \
-  TMPDIR="$temporary_directory" "$uninstall_script" >/dev/null
+  TMPDIR="$temporary_directory" COWLICK_TEST_REAL_SWIFT="$real_swift" \
+  "$uninstall_script" >/dev/null
 [[ ! -e "$uninstall_home/Applications/Cowlick.app" ]]
 [[ ! -e "$uninstall_home/.local/bin/cowlick-hook" \
   && ! -L "$uninstall_home/.local/bin/cowlick-hook" ]]
@@ -254,6 +309,375 @@ grep -Fq 'preserve-local-state' \
   "$uninstall_home/Library/Application Support/Cowlick/preserved-state"
 grep -Fq 'onboardingComplete=true' \
   "$uninstall_home/Library/Preferences/com.henryvn27.Cowlick.plist"
+COWLICK_HOME="$uninstall_home" swift "$script_dir/install_hooks.swift" \
+  install --helper "$uninstall_helper" >/dev/null
+[[ "$(COWLICK_HOME="$uninstall_home" swift "$script_dir/install_hooks.swift" status)" \
+    == "healthy" ]]
+
+prepare_concurrent_uninstall_fixture() {
+  local home="$1"
+  mkdir -p "$home/.codex" "$home/Applications/Cowlick.app"
+  mkdir -p "$home/Library/Application Support/Cowlick"
+  print -n -- \
+    '{"future":{"preserve":true},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/local/bin/unrelated"}]}]}}' \
+    > "$home/.codex/hooks.json"
+  print -n -- 'preserve-local-state' \
+    > "$home/Library/Application Support/Cowlick/preserved-state"
+  COWLICK_HOME="$home" "$real_swift" "$script_dir/install_hooks.swift" \
+    install --helper "$uninstall_helper" >/dev/null
+}
+
+start_uninstall_at_barrier() {
+  local home="$1"
+  local mode="$2"
+  local phase="$3"
+  local call="$4"
+  local barrier="$5"
+  local arguments=()
+  [[ "$mode" == purge ]] && arguments=(--purge)
+  mkdir -p "$barrier"
+  env PATH="$uninstall_fake_bin:$PATH" HOME="$home" COWLICK_HOME="$home" \
+    TMPDIR="$temporary_directory" COWLICK_TEST_REAL_SWIFT="$real_swift" \
+    COWLICK_TEST_BARRIER_COMMAND=remove COWLICK_TEST_PAUSE_PHASE="$phase" \
+    COWLICK_TEST_PAUSE_CALL="$call" COWLICK_TEST_BARRIER_DIRECTORY="$barrier" \
+    "$uninstall_script" "${arguments[@]}" > "$barrier/output" 2>&1 &
+  concurrent_uninstall_pid=$!
+}
+
+wait_for_uninstall_barrier() {
+  local barrier="$1"
+  for _ in {1..500}; do
+    [[ -e "$barrier/reached" ]] && return
+    if ! kill -0 "$concurrent_uninstall_pid" 2>/dev/null; then
+      print -u2 -- "$(< "$barrier/output")"
+      return 1
+    fi
+    sleep 0.01
+  done
+  print -u2 "timed out waiting for uninstall integration barrier"
+  return 1
+}
+
+finish_uninstall_from_barrier() {
+  local barrier="$1"
+  : > "$barrier/continue"
+  if ! wait "$concurrent_uninstall_pid"; then
+    print -u2 -- "$(< "$barrier/output")"
+    return 1
+  fi
+}
+
+assert_integration_installed() {
+  local home="$1"
+  [[ "$(COWLICK_HOME="$home" "$real_swift" "$script_dir/install_hooks.swift" status)" \
+      == healthy ]]
+  [[ -L "$home/.local/bin/cowlick-hook" ]]
+  [[ -f "$home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
+}
+
+assert_integration_removed() {
+  local home="$1"
+  [[ ! -e "$home/.local/bin/cowlick-hook" && ! -L "$home/.local/bin/cowlick-hook" ]]
+  [[ ! -e "$home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
+  grep -Fq '/usr/local/bin/unrelated' "$home/.codex/hooks.json"
+  if grep -Fq 'cowlick-hook' "$home/.codex/hooks.json"; then
+    print -u2 "uninstall concurrency fixture retained a Cowlick hook"
+    return 1
+  fi
+}
+
+normal_install_first_home="$temporary_directory/normal-install-first"
+normal_install_first_barrier="$temporary_directory/normal-install-first-barrier"
+prepare_concurrent_uninstall_fixture "$normal_install_first_home"
+start_uninstall_at_barrier \
+  "$normal_install_first_home" normal before 1 "$normal_install_first_barrier"
+wait_for_uninstall_barrier "$normal_install_first_barrier"
+COWLICK_HOME="$normal_install_first_home" "$real_swift" "$script_dir/install_hooks.swift" \
+  install --helper "$uninstall_helper" >/dev/null
+finish_uninstall_from_barrier "$normal_install_first_barrier"
+assert_integration_removed "$normal_install_first_home"
+
+normal_uninstall_first_home="$temporary_directory/normal-uninstall-first"
+normal_uninstall_first_barrier="$temporary_directory/normal-uninstall-first-barrier"
+prepare_concurrent_uninstall_fixture "$normal_uninstall_first_home"
+start_uninstall_at_barrier \
+  "$normal_uninstall_first_home" normal after 1 "$normal_uninstall_first_barrier"
+wait_for_uninstall_barrier "$normal_uninstall_first_barrier"
+COWLICK_HOME="$normal_uninstall_first_home" "$real_swift" "$script_dir/install_hooks.swift" \
+  install --helper "$uninstall_helper" >/dev/null
+finish_uninstall_from_barrier "$normal_uninstall_first_barrier"
+assert_integration_installed "$normal_uninstall_first_home"
+
+purge_install_first_home="$temporary_directory/purge-install-first"
+purge_install_first_barrier="$temporary_directory/purge-install-first-barrier"
+prepare_concurrent_uninstall_fixture "$purge_install_first_home"
+start_uninstall_at_barrier \
+  "$purge_install_first_home" purge after 1 "$purge_install_first_barrier"
+wait_for_uninstall_barrier "$purge_install_first_barrier"
+COWLICK_HOME="$purge_install_first_home" "$real_swift" "$script_dir/install_hooks.swift" \
+  install --helper "$uninstall_helper" >/dev/null
+finish_uninstall_from_barrier "$purge_install_first_barrier"
+assert_integration_removed "$purge_install_first_home"
+[[ ! -e "$purge_install_first_home/Library/Application Support/Cowlick" ]]
+
+purge_uninstall_first_home="$temporary_directory/purge-uninstall-first"
+purge_uninstall_first_barrier="$temporary_directory/purge-uninstall-first-barrier"
+prepare_concurrent_uninstall_fixture "$purge_uninstall_first_home"
+start_uninstall_at_barrier \
+  "$purge_uninstall_first_home" purge after 2 "$purge_uninstall_first_barrier"
+wait_for_uninstall_barrier "$purge_uninstall_first_barrier"
+COWLICK_HOME="$purge_uninstall_first_home" "$real_swift" "$script_dir/install_hooks.swift" \
+  install --helper "$uninstall_helper" >/dev/null
+finish_uninstall_from_barrier "$purge_uninstall_first_barrier"
+assert_integration_installed "$purge_uninstall_first_home"
+
+rollback_old_helper="$temporary_directory/rollback-old-helper"
+rollback_new_helper="$temporary_directory/rollback-new-helper"
+print -n -- '#!/bin/zsh\nprint old-helper\n' > "$rollback_old_helper"
+print -n -- '#!/bin/zsh\nprint new-helper\n' > "$rollback_new_helper"
+chmod 755 "$rollback_old_helper" "$rollback_new_helper"
+
+prepare_rollback_fixture() {
+  local home="$1"
+  local snapshot="$2"
+  mkdir -p "$home/.codex"
+  print -n -- \
+    '{"future":{"preserve":true},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/local/bin/unrelated"}]}]}}' \
+    > "$home/.codex/hooks.json"
+  COWLICK_HOME="$home" "$real_swift" "$script_dir/install_hooks.swift" \
+    install --helper "$rollback_old_helper" >/dev/null
+  COWLICK_HOME="$home" "$real_swift" "$script_dir/install_hooks.swift" \
+    install --helper "$rollback_new_helper" --snapshot "$snapshot" >/dev/null
+}
+
+start_restore_at_barrier() {
+  local home="$1"
+  local snapshot="$2"
+  local phase="$3"
+  local barrier="$4"
+  mkdir -p "$barrier"
+  env PATH="$uninstall_fake_bin:$PATH" COWLICK_HOME="$home" \
+    COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_BARRIER_COMMAND=restore \
+    COWLICK_TEST_PAUSE_PHASE="$phase" COWLICK_TEST_PAUSE_CALL=1 \
+    COWLICK_TEST_BARRIER_DIRECTORY="$barrier" swift "$script_dir/install_hooks.swift" \
+    restore --snapshot "$snapshot" > "$barrier/output" 2>&1 &
+  concurrent_uninstall_pid=$!
+}
+
+install_before_rollback_home="$temporary_directory/install-before-rollback"
+install_before_rollback_snapshot="$temporary_directory/install-before-rollback-snapshot"
+install_before_rollback_barrier="$temporary_directory/install-before-rollback-barrier"
+prepare_rollback_fixture "$install_before_rollback_home" "$install_before_rollback_snapshot"
+start_restore_at_barrier "$install_before_rollback_home" \
+  "$install_before_rollback_snapshot" before "$install_before_rollback_barrier"
+wait_for_uninstall_barrier "$install_before_rollback_barrier"
+COWLICK_HOME="$install_before_rollback_home" "$real_swift" \
+  "$script_dir/install_hooks.swift" install --helper "$rollback_new_helper" >/dev/null
+finish_uninstall_from_barrier "$install_before_rollback_barrier"
+grep -Fq 'old-helper' \
+  "$install_before_rollback_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+rollback_before_install_home="$temporary_directory/rollback-before-install"
+rollback_before_install_snapshot="$temporary_directory/rollback-before-install-snapshot"
+rollback_before_install_barrier="$temporary_directory/rollback-before-install-barrier"
+prepare_rollback_fixture "$rollback_before_install_home" "$rollback_before_install_snapshot"
+start_restore_at_barrier "$rollback_before_install_home" \
+  "$rollback_before_install_snapshot" after "$rollback_before_install_barrier"
+wait_for_uninstall_barrier "$rollback_before_install_barrier"
+COWLICK_HOME="$rollback_before_install_home" "$real_swift" \
+  "$script_dir/install_hooks.swift" install --helper "$rollback_new_helper" >/dev/null
+finish_uninstall_from_barrier "$rollback_before_install_barrier"
+grep -Fq 'new-helper' \
+  "$rollback_before_install_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+wrapper_project="$temporary_directory/wrapper-project"
+wrapper_scripts="$wrapper_project/Scripts"
+wrapper_fake_bin="$temporary_directory/wrapper-bin"
+mkdir -p "$wrapper_scripts" "$wrapper_fake_bin"
+cp "$script_dir/install_local.sh" "$script_dir/uninstall_local.sh" \
+  "$script_dir/install_hooks.swift" "$wrapper_scripts/"
+cp "$uninstall_fake_bin/swift" "$wrapper_fake_bin/swift"
+chmod 755 "$wrapper_fake_bin/swift"
+for command_name in pgrep open xcodegen; do
+  print -n -- '#!/bin/zsh\nexit 0\n' > "$wrapper_fake_bin/$command_name"
+  chmod 755 "$wrapper_fake_bin/$command_name"
+done
+print -r -- '#!/bin/zsh
+set -euo pipefail
+derived_data=""
+while (( $# > 0 )); do
+  if [[ "$1" == -derivedDataPath ]]; then
+    derived_data="$2"
+    break
+  fi
+  shift
+done
+[[ -n "$derived_data" ]]
+helper="$derived_data/Build/Products/Release/Cowlick.app/Contents/Helpers/cowlick-hook"
+mkdir -p "${helper:h}"
+print -r -- "#!/bin/zsh" > "$helper"
+print -r -- "# ${COWLICK_TEST_HELPER_MARKER:-wrapper-helper}" >> "$helper"
+print -r -- "exit 0" >> "$helper"
+chmod 755 "$helper"
+if [[ -n "${COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY:-}" ]]; then
+  : > "$COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY/reached"
+  for _ in {1..500}; do
+    [[ -e "$COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY/continue" ]] && exit 0
+    sleep 0.01
+  done
+  print -u2 "timed out waiting to continue the local build"
+  exit 1
+fi
+' > "$wrapper_fake_bin/xcodebuild"
+chmod 755 "$wrapper_fake_bin/xcodebuild"
+print -n -- \
+  '#!/bin/zsh\n[[ "${COWLICK_TEST_VERIFY_FAIL:-}" == 1 ]] && exit 1\nexit 0\n' \
+  > "$wrapper_scripts/verify_installation.sh"
+chmod 755 "$wrapper_scripts/verify_installation.sh"
+
+wait_for_process_barrier() {
+  local barrier="$1"
+  local process_id="$2"
+  local output="$3"
+  for _ in {1..500}; do
+    [[ -e "$barrier/reached" ]] && return
+    if ! kill -0 "$process_id" 2>/dev/null; then
+      print -u2 -- "$(< "$output")"
+      return 1
+    fi
+    sleep 0.01
+  done
+  print -u2 "timed out waiting for local lifecycle barrier"
+  return 1
+}
+
+assert_local_install_present() {
+  local home="$1"
+  [[ -d "$home/Applications/Cowlick.app" ]]
+  assert_integration_installed "$home"
+}
+
+assert_local_install_removed() {
+  local home="$1"
+  [[ ! -e "$home/Applications/Cowlick.app" ]]
+  [[ ! -e "$home/.local/bin/cowlick-hook" && ! -L "$home/.local/bin/cowlick-hook" ]]
+  [[ ! -e "$home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
+  ! grep -Fq 'cowlick-hook' "$home/.codex/hooks.json"
+}
+
+wrapper_install_first_home="$temporary_directory/wrapper-install-first-home"
+wrapper_install_first_barrier="$temporary_directory/wrapper-install-first-barrier"
+wrapper_install_first_output="$temporary_directory/wrapper-install-first-output"
+wrapper_uninstall_second_output="$temporary_directory/wrapper-uninstall-second-output"
+mkdir -p "$wrapper_install_first_barrier"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_install_first_home" \
+  COWLICK_HOME="$wrapper_install_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=install-first \
+  COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY="$wrapper_install_first_barrier" \
+  "$wrapper_scripts/install_local.sh" > "$wrapper_install_first_output" 2>&1 &
+wrapper_install_pid=$!
+wait_for_process_barrier \
+  "$wrapper_install_first_barrier" "$wrapper_install_pid" "$wrapper_install_first_output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_install_first_home" \
+  COWLICK_HOME="$wrapper_install_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" "$wrapper_scripts/uninstall_local.sh" \
+  > "$wrapper_uninstall_second_output" 2>&1 &
+wrapper_uninstall_pid=$!
+kill -0 "$wrapper_uninstall_pid"
+: > "$wrapper_install_first_barrier/continue"
+wait "$wrapper_install_pid"
+wait "$wrapper_uninstall_pid"
+assert_local_install_removed "$wrapper_install_first_home"
+
+wrapper_uninstall_first_home="$temporary_directory/wrapper-uninstall-first-home"
+wrapper_uninstall_first_barrier="$temporary_directory/wrapper-uninstall-first-barrier"
+wrapper_uninstall_first_output="$temporary_directory/wrapper-uninstall-first-output"
+wrapper_install_second_output="$temporary_directory/wrapper-install-second-output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_uninstall_first_home" \
+  COWLICK_HOME="$wrapper_uninstall_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=initial-install \
+  "$wrapper_scripts/install_local.sh" >/dev/null
+mkdir -p "$wrapper_uninstall_first_barrier"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_uninstall_first_home" \
+  COWLICK_HOME="$wrapper_uninstall_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_BARRIER_COMMAND=remove \
+  COWLICK_TEST_PAUSE_PHASE=after COWLICK_TEST_PAUSE_CALL=1 \
+  COWLICK_TEST_BARRIER_DIRECTORY="$wrapper_uninstall_first_barrier" \
+  "$wrapper_scripts/uninstall_local.sh" > "$wrapper_uninstall_first_output" 2>&1 &
+wrapper_uninstall_pid=$!
+wait_for_process_barrier \
+  "$wrapper_uninstall_first_barrier" "$wrapper_uninstall_pid" "$wrapper_uninstall_first_output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_uninstall_first_home" \
+  COWLICK_HOME="$wrapper_uninstall_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=install-second \
+  "$wrapper_scripts/install_local.sh" > "$wrapper_install_second_output" 2>&1 &
+wrapper_install_pid=$!
+kill -0 "$wrapper_install_pid"
+: > "$wrapper_uninstall_first_barrier/continue"
+wait "$wrapper_uninstall_pid"
+wait "$wrapper_install_pid"
+assert_local_install_present "$wrapper_uninstall_first_home"
+grep -Fq 'install-second' \
+  "$wrapper_uninstall_first_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+rollback_first_home="$temporary_directory/wrapper-rollback-first-home"
+rollback_first_barrier="$temporary_directory/wrapper-rollback-first-barrier"
+rollback_first_output="$temporary_directory/wrapper-rollback-first-output"
+install_after_rollback_output="$temporary_directory/wrapper-install-after-rollback-output"
+mkdir -p "$rollback_first_barrier"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$rollback_first_home" \
+  COWLICK_HOME="$rollback_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=failed-first \
+  COWLICK_TEST_VERIFY_FAIL=1 \
+  COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY="$rollback_first_barrier" \
+  "$wrapper_scripts/install_local.sh" > "$rollback_first_output" 2>&1 &
+rollback_first_pid=$!
+wait_for_process_barrier "$rollback_first_barrier" "$rollback_first_pid" "$rollback_first_output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$rollback_first_home" \
+  COWLICK_HOME="$rollback_first_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=installed-after-rollback \
+  "$wrapper_scripts/install_local.sh" > "$install_after_rollback_output" 2>&1 &
+install_after_rollback_pid=$!
+: > "$rollback_first_barrier/continue"
+if wait "$rollback_first_pid"; then
+  print -u2 "failed local install unexpectedly succeeded"
+  exit 1
+fi
+wait "$install_after_rollback_pid"
+assert_local_install_present "$rollback_first_home"
+grep -Fq 'installed-after-rollback' \
+  "$rollback_first_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+install_before_rollback_home="$temporary_directory/wrapper-install-before-rollback-home"
+install_before_rollback_barrier="$temporary_directory/wrapper-install-before-rollback-barrier"
+install_before_rollback_output="$temporary_directory/wrapper-install-before-rollback-output"
+rollback_after_install_output="$temporary_directory/wrapper-rollback-after-install-output"
+mkdir -p "$install_before_rollback_barrier"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$install_before_rollback_home" \
+  COWLICK_HOME="$install_before_rollback_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=retained-install \
+  COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY="$install_before_rollback_barrier" \
+  "$wrapper_scripts/install_local.sh" > "$install_before_rollback_output" 2>&1 &
+install_before_rollback_pid=$!
+wait_for_process_barrier "$install_before_rollback_barrier" \
+  "$install_before_rollback_pid" "$install_before_rollback_output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$install_before_rollback_home" \
+  COWLICK_HOME="$install_before_rollback_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=failed-after-install \
+  COWLICK_TEST_VERIFY_FAIL=1 "$wrapper_scripts/install_local.sh" \
+  > "$rollback_after_install_output" 2>&1 &
+rollback_after_install_pid=$!
+: > "$install_before_rollback_barrier/continue"
+wait "$install_before_rollback_pid"
+if wait "$rollback_after_install_pid"; then
+  print -u2 "failed local replacement unexpectedly succeeded"
+  exit 1
+fi
+assert_local_install_present "$install_before_rollback_home"
+grep -Fq 'retained-install' \
+  "$install_before_rollback_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+grep -Fq 'retained-install' \
+  "$install_before_rollback_home/Applications/Cowlick.app/Contents/Helpers/cowlick-hook"
 
 release_workflow="$project_root/.github/workflows/release.yml"
 provenance_script="$script_dir/verify_release_provenance.sh"

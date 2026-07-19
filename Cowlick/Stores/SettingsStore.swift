@@ -64,6 +64,7 @@ final class SettingsStore {
     static let menuBarPresentation = "menuBarPresentation"
     static let selectedProviderAccountID = "selectedProviderAccountID"
     static let onboardingComplete = "onboardingComplete"
+    static let integrationIntentionallyRemoved = "integrationIntentionallyRemoved"
   }
 
   static let allKeys = [
@@ -72,7 +73,7 @@ final class SettingsStore {
     Key.showOnNonNotch, Key.preferredDisplay, Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
     Key.showResetForecast, Key.usageMetricPreference, Key.menuBarPresentation,
-    Key.selectedProviderAccountID, Key.onboardingComplete,
+    Key.selectedProviderAccountID, Key.onboardingComplete, Key.integrationIntentionallyRemoved,
   ]
 
   private let defaults: UserDefaults
@@ -132,6 +133,11 @@ final class SettingsStore {
   var onboardingComplete: Bool {
     didSet { defaults.set(onboardingComplete, forKey: Key.onboardingComplete) }
   }
+  var integrationIntentionallyRemoved: Bool {
+    didSet {
+      defaults.set(integrationIntentionallyRemoved, forKey: Key.integrationIntentionallyRemoved)
+    }
+  }
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
@@ -152,6 +158,7 @@ final class SettingsStore {
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
       Key.menuBarPresentation: MenuBarPresentation.iconAndDetails.rawValue,
       Key.onboardingComplete: false,
+      Key.integrationIntentionallyRemoved: false,
     ])
 
     showPromptPreviews = defaults.bool(forKey: Key.showPromptPreviews)
@@ -179,6 +186,7 @@ final class SettingsStore {
     selectedProviderAccountID = defaults.string(forKey: Key.selectedProviderAccountID).flatMap(
       UUID.init)
     onboardingComplete = defaults.bool(forKey: Key.onboardingComplete)
+    integrationIntentionallyRemoved = defaults.bool(forKey: Key.integrationIntentionallyRemoved)
   }
 
   func reset() {
@@ -203,5 +211,6 @@ final class SettingsStore {
     menuBarPresentation = replacement.menuBarPresentation
     selectedProviderAccountID = replacement.selectedProviderAccountID
     onboardingComplete = replacement.onboardingComplete
+    integrationIntentionallyRemoved = replacement.integrationIntentionallyRemoved
   }
 }
