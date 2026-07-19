@@ -73,6 +73,55 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertTrue(output.contains("bearer=<redacted>"))
   }
 
+  func testRemovedBearerValueBoundariesAreRestoredNarrowly() {
+    for separator in ["\n", "\t", "\u{00A0}", "\u{2003}", "\u{2060}"] {
+      XCTAssertEqual(
+        EventLogger.sanitizeError("Bearer\(separator)sk-live-secret"),
+        "bearer=<redacted>"
+      )
+    }
+    XCTAssertEqual(
+      EventLogger.sanitizeError("\"Bearer\"\nsk-quoted-secret"),
+      "bearer=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("“Bearer”\u{00A0}“sk-smart-secret”"),
+      "bearer=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("「Bearer」\u{2060}「sk-cjk-secret」"),
+      "bearer=<redacted>"
+    )
+
+    XCTAssertEqual(EventLogger.sanitizeError("NotBearer\nvisible"), "NotBearervisible")
+    XCTAssertEqual(EventLogger.sanitizeError("BearerSuffix\u{2060}visible"), "BearerSuffixvisible")
+    XCTAssertEqual(EventLogger.sanitizeError("Bearer\n, public"), "Bearer, public")
+    XCTAssertEqual(EventLogger.sanitizeError("Bearer\t; public"), "Bearer; public")
+
+    XCTAssertEqual(
+      EventLogger.sanitizeError(
+        "OPEN\nAI_API_KEY=sk-\u{2060}secret /U\u{00A0}sers/alice/private"
+      ),
+      "OPENAI_API_KEY=<redacted> ~/private"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("public=sk-\u{2060}secret"),
+      "public=sk-secret"
+    )
+
+    let customHome = URL(fileURLWithPath: "/Users/alice")
+    XCTAssertEqual(
+      EventLogger.sanitizeError(
+        "/Users/alice\nprivate; Bearer\nsk-home-after", homeDirectory: customHome),
+      "~ private; bearer=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError(
+        "😀 Bearer\nsk-home-before; /Users/alice\tprivate", homeDirectory: customHome),
+      "😀 bearer=<redacted>; ~ private"
+    )
+  }
+
   func testRedactsPrefixedSuffixedAndCommonCredentialIdentifiers() {
     let secrets = [
       "openai-secret", "access-secret", "refresh-secret", "client-secret", "anthropic-secret",

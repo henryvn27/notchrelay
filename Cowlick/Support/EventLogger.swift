@@ -74,7 +74,9 @@ final class EventLogger {
     _ value: String,
     homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
   ) -> String {
-    let canonical = removingUnsafeCharacters(from: value)
+    let canonical = restoringBearerValueBoundaries(
+      in: removingUnsafeCharacters(from: value)
+    )
     var sanitized = redactHome(
       in: canonical.value,
       removedBoundaryOffsets: canonical.removedBoundaryOffsets,
@@ -121,6 +123,69 @@ final class EventLogger {
       value: canonical,
       removedBoundaryOffsets: removedBoundaryOffsets
     )
+  }
+
+  private static func restoringBearerValueBoundaries(in input: CanonicalInput) -> CanonicalInput {
+    guard !input.removedBoundaryOffsets.isEmpty else { return input }
+    let scalars = Array(input.value.unicodeScalars)
+    var insertionIndexes: Set<Int> = []
+    var originalOffset = 0
+    for index in scalars.indices {
+      if input.removedBoundaryOffsets.contains(originalOffset),
+        hasStandaloneBearerLabel(in: scalars, endingAt: index),
+        isBearerValueScalar(scalars[index])
+      {
+        insertionIndexes.insert(index)
+      }
+      originalOffset += scalars[index].value > 0xFFFF ? 2 : 1
+    }
+    guard !insertionIndexes.isEmpty else { return input }
+
+    var restored = ""
+    var adjustedOffsets: Set<Int> = []
+    originalOffset = 0
+    var insertedCount = 0
+    for index in 0...scalars.count {
+      let restoresBoundary = insertionIndexes.contains(index)
+      if restoresBoundary {
+        restored.append(" ")
+        insertedCount += 1
+      }
+      if input.removedBoundaryOffsets.contains(originalOffset), !restoresBoundary {
+        adjustedOffsets.insert(originalOffset + insertedCount)
+      }
+      guard index < scalars.count else { continue }
+      restored.unicodeScalars.append(scalars[index])
+      originalOffset += scalars[index].value > 0xFFFF ? 2 : 1
+    }
+    return CanonicalInput(value: restored, removedBoundaryOffsets: adjustedOffsets)
+  }
+
+  private static func hasStandaloneBearerLabel(
+    in scalars: [UnicodeScalar],
+    endingAt end: Int
+  ) -> Bool {
+    var labelStart = end - 6
+    var identifierEnd = end
+    if end > 0, isCredentialLabelQuote(scalars[end - 1]) {
+      identifierEnd -= 1
+      labelStart = identifierEnd - 7
+      guard labelStart >= 0, isCredentialLabelQuote(scalars[labelStart]) else { return false }
+      labelStart += 1
+    }
+    guard labelStart >= 0, identifierEnd - labelStart == 6,
+      normalizedIdentifier(scalars[labelStart..<identifierEnd]) == "bearer"
+    else { return false }
+
+    let tokenStart =
+      labelStart > 0 && isCredentialLabelQuote(scalars[labelStart - 1])
+      ? labelStart - 1 : labelStart
+    return tokenStart == 0 || !isIdentifierScalar(scalars[tokenStart - 1])
+  }
+
+  private static func isBearerValueScalar(_ scalar: UnicodeScalar) -> Bool {
+    !CharacterSet.whitespacesAndNewlines.contains(scalar)
+      && !isCredentialDelimiter(scalar) && !isExplicitValueTerminator(scalar)
   }
 
   private static func redactHome(
