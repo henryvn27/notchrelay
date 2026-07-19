@@ -281,9 +281,9 @@ private struct QuotaProgressBar: View {
       }
     let forecastSummary =
       switch pace.exhaustionForecast?.willLastThroughReset {
-      case true: ", should last through reset"
-      case false: ", projected to run out before reset"
-      case nil: ""
+      case .some(true): ", should last through reset"
+      case .some(false): ", projected to run out before reset"
+      case .none: ""
       }
     return "\(displayed)% \(metricPreference.accessibilityLabel), \(paceSummary)\(forecastSummary)"
   }
