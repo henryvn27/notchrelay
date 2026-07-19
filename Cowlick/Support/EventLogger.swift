@@ -361,6 +361,10 @@ final class EventLogger {
           continue
         }
         if scalar == activeQuote {
+          let afterQuote = end + 1
+          if afterQuote < scalars.count, !isValueTerminator(scalars[afterQuote]) {
+            return scalars.count
+          }
           quote = nil
           quoteAllowsEscapes = false
         }

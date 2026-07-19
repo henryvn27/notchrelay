@@ -422,6 +422,18 @@ final class DiagnosticsTests: XCTestCase {
     ] {
       XCTAssertEqual(EventLogger.sanitizeError(input), "authorization=<redacted>")
     }
+    for input in [
+      #"Bearer "safe"suffix;secret.tail"#,
+      "Bearer “safe”suffix;secret.tail",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "bearer=<redacted>")
+    }
+    for input in [
+      #"Authorization: Bearer "safe"suffix,secret.tail"#,
+      "Authorization: Bearer “safe”suffix,secret.tail",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "authorization=<redacted>")
+    }
 
     XCTAssertEqual(
       EventLogger.sanitizeError(#"Bearer "safe;value"; visible"#),
@@ -438,6 +450,14 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertEqual(
       EventLogger.sanitizeError("Authorization: Bearer prefix “safe,value”, visible"),
       "authorization=<redacted>, visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError(#"Bearer "safe" visible; public"#),
+      "bearer=<redacted>; public"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Authorization: Bearer “safe” visible, public"),
+      "authorization=<redacted>, public"
     )
   }
 
