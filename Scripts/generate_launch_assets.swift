@@ -2,15 +2,24 @@
 import AppKit
 import Foundation
 
-struct LaunchAssetGenerator {
+private struct LoadedImage {
+  let image: NSImage
+  let pixelSize: CGSize
+}
+
+private struct LaunchAssetGenerator {
   let root: URL
   let screenshots: URL
   let icon: NSImage
 
+  private let background = NSColor(red: 0.075, green: 0.073, blue: 0.068, alpha: 1)
+  private let foreground = NSColor(red: 0.93, green: 0.92, blue: 0.88, alpha: 1)
+  private let accent = NSColor(red: 0.88, green: 0.68, blue: 0.38, alpha: 1)
+
   init() throws {
     let script = URL(fileURLWithPath: #filePath)
     root = script.deletingLastPathComponent().deletingLastPathComponent()
-    screenshots = root.appendingPathComponent("Assets/Screenshots")
+    screenshots = root.appendingPathComponent("Assets/Screenshots", isDirectory: true)
     guard
       let loadedIcon = NSImage(
         contentsOf: root.appendingPathComponent("Assets/AppIcon/cowlick-icon-1024.png"))
@@ -22,141 +31,304 @@ struct LaunchAssetGenerator {
     try drawHero(
       size: CGSize(width: 1_600, height: 900),
       destination: screenshots.appendingPathComponent("hero.png"))
-    try drawHero(
-      size: CGSize(width: 1_280, height: 640),
+    try drawGitHubPreview(
       destination: root.appendingPathComponent("Assets/Social/github-social-preview.png"))
-    try drawHero(
-      size: CGSize(width: 1_600, height: 900),
-      destination: root.appendingPathComponent("Assets/Social/x-launch.png"))
+    try drawXLaunch(destination: root.appendingPathComponent("Assets/Social/x-launch.png"))
     try drawIconSheet()
-
-    let pressKit = root.appendingPathComponent("Assets/PressKit")
-    try FileManager.default.createDirectory(at: pressKit, withIntermediateDirectories: true)
-    try replaceCopy(
-      root.appendingPathComponent("Assets/AppIcon/cowlick-icon.svg"),
-      pressKit.appendingPathComponent("cowlick-icon.svg"))
-    try replaceCopy(
-      root.appendingPathComponent("Assets/AppIcon/cowlick-icon-1024.png"),
-      pressKit.appendingPathComponent("cowlick-icon-1024.png"))
-    try replaceCopy(
-      screenshots.appendingPathComponent("hero.png"),
-      pressKit.appendingPathComponent("cowlick-hero.png"))
+    try synchronizePressKit()
   }
 
   private func drawHero(size: CGSize, destination: URL) throws {
-    let scale = size.width / 1_600
     let approval = try loadScreenshot("approval.png")
+    let sessions = try loadScreenshot("multi-session.png")
     let bitmap = try makeCanvas(size: size) {
-      let background = NSGradient(
-        starting: NSColor(red: 0.12, green: 0.115, blue: 0.105, alpha: 1),
-        ending: NSColor(red: 0.045, green: 0.045, blue: 0.042, alpha: 1))
-      background?.draw(in: CGRect(origin: .zero, size: size), angle: -32)
-      drawGrain(in: size)
-
-      // The actual product surface owns the top center. It meets the edge exactly as it does on
-      // a notched display; the empty center is where the camera housing sits on the MacBook.
-      approval.draw(
-        in: CGRect(
-          x: 420 * scale,
-          y: size.height - 388 * scale,
-          width: 760 * scale,
-          height: 388 * scale),
-        from: .zero,
-        operation: .sourceOver,
-        fraction: 1)
-
+      fillBackground(size)
+      icon.draw(in: CGRect(x: 84, y: 710, width: 84, height: 84))
       drawText(
-        "Cowlick", at: CGPoint(x: 96 * scale, y: 246 * scale),
-        font: .systemFont(ofSize: 86 * scale, weight: .semibold),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 1))
+        "Cowlick", in: CGRect(x: 194, y: 724, width: 460, height: 76),
+        font: .systemFont(ofSize: 62, weight: .semibold), color: foreground)
       drawText(
-        "Codex status and safe approvals,\nright at the notch.",
-        at: CGPoint(x: 650 * scale, y: 282 * scale),
-        font: .systemFont(ofSize: 30 * scale, weight: .regular),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.7))
-
+        "Codex status and safe approvals,\nkept close—without becoming\nanother client.",
+        in: CGRect(x: 88, y: 500, width: 550, height: 150),
+        font: .systemFont(ofSize: 32, weight: .regular),
+        color: foreground.withAlphaComponent(0.78), lineHeight: 1.16)
+      drawText(
+        "NATIVE macOS", in: CGRect(x: 90, y: 432, width: 200, height: 24),
+        font: .monospacedSystemFont(ofSize: 15, weight: .semibold), color: accent)
       drawText(
         "Open source. Local only. No analytics.",
-        at: CGPoint(x: 654 * scale, y: 208 * scale),
-        font: .systemFont(ofSize: 18 * scale, weight: .medium),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.46))
+        in: CGRect(x: 90, y: 388, width: 480, height: 30),
+        font: .systemFont(ofSize: 19, weight: .medium),
+        color: foreground.withAlphaComponent(0.52))
+      drawText(
+        "github.com/henryvn27/cowlick", in: CGRect(x: 90, y: 98, width: 490, height: 32),
+        font: .monospacedSystemFont(ofSize: 18, weight: .regular),
+        color: foreground.withAlphaComponent(0.74))
+
+      drawImage(
+        approval, anchoredAt: CGPoint(x: 760, y: 492), maximumSize: CGSize(width: 760, height: 312))
+      drawText(
+        "Request-matched approval", in: CGRect(x: 772, y: 452, width: 400, height: 24),
+        font: .systemFont(ofSize: 15, weight: .semibold),
+        color: foreground.withAlphaComponent(0.66))
+      drawImage(
+        sessions, anchoredAt: CGPoint(x: 800, y: 102), maximumSize: CGSize(width: 720, height: 320))
+      drawText(
+        "Independent sessions", in: CGRect(x: 812, y: 62, width: 300, height: 24),
+        font: .systemFont(ofSize: 15, weight: .semibold),
+        color: foreground.withAlphaComponent(0.66))
+      drawText(
+        "Current app · non-notch display capture",
+        in: CGRect(x: 1_125, y: 62, width: 395, height: 24),
+        font: .systemFont(ofSize: 14, weight: .medium),
+        color: foreground.withAlphaComponent(0.38), alignment: .right)
+    }
+    try writePNG(bitmap, to: destination)
+  }
+
+  private func drawGitHubPreview(destination: URL) throws {
+    let size = CGSize(width: 1_280, height: 640)
+    let approval = try loadScreenshot("approval.png")
+    let bitmap = try makeCanvas(size: size) {
+      fillBackground(size)
+      icon.draw(in: CGRect(x: 62, y: 500, width: 70, height: 70))
+      drawText(
+        "Cowlick", in: CGRect(x: 154, y: 508, width: 330, height: 62),
+        font: .systemFont(ofSize: 49, weight: .semibold), color: foreground)
+      drawText(
+        "Codex status and\nsafe approvals, at a glance.",
+        in: CGRect(x: 66, y: 302, width: 425, height: 116),
+        font: .systemFont(ofSize: 29, weight: .regular),
+        color: foreground.withAlphaComponent(0.78), lineHeight: 1.14)
+      drawText(
+        "Local only · open source", in: CGRect(x: 68, y: 245, width: 370, height: 30),
+        font: .systemFont(ofSize: 17, weight: .medium),
+        color: foreground.withAlphaComponent(0.5))
+      drawText(
+        "github.com/henryvn27/cowlick", in: CGRect(x: 68, y: 68, width: 420, height: 28),
+        font: .monospacedSystemFont(ofSize: 16, weight: .regular),
+        color: foreground.withAlphaComponent(0.72))
+      drawImage(
+        approval, anchoredAt: CGPoint(x: 518, y: 205),
+        maximumSize: CGSize(width: 700, height: 288))
+      drawText(
+        "Current app · non-notch display capture",
+        in: CGRect(x: 780, y: 158, width: 438, height: 24),
+        font: .systemFont(ofSize: 13, weight: .medium),
+        color: foreground.withAlphaComponent(0.38), alignment: .right)
+    }
+    try writePNG(bitmap, to: destination)
+  }
+
+  private func drawXLaunch(destination: URL) throws {
+    let size = CGSize(width: 1_600, height: 900)
+    let approval = try loadScreenshot("approval.png")
+    let sessions = try loadScreenshot("multi-session.png")
+    let completed = try loadScreenshot("completed.png")
+    let bitmap = try makeCanvas(size: size) {
+      fillBackground(size)
+      icon.draw(in: CGRect(x: 70, y: 754, width: 70, height: 70))
+      drawText(
+        "Cowlick", in: CGRect(x: 164, y: 760, width: 340, height: 64),
+        font: .systemFont(ofSize: 50, weight: .semibold), color: foreground)
+      drawText(
+        "Working. Approval. Done.", in: CGRect(x: 70, y: 678, width: 750, height: 58),
+        font: .systemFont(ofSize: 36, weight: .semibold), color: foreground)
+      drawText(
+        "A native, local-first companion for Codex.",
+        in: CGRect(x: 72, y: 638, width: 700, height: 32),
+        font: .systemFont(ofSize: 20, weight: .regular),
+        color: foreground.withAlphaComponent(0.58))
+
+      drawImage(
+        approval, anchoredAt: CGPoint(x: 64, y: 284),
+        maximumSize: CGSize(width: 760, height: 312))
+      drawText(
+        "Explicit, request-matched decisions",
+        in: CGRect(x: 76, y: 244, width: 440, height: 24),
+        font: .systemFont(ofSize: 15, weight: .semibold),
+        color: foreground.withAlphaComponent(0.64))
+      drawImage(
+        sessions, anchoredAt: CGPoint(x: 864, y: 284),
+        maximumSize: CGSize(width: 672, height: 312))
+      drawText(
+        "Separate projects, one quiet surface",
+        in: CGRect(x: 876, y: 244, width: 430, height: 24),
+        font: .systemFont(ofSize: 15, weight: .semibold),
+        color: foreground.withAlphaComponent(0.64))
+      drawImage(
+        completed, anchoredAt: CGPoint(x: 864, y: 146),
+        maximumSize: CGSize(width: 316, height: 68))
 
       drawText(
-        "github.com/henryvn27/cowlick",
-        at: CGPoint(x: 654 * scale, y: 118 * scale),
-        font: .monospacedSystemFont(ofSize: 18 * scale, weight: .regular),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.82))
+        "github.com/henryvn27/cowlick", in: CGRect(x: 72, y: 76, width: 480, height: 30),
+        font: .monospacedSystemFont(ofSize: 17, weight: .regular),
+        color: foreground.withAlphaComponent(0.72))
+      drawText(
+        "Current app · non-notch display capture",
+        in: CGRect(x: 1_060, y: 76, width: 470, height: 24),
+        font: .systemFont(ofSize: 14, weight: .medium),
+        color: foreground.withAlphaComponent(0.38), alignment: .right)
     }
-
     try writePNG(bitmap, to: destination)
   }
 
   private func drawIconSheet() throws {
     let size = CGSize(width: 1_400, height: 900)
     let bitmap = try makeCanvas(size: size) {
-      let background = NSGradient(
-        starting: NSColor(red: 0.12, green: 0.115, blue: 0.105, alpha: 1),
-        ending: NSColor(red: 0.045, green: 0.045, blue: 0.042, alpha: 1))
-      background?.draw(in: CGRect(origin: .zero, size: size), angle: -32)
-      drawGrain(in: size)
+      fillBackground(size)
       drawText(
-        "Cowlick app icon", at: CGPoint(x: 80, y: 796),
-        font: .systemFont(ofSize: 44, weight: .semibold),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 1))
+        "Cowlick app icon", in: CGRect(x: 72, y: 782, width: 600, height: 64),
+        font: .systemFont(ofSize: 44, weight: .semibold), color: foreground)
       drawText(
-        "One continuous surface. One deliberate break in the edge.",
-        at: CGPoint(x: 82, y: 748), font: .systemFont(ofSize: 22, weight: .medium),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.58))
+        "Actual exported rasters, enlarged only where labeled for pixel inspection.",
+        in: CGRect(x: 74, y: 736, width: 820, height: 30),
+        font: .systemFont(ofSize: 20, weight: .regular),
+        color: foreground.withAlphaComponent(0.56))
 
-      let sizes: [CGFloat] = [16, 32, 64, 128, 256]
-      var x: CGFloat = 80
-      for side in sizes {
-        let shown = max(side, 48)
-        icon.draw(in: CGRect(x: x, y: 118, width: shown, height: shown))
+      let renditions: [(Int, CGFloat, String)] = [
+        (16, 64, "4× inspection"),
+        (32, 96, "3× inspection"),
+        (64, 128, "2× inspection"),
+        (128, 128, "actual size"),
+        (256, 256, "actual size"),
+      ]
+      let renditionOrigins: [CGFloat] = [74, 200, 360, 540, 680]
+      for ((pixels, shown, note), x) in zip(renditions, renditionOrigins) {
+        guard let rendition = try? loadIconRendition(pixels) else { continue }
+        NSGraphicsContext.current?.imageInterpolation = pixels < Int(shown) ? .none : .high
+        rendition.image.draw(in: CGRect(x: x, y: 238, width: shown, height: shown))
+        NSGraphicsContext.current?.imageInterpolation = .high
         drawText(
-          "\(Int(side))", at: CGPoint(x: x, y: 82),
-          font: .monospacedSystemFont(ofSize: 16, weight: .medium),
-          color: NSColor.white.withAlphaComponent(0.58))
-        x += shown + 48
+          "\(pixels) px", in: CGRect(x: x, y: 194, width: max(shown, 96), height: 24),
+          font: .monospacedSystemFont(ofSize: 15, weight: .semibold),
+          color: foreground.withAlphaComponent(0.72))
+        drawText(
+          note, in: CGRect(x: x, y: 166, width: max(shown, 110), height: 24),
+          font: .systemFont(ofSize: 13, weight: .medium),
+          color: foreground.withAlphaComponent(0.4))
       }
 
-      icon.draw(in: CGRect(x: 820, y: 210, width: 500, height: 500))
+      guard let large = try? loadIconRendition(512) else { return }
+      large.image.draw(in: CGRect(x: 1_000, y: 264, width: 350, height: 350))
       drawText(
-        "512", at: CGPoint(x: 820, y: 164),
-        font: .monospacedSystemFont(ofSize: 16, weight: .medium),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.52))
-      drawText(
-        "Editable SVG · 1024 px master", at: CGPoint(x: 880, y: 164),
-        font: .systemFont(ofSize: 16, weight: .medium),
-        color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.52))
+        "512 px raster · editable 1024 px SVG master",
+        in: CGRect(x: 1_000, y: 194, width: 360, height: 48),
+        font: .monospacedSystemFont(ofSize: 14, weight: .medium),
+        color: foreground.withAlphaComponent(0.5))
     }
-    try writePNG(
-      bitmap, to: root.appendingPathComponent("Assets/AppIcon/cowlick-icon-sheet.png"))
+    try writePNG(bitmap, to: root.appendingPathComponent("Assets/AppIcon/cowlick-icon-sheet.png"))
   }
 
-  private func drawText(_ value: String, at point: CGPoint, font: NSFont, color: NSColor) {
-    value.draw(at: point, withAttributes: [.font: font, .foregroundColor: color])
-  }
+  private func synchronizePressKit() throws {
+    let pressKit = root.appendingPathComponent("Assets/PressKit", isDirectory: true)
+    let pressScreenshots = pressKit.appendingPathComponent("Screenshots", isDirectory: true)
+    let pressDemo = pressKit.appendingPathComponent("Demo", isDirectory: true)
+    let pressSocial = pressKit.appendingPathComponent("Social", isDirectory: true)
+    for directory in [pressKit, pressScreenshots, pressDemo, pressSocial] {
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
 
-  private func drawGrain(in size: CGSize) {
-    var state: UInt64 = 0xC0_57_1C_A1
-    let sampleCount = max(1, Int(size.width * size.height / 180))
-    for _ in 0..<sampleCount {
-      state = state &* 6_364_136_223_846_793_005 &+ 1
-      let x = CGFloat(state & 0xFFFF) / CGFloat(UInt16.max) * size.width
-      state = state &* 6_364_136_223_846_793_005 &+ 1
-      let y = CGFloat(state & 0xFFFF) / CGFloat(UInt16.max) * size.height
-      let isLight = state & 1 == 0
-      NSColor(white: isLight ? 1 : 0, alpha: isLight ? 0.018 : 0.012).setFill()
-      NSBezierPath(rect: CGRect(x: x, y: y, width: 1, height: 1)).fill()
+    let copies: [(URL, URL)] = [
+      (
+        root.appendingPathComponent("Assets/AppIcon/cowlick-icon.svg"),
+        pressKit.appendingPathComponent("cowlick-icon.svg")
+      ),
+      (
+        root.appendingPathComponent("Assets/AppIcon/cowlick-icon-1024.png"),
+        pressKit.appendingPathComponent("cowlick-icon-1024.png")
+      ),
+      (
+        root.appendingPathComponent("Assets/AppIcon/cowlick-icon-sheet.png"),
+        pressKit.appendingPathComponent("cowlick-icon-sheet.png")
+      ),
+      (
+        screenshots.appendingPathComponent("hero.png"),
+        pressKit.appendingPathComponent("cowlick-hero.png")
+      ),
+      (
+        root.appendingPathComponent("Assets/Demo/cowlick-demo.mp4"),
+        pressDemo.appendingPathComponent("cowlick-demo.mp4")
+      ),
+      (
+        root.appendingPathComponent("Assets/Social/github-social-preview.png"),
+        pressSocial.appendingPathComponent("github-social-preview.png")
+      ),
+      (
+        root.appendingPathComponent("Assets/Social/x-launch.png"),
+        pressSocial.appendingPathComponent("x-launch.png")
+      ),
+      (
+        root.appendingPathComponent("Assets/Social/launch-copy.md"),
+        pressSocial.appendingPathComponent("launch-copy.md")
+      ),
+      (root.appendingPathComponent("LICENSE"), pressKit.appendingPathComponent("LICENSE.txt")),
+    ]
+    for (source, destination) in copies { try replaceCopy(source, destination) }
+
+    let screenshotNames = [
+      "working.png", "approval.png", "completed.png", "failed.png", "failed-expanded.png",
+      "multi-session.png", "settings.png", "onboarding.png", "diagnostics.png",
+    ]
+    for name in screenshotNames {
+      try replaceCopy(
+        screenshots.appendingPathComponent(name), pressScreenshots.appendingPathComponent(name))
     }
   }
 
-  private func loadScreenshot(_ name: String) throws -> NSImage {
-    guard let image = NSImage(contentsOf: screenshots.appendingPathComponent(name)) else {
-      throw AssetError.missing(name)
+  private func fillBackground(_ size: CGSize) {
+    background.setFill()
+    NSBezierPath(rect: CGRect(origin: .zero, size: size)).fill()
+  }
+
+  private func loadScreenshot(_ name: String) throws -> LoadedImage {
+    try loadImage(screenshots.appendingPathComponent(name))
+  }
+
+  private func loadIconRendition(_ size: Int) throws -> LoadedImage {
+    try loadImage(
+      root.appendingPathComponent(
+        "Cowlick/Resources/Assets.xcassets/AppIcon.appiconset/icon-\(size).png"))
+  }
+
+  private func loadImage(_ url: URL) throws -> LoadedImage {
+    guard let image = NSImage(contentsOf: url),
+      let data = try? Data(contentsOf: url),
+      let bitmap = NSBitmapImageRep(data: data)
+    else {
+      throw AssetError.missing(url.lastPathComponent)
     }
-    return image
+    return LoadedImage(
+      image: image, pixelSize: CGSize(width: bitmap.pixelsWide, height: bitmap.pixelsHigh))
+  }
+
+  private func drawImage(_ loaded: LoadedImage, anchoredAt point: CGPoint, maximumSize: CGSize) {
+    let scale = min(
+      1, maximumSize.width / loaded.pixelSize.width, maximumSize.height / loaded.pixelSize.height)
+    let size = CGSize(
+      width: loaded.pixelSize.width * scale, height: loaded.pixelSize.height * scale)
+    loaded.image.draw(
+      in: CGRect(origin: point, size: size), from: .zero, operation: .sourceOver, fraction: 1)
+  }
+
+  private func drawText(
+    _ value: String,
+    in rect: CGRect,
+    font: NSFont,
+    color: NSColor,
+    alignment: NSTextAlignment = .left,
+    lineHeight: CGFloat = 1
+  ) {
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = alignment
+    paragraph.lineHeightMultiple = lineHeight
+    value.draw(
+      in: rect,
+      withAttributes: [
+        .font: font,
+        .foregroundColor: color,
+        .paragraphStyle: paragraph,
+      ])
   }
 
   private func makeCanvas(size: CGSize, drawing: () -> Void) throws -> NSBitmapImageRep {
@@ -169,6 +341,7 @@ struct LaunchAssetGenerator {
     else { throw AssetError.encoding("canvas") }
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = context
+    NSGraphicsContext.current?.imageInterpolation = .high
     drawing()
     context.flushGraphics()
     NSGraphicsContext.restoreGraphicsState()
@@ -183,14 +356,14 @@ struct LaunchAssetGenerator {
   }
 
   private func replaceCopy(_ source: URL, _ destination: URL) throws {
-    if FileManager.default.fileExists(atPath: destination.path) {
-      try FileManager.default.removeItem(at: destination)
+    guard FileManager.default.fileExists(atPath: source.path) else {
+      throw AssetError.missing(source.lastPathComponent)
     }
-    try FileManager.default.copyItem(at: source, to: destination)
+    try Data(contentsOf: source).write(to: destination, options: .atomic)
   }
 }
 
-enum AssetError: LocalizedError {
+private enum AssetError: LocalizedError {
   case missing(String)
   case encoding(String)
 
@@ -204,9 +377,11 @@ enum AssetError: LocalizedError {
 
 do {
   try LaunchAssetGenerator().run()
-  print("Generated hero, social, icon-sheet, and press-kit assets from real app captures.")
+  print(
+    "Generated distinct hero, social, icon-sheet, and self-contained press-kit assets from current app captures."
+  )
 } catch {
   FileHandle.standardError.write(
-    Data("generate_launch_assets.swift: \(error.localizedDescription)\n".utf8))
+    Data("generate_launch_assets: \(error.localizedDescription)\n".utf8))
   exit(1)
 }

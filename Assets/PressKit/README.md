@@ -4,19 +4,23 @@ Use the original files without altering the product name or implying OpenAI endo
 
 ## Publication status
 
-The artwork and screenshots in this directory use the Cowlick name and current icon. The hero and social exports include the intended v1.0 Homebrew command; do not publish those exports until the signed release exists and that exact command succeeds against the public tap.
+The artwork and screenshots in this directory use the Cowlick name and current icon. The UI captures were made from the release-candidate app on a 2× non-notch display. They demonstrate the real fallback island and do not claim physical MacBook-notch verification. Compare them with the final signed build before publication.
+
+The images intentionally omit an installation command until the signed v1.0 release and public Homebrew cask have both passed clean-account installation tests.
 
 **One-line description:** Cowlick shows local Codex activity, safe approval actions, and quota pace around the MacBook notch.
 
-**Boilerplate:** Cowlick is a native, local-first macOS companion for OpenAI Codex. It shows working, approval, completion, failure, multi-session state, and Codex quota pace, with a compact top-center presentation on Macs without a notch. Approval decisions are matched to the exact request and safely fall back to Codex when Cowlick cannot respond. Optional OpenAI and Anthropic organization-billing accounts remain separately labeled and local.
+**Boilerplate:** Cowlick is a native, local-first macOS companion for OpenAI Codex. It shows working, approval, completion, multi-session state, and Codex quota pace, with a compact top-center presentation on Macs without a notch. Approval decisions are matched to the exact request and safely fall back to Codex when Cowlick cannot respond. Optional OpenAI and Anthropic organization-billing accounts remain separately labeled and local. Cowlick's Failed presentation is limited to bridge and self-test diagnostics; the four current Codex hooks do not provide authoritative task-failure events.
 
 ## Assets
 
-- Editable icon: `../AppIcon/cowlick-icon.svg`
-- App icon sheet: `../AppIcon/cowlick-icon-sheet.png`
-- Screenshots: `../Screenshots/`
+- Editable icon: `cowlick-icon.svg`
+- 1024 px icon: `cowlick-icon-1024.png`
+- App icon sheet: `cowlick-icon-sheet.png`
+- Screenshots: `Screenshots/`
 - Hero image: `cowlick-hero.png` (1600 × 900)
-- Demo: `../Demo/cowlick-demo.mp4`
-- Social images and copy: `../Social/`
+- Demo: `Demo/cowlick-demo.mp4`
+- Social images and copy: `Social/`
+- License: `LICENSE.txt`
 
 Cowlick is an unofficial open-source community project and is not affiliated with or endorsed by OpenAI.
