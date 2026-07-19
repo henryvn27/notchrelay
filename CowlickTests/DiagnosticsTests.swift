@@ -133,6 +133,54 @@ final class DiagnosticsTests: XCTestCase {
     }
   }
 
+  func testMalformedCredentialLabelQuotesOnlyTerminateBeforeDelimiters() {
+    for input in [
+      #""API key' = double.single"#,
+      #"'API key" : single.double"#,
+      #"API key' = stray.single"#,
+      #"API key" : stray.double"#,
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "API key=<redacted>")
+    }
+
+    for prose in [
+      #""API key' names only"#,
+      #"'API key" names only"#,
+      #"API key' names only"#,
+      #"API key" names only"#,
+      #""API key'x=public"#,
+      #"'API key"x=public"#,
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+  }
+
+  func testUnicodeCredentialLabelQuotesOnlyTerminateBeforeDelimiters() {
+    XCTAssertEqual(EventLogger.sanitizeError("“API key”:smart.double"), "API key=<redacted>")
+    XCTAssertEqual(
+      EventLogger.sanitizeError("‘AWS secret access key’:smart.single"),
+      "AWS secret access key=<redacted>"
+    )
+    XCTAssertEqual(EventLogger.sanitizeError("«API key»:guillemet.double"), "API key=<redacted>")
+    XCTAssertEqual(
+      EventLogger.sanitizeError("‹AWS secret access key›=guillemet.single"),
+      "AWS secret access key=<redacted>"
+    )
+
+    for prose in [
+      "“API key” names only",
+      "‘AWS secret access key’ names only",
+      "«API key» names only",
+      "‹AWS secret access key› names only",
+      "“API key”x=public",
+      "‘AWS secret access key’x=public",
+      "«API key»x=public",
+      "‹AWS secret access key›x=public",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+  }
+
   func testQuotedCredentialValuesHonorEscapesAndUnmatchedQuotedKeysFallBack() {
     XCTAssertEqual(EventLogger.sanitizeError(#"token="abc\"def""#), "token=<redacted>")
     XCTAssertEqual(EventLogger.sanitizeError(#""token=secret"#), "token=<redacted>")

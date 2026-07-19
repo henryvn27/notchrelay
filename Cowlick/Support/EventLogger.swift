@@ -234,7 +234,7 @@ final class EventLogger {
     var index = 0
 
     while index < scalars.count {
-      let quote = isQuote(scalars[index]) ? scalars[index] : nil
+      let quote = isCredentialLabelQuote(scalars[index]) ? scalars[index] : nil
       let identifierStart = quote == nil ? index : index + 1
       guard identifierStart < scalars.count, isIdentifierScalar(scalars[identifierStart]) else {
         index += 1
@@ -246,7 +246,9 @@ final class EventLogger {
         identifierEnd += 1
       }
       var afterIdentifier = identifierEnd
-      if let quote, afterIdentifier < scalars.count, scalars[afterIdentifier] == quote {
+      if quote != nil, afterIdentifier < scalars.count,
+        isCredentialLabelQuote(scalars[afterIdentifier])
+      {
         afterIdentifier += 1
       }
 
@@ -373,7 +375,7 @@ final class EventLogger {
     from start: Int
   ) -> SensitiveField? {
     guard start < scalars.count else { return nil }
-    let quote = isQuote(scalars[start]) ? scalars[start] : nil
+    let quote = isCredentialLabelQuote(scalars[start]) ? scalars[start] : nil
     let identifierStart = quote == nil ? start : start + 1
     guard identifierStart < scalars.count, isIdentifierScalar(scalars[identifierStart]) else {
       return nil
@@ -388,7 +390,7 @@ final class EventLogger {
     while true {
       let next = skipWhitespace(in: scalars, from: afterWord)
       let delimiter =
-        if let quote, next < scalars.count, scalars[next] == quote {
+        if next < scalars.count, isCredentialLabelQuote(scalars[next]) {
           skipWhitespace(in: scalars, from: next + 1)
         } else {
           next
@@ -466,6 +468,11 @@ final class EventLogger {
 
   private static func isQuote(_ scalar: UnicodeScalar) -> Bool {
     scalar.value == 0x22 || scalar.value == 0x27
+  }
+
+  private static func isCredentialLabelQuote(_ scalar: UnicodeScalar) -> Bool {
+    isQuote(scalar) || scalar.properties.generalCategory == .initialPunctuation
+      || scalar.properties.generalCategory == .finalPunctuation
   }
 
   private static func isCredentialDelimiter(_ scalar: UnicodeScalar) -> Bool {
