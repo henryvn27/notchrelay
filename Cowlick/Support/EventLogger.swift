@@ -215,15 +215,7 @@ final class EventLogger {
   }
 
   private static func isProseDelimiter(_ scalar: UnicodeScalar) -> Bool {
-    if [0x21, 0x22, 0x27, 0x29, 0x2C, 0x3A, 0x3B, 0x3F, 0x5D, 0x7D, 0x2026].contains(
-      scalar.value)
-    {
-      return true
-    }
-    let category = scalar.properties.generalCategory
-    return category == .closePunctuation || category == .initialPunctuation
-      || category == .finalPunctuation
-      || (category == .dashPunctuation && scalar.value != 0x2D)
+    scalar.value != 0x2D && scalar.value != 0x2E && scalar.value != 0x5F
   }
 
   private static func redactCredentials(in value: String) -> String {

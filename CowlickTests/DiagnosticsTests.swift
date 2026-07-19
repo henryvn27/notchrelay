@@ -179,6 +179,18 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertTrue(output.contains("ignorable ~.Next"))
   }
 
+  func testCustomHomeBoundaryHandlesLocalizedPunctuation() {
+    let customHome = URL(fileURLWithPath: "/Network/Homes/alice")
+    let input =
+      "fullwidth-colon \(customHome.path)\u{FF1A}Next fullwidth-comma \(customHome.path)\u{FF0C}Next ideographic-comma \(customHome.path)\u{3001}Next arabic-comma \(customHome.path)\u{060C}Next"
+    let output = EventLogger.sanitizeError(input, homeDirectory: customHome)
+
+    XCTAssertTrue(output.contains("fullwidth-colon ~\u{FF1A}Next"))
+    XCTAssertTrue(output.contains("fullwidth-comma ~\u{FF0C}Next"))
+    XCTAssertTrue(output.contains("ideographic-comma ~\u{3001}Next"))
+    XCTAssertTrue(output.contains("arabic-comma ~\u{060C}Next"))
+  }
+
   func testSanitizationRetainedScalarBoundFailsClosedForCombiningInput() {
     let input = "e" + String(repeating: "\u{0301}", count: 10_000)
     let output = EventLogger.sanitizeError(input)
