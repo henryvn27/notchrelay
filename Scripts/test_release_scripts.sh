@@ -44,4 +44,11 @@ if grep -q '__VERSION__\|__SHA256__\|NotchRelay\|notchrelay\|Forelock\|forelock'
   exit 1
 fi
 
+release_workflow="$project_root/.github/workflows/release.yml"
+grep -Fq 'test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"' "$release_workflow"
+if grep -Fq 'git merge-base --is-ancestor HEAD origin/main' "$release_workflow"; then
+  print -u2 -- "release workflow still permits a stale main ancestor"
+  exit 1
+fi
+
 print "Release script tests passed."

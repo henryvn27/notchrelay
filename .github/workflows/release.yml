@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
           git fetch origin main --depth=1
-          git merge-base --is-ancestor HEAD origin/main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
       - name: Import Developer ID certificate
         env:
           CERTIFICATE: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}
