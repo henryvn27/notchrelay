@@ -7,6 +7,7 @@ struct CollapsedIslandView: View {
   let isAttached: Bool
   let reducedAnimation: Bool
   let action: () -> Void
+  @Environment(\.colorSchemeContrast) private var colorSchemeContrast
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isHovering = false
 
@@ -30,7 +31,12 @@ struct CollapsedIslandView: View {
       value: isHovering
     )
     .accessibilityLabel("\(session.projectName), \(session.status.shortLabel)")
-    .accessibilityHint("Expand the status island")
+    .accessibilityHint(Self.accessibilityHint(for: session.status))
+  }
+
+  static func accessibilityHint(for status: AgentStatus) -> String {
+    if case .completed = status { return "Dismiss the completed status" }
+    return "Expand the status island"
   }
 
   private var motionReduced: Bool {
@@ -109,7 +115,7 @@ struct CollapsedIslandView: View {
     case .working:
       ProgressView()
         .controlSize(.small)
-        .tint(isAttached ? .white.opacity(0.72) : .secondary)
+        .tint(isAttached ? .white.opacity(increasedContrast ? 1 : 0.72) : .secondary)
         .accessibilityHidden(true)
     case .awaitingApproval:
       Image(systemName: "exclamationmark")
@@ -129,11 +135,15 @@ struct CollapsedIslandView: View {
   }
 
   private var primaryTextColor: Color {
-    isAttached ? .white.opacity(0.94) : .primary
+    isAttached ? .white.opacity(increasedContrast ? 1 : 0.94) : .primary
   }
 
   private var secondaryTextColor: Color {
-    isAttached ? .white.opacity(0.58) : .secondary
+    isAttached ? .white.opacity(increasedContrast ? 0.82 : 0.58) : .secondary
+  }
+
+  private var increasedContrast: Bool {
+    colorSchemeContrast == .increased
   }
 }
 

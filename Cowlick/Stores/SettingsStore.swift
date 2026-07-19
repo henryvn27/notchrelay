@@ -62,6 +62,7 @@ final class SettingsStore {
     static let showResetForecast = "showResetForecast"
     static let usageMetricPreference = "usageMetricPreference"
     static let menuBarPresentation = "menuBarPresentation"
+    static let selectedProviderAccountID = "selectedProviderAccountID"
     static let onboardingComplete = "onboardingComplete"
   }
 
@@ -71,7 +72,7 @@ final class SettingsStore {
     Key.showOnNonNotch, Key.preferredDisplay, Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
     Key.showResetForecast, Key.usageMetricPreference, Key.menuBarPresentation,
-    Key.onboardingComplete,
+    Key.selectedProviderAccountID, Key.onboardingComplete,
   ]
 
   private let defaults: UserDefaults
@@ -118,6 +119,15 @@ final class SettingsStore {
   }
   var menuBarPresentation: MenuBarPresentation {
     didSet { defaults.set(menuBarPresentation.rawValue, forKey: Key.menuBarPresentation) }
+  }
+  var selectedProviderAccountID: UUID? {
+    didSet {
+      if let selectedProviderAccountID {
+        defaults.set(selectedProviderAccountID.uuidString, forKey: Key.selectedProviderAccountID)
+      } else {
+        defaults.removeObject(forKey: Key.selectedProviderAccountID)
+      }
+    }
   }
   var onboardingComplete: Bool {
     didSet { defaults.set(onboardingComplete, forKey: Key.onboardingComplete) }
@@ -166,6 +176,8 @@ final class SettingsStore {
     menuBarPresentation =
       MenuBarPresentation(rawValue: defaults.string(forKey: Key.menuBarPresentation) ?? "")
       ?? .iconAndDetails
+    selectedProviderAccountID = defaults.string(forKey: Key.selectedProviderAccountID).flatMap(
+      UUID.init)
     onboardingComplete = defaults.bool(forKey: Key.onboardingComplete)
   }
 
@@ -189,6 +201,7 @@ final class SettingsStore {
     showResetForecast = replacement.showResetForecast
     usageMetricPreference = replacement.usageMetricPreference
     menuBarPresentation = replacement.menuBarPresentation
+    selectedProviderAccountID = replacement.selectedProviderAccountID
     onboardingComplete = replacement.onboardingComplete
   }
 }

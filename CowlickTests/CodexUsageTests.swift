@@ -71,7 +71,7 @@ final class CodexUsageTests: XCTestCase {
     XCTAssertEqual(pace.balancePercent, 10, accuracy: 0.001)
   }
 
-  func testExecutableLocatorUsesFirstExecutableCandidate() throws {
+  func testExecutableLocatorSkipsCandidateThatFailsValidation() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -82,9 +82,54 @@ final class CodexUsageTests: XCTestCase {
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: second.path)
 
     XCTAssertEqual(
-      try CodexExecutableLocator(candidates: [first, second]).locate().standardizedFileURL,
+      try CodexExecutableLocator(
+        candidates: [first, second],
+        validator: { $0.standardizedFileURL == second.standardizedFileURL }
+      ).locate().standardizedFileURL,
       second.standardizedFileURL
     )
+  }
+
+  func testExecutableLocatorPrefersRunningApplicationThenNewestInstalledApplication() throws {
+    let running = URL(fileURLWithPath: "/Applications/ChatGPT.app")
+    let installed = URL(fileURLWithPath: "/Applications/Codex.app")
+    let expected = running.appendingPathComponent("Contents/Resources/codex")
+
+    let locator = CodexExecutableLocator(
+      environment: [:],
+      runningApplicationURLs: [running],
+      installedApplicationURLs: [installed],
+      validator: { $0 == expected }
+    )
+
+    XCTAssertEqual(try locator.locate(), expected)
+  }
+
+  func testExecutableLocatorSortsInstalledApplicationsByNumericBuildVersion() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let older = try makeApplication(named: "Older", build: "5103", in: directory)
+    let newer = try makeApplication(named: "Newer", build: "5551", in: directory)
+
+    XCTAssertEqual(CodexExecutableLocator.newestFirst([older, newer]), [newer, older])
+  }
+
+  func testExecutableValidationRejectsExecutableThatIsNotCodex() throws {
+    XCTAssertFalse(
+      CodexExecutableLocator.isWorkingCodexExecutable(URL(fileURLWithPath: "/bin/true")))
+  }
+
+  private func makeApplication(named name: String, build: String, in directory: URL) throws -> URL {
+    let application = directory.appendingPathComponent("\(name).app")
+    let contents = application.appendingPathComponent("Contents")
+    try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+    let info = try PropertyListSerialization.data(
+      fromPropertyList: ["CFBundleVersion": build],
+      format: .xml,
+      options: 0
+    )
+    try info.write(to: contents.appendingPathComponent("Info.plist"))
+    return application
   }
 }
 

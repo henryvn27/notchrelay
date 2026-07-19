@@ -12,6 +12,11 @@ flowchart LR
     Store --> Panel[Notch NSPanel and SwiftUI]
     Store --> Menu[MenuBarExtra]
     LocalCodex[Installed Codex app-server] -->|account/rateLimits/read| Usage[MainActor UsageStore]
+    Accounts[ProviderAccountsController] --> AccountMetadata[Owner-only account metadata]
+    Accounts --> Credentials[macOS Keychain]
+    Accounts --> Billing[ProviderBillingStore]
+    Billing -->|month-to-date organization costs| ProviderAPIs[OpenAI and Anthropic APIs]
+    Billing --> AccountViews[Accounts settings]
     Forecast[willcodexquotareset.com API] -.->|opt-in HTTPS| Usage
     Usage --> Menu
     Panel -->|exact request UUID| Coordinator[ApprovalCoordinator]
@@ -22,6 +27,12 @@ flowchart LR
 
 All session mutations run on the main actor. Socket work uses a dedicated queue. Project-name resolution runs off-main without a Git subprocess. The overlay is ordered out with no animation loop while idle.
 
-Sessions are keyed by Codex `session_id`. Priority is approval, failed, working, recently completed, idle. Only the first unexpired approval UUID can be decided. Completed sessions leave presentation after the configured interval and are removed after 15 minutes. Before socket delivery, the helper atomically updates a minimal owner-only ledger for working and Stop lifecycle events. Cowlick restores those working entries after an app restart and ignores ledger entries older than 24 hours; prompt and operation content never enters the ledger.
+Sessions are keyed by Codex `session_id`. Priority is approval, failed, working, recently completed, idle. Only the first unexpired approval UUID can be decided. Completed sessions leave presentation after the configured interval and are removed after 15 minutes. Before socket delivery, the helper atomically updates a minimal owner-only ledger for working and Stop lifecycle events. Cowlick restores those entries as **unconfirmed after restart** and ignores ledger entries older than 24 hours. Recovered entries appear in session summaries, but do not increment the active count or open the passive island until a new lifecycle hook confirms them. Prompt and operation content never enters the ledger.
 
-Quota work is outside the hook bridge. `CodexUsageService` starts the installed Codex app-server ephemerally and calls only `account/rateLimits/read`; it never requests account identity or reads Codex authentication files. `ResetForecastService` is reachable only when the user enables the separate forecast preference. Both responses are bounded and held only in `UsageStore` memory. Refreshes are event-driven rather than timer-driven: official quota uses a five-minute freshness interval, ordinary forecast triggers use fifteen minutes, and opening the menu can refresh a forecast older than 30 seconds.
+Quota and billing work are outside the hook bridge. `CodexUsageService` starts the selected installed Codex executable ephemerally and calls only `account/rateLimits/read`; it never requests account identity or reads Codex authentication files. The locator prefers an explicit `COWLICK_CODEX_PATH`, then a running Codex app, installed Codex or ChatGPT app bundles, and finally known CLI locations. Every candidate must be a regular executable that answers a bounded `--version` probe before Cowlick uses it. This represents the single Codex subscription identity already active in that selected installation; Cowlick does not manage or combine Codex subscription logins.
+
+`QuotaPaceCalculator` compares observed use with an even pace through each reset window. After enough time and at least one percent of observed use, it projects a time to empty from the average burn rate. Presentation says whether the quota should last through reset or approximately how long remains before exhaustion; the expected-use percentage remains an internal marker and is not shown as the forecast.
+
+`ProviderAccountsController` manages separately labeled OpenAI API and Anthropic API organization-billing accounts. Aliases and opaque Keychain references are stored in an owner-only versioned metadata file; admin credentials live only in Keychain. Up to four accounts refresh concurrently, while every credential, result, error, and selection remains account-scoped. The menu exposes only the selected account's month-to-date result. Cowlick does not aggregate providers or translate organization API charges into subscription usage.
+
+`ResetForecastService` is reachable only when the user enables the separate forecast preference. Usage and forecast responses are bounded and held only in memory. Refreshes are event-driven rather than timer-driven: official quota uses a five-minute freshness interval, ordinary forecast triggers use fifteen minutes, and opening the menu can refresh a forecast older than 30 seconds.

@@ -4,6 +4,28 @@ import XCTest
 @testable import Cowlick
 
 final class NotchGeometryTests: XCTestCase {
+  func testApprovalFocusActivatesOnlyWhenEnteringApproval() {
+    var tracker = ApprovalFocusTracker()
+
+    XCTAssertFalse(tracker.shouldActivate(isApproval: false))
+    XCTAssertTrue(tracker.shouldActivate(isApproval: true))
+    XCTAssertFalse(tracker.shouldActivate(isApproval: true))
+    XCTAssertFalse(tracker.shouldActivate(isApproval: false))
+    XCTAssertTrue(tracker.shouldActivate(isApproval: true))
+  }
+
+  @MainActor
+  func testCollapsedAccessibilityHintMatchesItsAction() {
+    XCTAssertEqual(
+      CollapsedIslandView.accessibilityHint(for: .completed(message: nil)),
+      "Dismiss the completed status"
+    )
+    XCTAssertEqual(
+      CollapsedIslandView.accessibilityHint(for: .working(prompt: nil)),
+      "Expand the status island"
+    )
+  }
+
   func testNotchUsesAuxiliaryGapWithoutHardcodedWidth() throws {
     let result = try XCTUnwrap(
       NotchGeometryResolver.resolve(

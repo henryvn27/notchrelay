@@ -1,8 +1,8 @@
 # Performance verification
 
-## Verified 1.0 baseline
+## Verified pre-release 1.0 baseline
 
-Measured on an Apple M4 Mac mini with 16 GB RAM, macOS 26.3.1, using the universal Release build signed with an Apple Development identity. The overlay was hidden, the socket was listening, and no client was connected.
+Measured on an Apple M4 Mac mini with 16 GB RAM, macOS 26.3.1, using the universal Release build with a local ad hoc development signature. The overlay was hidden, the socket was listening, and no client was connected.
 
 | Measurement | Result |
 | --- | --- |

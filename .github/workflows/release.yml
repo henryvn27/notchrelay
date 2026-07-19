@@ -40,8 +40,14 @@ jobs:
           release_sha="$(./Scripts/verify_release_provenance.sh "$GITHUB_SHA" refs/remotes/origin/main)"
           printf 'release_sha=%s\n' "$release_sha" >> "$GITHUB_OUTPUT"
 
-  release:
+  validate:
     needs: provenance
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  release:
+    needs: [provenance, validate]
     runs-on: macos-15
     timeout-minutes: 45
     environment: release
@@ -122,8 +128,6 @@ jobs:
           NOTARYTOOL_PROFILE: cowlick-notary
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: ./Scripts/create_release.sh "$RELEASE_VERSION"
-      - name: Render Homebrew cask
-        run: ./Scripts/render_homebrew_cask.sh "$RELEASE_VERSION" "build/release-$RELEASE_VERSION/Cowlick-$RELEASE_VERSION.dmg"
       - name: Create or verify release tag
         run: |
           tag="v$RELEASE_VERSION"
@@ -141,26 +145,138 @@ jobs:
             git tag -a "$tag" -m "Cowlick $RELEASE_VERSION" '${{ needs.provenance.outputs.release_sha }}'
             git push origin "refs/tags/$tag"
           fi
-      - name: Publish GitHub release
+      - id: release_state
+        name: Create or repair draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="$RELEASE_VERSION"
           tag="v$version"
-          gh release create "$tag" \
-            "build/release-$version/Cowlick-$version.dmg" \
-            "build/release-$version/Cowlick-$version.zip" \
-            "build/release-$version/checksums.txt" \
-            "build/release-$version/appcast.xml" \
-            --title "Cowlick $version" \
-            --notes-file CHANGELOG.md \
-            --verify-tag
+          assets=(
+            "build/release-$version/Cowlick-$version.dmg"
+            "build/release-$version/Cowlick-$version.zip"
+            "build/release-$version/checksums.txt"
+            "build/release-$version/appcast.xml"
+          )
+          if gh release view "$tag" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"
+            if [[ "$is_draft" == true ]]; then
+              gh release upload "$tag" "${assets[@]}" --clobber
+              gh release edit "$tag" \
+                --title "Cowlick $version" \
+                --notes-file CHANGELOG.md \
+                --draft=true \
+                --prerelease=false
+              printf 'state=draft\n' >> "$GITHUB_OUTPUT"
+            else
+              printf 'Cowlick %s is already public; its assets will not be replaced.\n' \
+                "$version"
+              printf 'state=published\n' >> "$GITHUB_OUTPUT"
+            fi
+          else
+            gh release create "$tag" "${assets[@]}" \
+              --title "Cowlick $version" \
+              --notes-file CHANGELOG.md \
+              --draft \
+              --verify-tag
+            printf 'state=draft\n' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify draft release artifacts
+        if: steps.release_state.outputs.state == 'draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$RELEASE_VERSION"
+          tag="v$version"
+          draft_directory="$RUNNER_TEMP/cowlick-draft-$version"
+          mkdir -p "$draft_directory"
+          gh release download "$tag" --dir "$draft_directory"
+          cmp "build/release-$version/checksums.txt" "$draft_directory/checksums.txt"
+          cmp "build/release-$version/appcast.xml" "$draft_directory/appcast.xml"
+          ./Scripts/verify_release_artifacts.sh "$version" "$draft_directory"
+      - name: Publish verified GitHub release
+        if: steps.release_state.outputs.state == 'draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$RELEASE_VERSION"
+          [[ "$(gh release view "$tag" --json isDraft --jq .isDraft)" == true ]]
+          gh release edit "$tag" --draft=false --prerelease=false --latest
+      - name: Verify public downloads
+        run: |
+          version="$RELEASE_VERSION"
+          tag="v$version"
+          public_directory="$RUNNER_TEMP/cowlick-public-$version"
+          mkdir -p "$public_directory"
+          base_url="https://github.com/henryvn27/cowlick/releases/download/$tag"
+          for asset in \
+            "Cowlick-$version.dmg" \
+            "Cowlick-$version.zip" \
+            checksums.txt \
+            appcast.xml; do
+            curl --fail --location --retry 5 --retry-delay 2 \
+              --proto '=https' --tlsv1.2 \
+              "$base_url/$asset" --output "$public_directory/$asset"
+          done
+          ./Scripts/verify_release_artifacts.sh "$version" "$public_directory"
+
+          latest_appcast="$public_directory/appcast-latest.xml"
+          for attempt in {1..6}; do
+            curl --fail --location --proto '=https' --tlsv1.2 \
+              "https://github.com/henryvn27/cowlick/releases/latest/download/appcast.xml" \
+              --output "$latest_appcast"
+            cmp -s "$public_directory/appcast.xml" "$latest_appcast" && break
+            (( attempt < 6 )) \
+              || { printf 'latest appcast did not match the release\n' >&2; exit 1; }
+            sleep 5
+          done
+          cmp "$public_directory/appcast.xml" "$latest_appcast"
+          ./Scripts/render_homebrew_cask.sh "$version" \
+            "$public_directory/Cowlick-$version.dmg"
+      - name: Verify Homebrew cask and installation
+        run: |
+          test_tap='cowlick/release-test'
+          cleanup() {
+            brew uninstall --cask cowlick >/dev/null 2>&1 || true
+            brew untap "$test_tap" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          brew tap-new --no-git "$test_tap"
+          tap_directory="$(brew --repository "$test_tap")"
+          mkdir -p "$tap_directory/Casks"
+          cp Config/Homebrew/cowlick.rb "$tap_directory/Casks/cowlick.rb"
+          brew audit --cask --strict "$test_tap/cowlick"
+          brew install --cask "$test_tap/cowlick"
+          app="/Applications/Cowlick.app"
+          test -d "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          lipo -verify_arch arm64 x86_64 "$app/Contents/MacOS/Cowlick"
+          lipo -verify_arch arm64 x86_64 "$app/Contents/Helpers/cowlick-hook"
       - name: Update Homebrew tap
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
+          endpoint='repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb'
+          existing_sha="$(gh api "$endpoint" --jq .sha 2>/dev/null || true)"
+          if [[ -n "$existing_sha" ]]; then
+            existing_cask="$RUNNER_TEMP/published-cowlick.rb"
+            gh api "$endpoint" --jq .content | tr -d '\n' | base64 -D > "$existing_cask"
+            if cmp -s Config/Homebrew/cowlick.rb "$existing_cask"; then
+              printf 'Homebrew cask already matches Cowlick %s.\n' "$RELEASE_VERSION"
+              exit 0
+            fi
+          fi
           content="$(base64 < Config/Homebrew/cowlick.rb | tr -d '\n')"
-          existing_sha="$(gh api repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb --jq .sha 2>/dev/null || true)"
           args=(-X PUT -f message="Update Cowlick to $RELEASE_VERSION" -f content="$content" -f branch=main)
           if [[ -n "$existing_sha" ]]; then args+=(-f sha="$existing_sha"); fi
-          gh api repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb "${args[@]}"
+          gh api "$endpoint" "${args[@]}"
+      - name: Return failed new release to draft
+        if: ${{ failure() && steps.release_state.outputs.state == 'draft' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$RELEASE_VERSION"
+          gh release edit "$tag" --draft=true --latest=false
+          printf 'Cowlick %s returned to draft because a post-publication gate failed.\n' \
+            "$RELEASE_VERSION"

@@ -98,6 +98,11 @@ struct MenuBarContentView: View {
         )
       }
 
+      if !services.providerAccountsController.accounts.isEmpty {
+        Divider()
+        billingAccountSection
+      }
+
       if !store.sessionSummaries.isEmpty {
         Divider()
         sessionSection(store: store)
@@ -110,7 +115,120 @@ struct MenuBarContentView: View {
     .onAppear {
       services.usageStore.refreshForMenuPresentation()
       Task { hookTrust = await services.hookTrustService.inspect() }
+      Task { await services.providerAccountsController.load() }
     }
+  }
+
+  private var billingAccountSection: some View {
+    let controller = services.providerAccountsController
+    return VStack(alignment: .leading, spacing: 7) {
+      HStack {
+        Text("API billing")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+        Spacer()
+        Button {
+          Task { await controller.refreshSelected() }
+        } label: {
+          if let selectedID = controller.selectedAccountID,
+            services.providerBillingStore.refreshingAccountIDs.contains(selectedID)
+          {
+            ProgressView()
+              .controlSize(.mini)
+          } else {
+            Image(systemName: "arrow.clockwise")
+          }
+        }
+        .buttonStyle(.plain)
+        .disabled(
+          controller.selectedAccount == nil
+            || controller.selectedAccountID.map(
+              services.providerBillingStore.refreshingAccountIDs.contains) == true
+        )
+        .help("Refresh selected billing account")
+        .accessibilityLabel("Refresh selected billing account")
+      }
+
+      if let selected = controller.selectedAccount {
+        let presentation = billingPresentation(for: selected.id)
+        Menu {
+          ForEach(controller.accounts) { account in
+            Button {
+              _ = controller.selectAccount(id: account.id)
+            } label: {
+              if account.id == controller.selectedAccountID {
+                Label(account.alias, systemImage: "checkmark")
+              } else {
+                Text(account.alias)
+              }
+            }
+          }
+        } label: {
+          HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(selected.alias)
+                .font(.callout.weight(.medium))
+                .lineLimit(1)
+              Text(selected.provider.billingAccountName ?? "Billing account")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+              Text(presentation.detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(billingAmount(for: selected.id, presentation: presentation))
+              .font(.callout.monospacedDigit())
+              .foregroundStyle(.secondary)
+            Image(systemName: "chevron.up.chevron.down")
+              .font(.caption2)
+              .foregroundStyle(.tertiary)
+          }
+          .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .accessibilityLabel(billingAccessibilityLabel(for: selected))
+
+        if let error = services.providerBillingStore.errors[selected.id] {
+          Label(error, systemImage: "exclamationmark.circle")
+            .font(.caption2)
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+    .padding(.horizontal, 14)
+    .padding(.vertical, 10)
+  }
+
+  private func billingPresentation(for accountID: UUID) -> ProviderBillingPresentation {
+    ProviderBillingPresentation.resolve(
+      snapshot: services.providerBillingStore.snapshots[accountID],
+      errorMessage: services.providerBillingStore.errors[accountID]
+    )
+  }
+
+  private func billingAmount(
+    for accountID: UUID,
+    presentation: ProviderBillingPresentation
+  ) -> String {
+    guard presentation.showsAmount,
+      let snapshot = services.providerBillingStore.snapshots[accountID]
+    else {
+      return "Not refreshed"
+    }
+    return snapshot.amount.formatted(.currency(code: snapshot.currency.uppercased()))
+  }
+
+  private func billingAccessibilityLabel(for account: ProviderAccount) -> String {
+    let presentation = billingPresentation(for: account.id)
+    return [
+      "API billing account",
+      account.alias,
+      account.provider.billingAccountName ?? "",
+      billingAmount(for: account.id, presentation: presentation),
+      presentation.detail,
+    ].joined(separator: ", ")
   }
 
   private func header(store: SessionStore) -> some View {
@@ -120,11 +238,21 @@ struct MenuBarContentView: View {
         .foregroundStyle(stateColor(store.displaySession?.status))
         .frame(width: 20)
       VStack(alignment: .leading, spacing: 2) {
-        Text(headerTitle(store))
-          .font(.headline)
-        Text(activitySummary(store))
-          .font(.caption)
-          .foregroundStyle(.secondary)
+        Text(
+          Self.headerTitle(
+            status: store.displaySession?.status,
+            trustState: hookTrust.state
+          )
+        )
+        .font(.headline)
+        Text(
+          Self.activitySummary(
+            activeSessionCount: store.activeSessionCount,
+            trustState: hookTrust.state
+          )
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
       }
       Spacer()
       Button {
@@ -151,13 +279,16 @@ struct MenuBarContentView: View {
           WindowCoordinator.shared.openIsland()
         } label: {
           HStack(spacing: 8) {
-            Image(systemName: stateIcon(session.status))
-              .foregroundStyle(stateColor(session.status))
-              .frame(width: 14)
+            Image(
+              systemName: session.isRecovered
+                ? "clock.arrow.circlepath" : stateIcon(session.status)
+            )
+            .foregroundStyle(stateColor(session.status))
+            .frame(width: 14)
             Text(session.projectName)
               .lineLimit(1)
             Spacer()
-            Text(session.status.shortLabel)
+            Text(session.statusLabel)
               .foregroundStyle(.secondary)
           }
           .font(.caption)
@@ -209,12 +340,15 @@ struct MenuBarContentView: View {
     .buttonStyle(.plain)
   }
 
-  private func activitySummary(_ store: SessionStore) -> String {
-    if store.activeSessionCount > 0 {
+  static func activitySummary(
+    activeSessionCount: Int,
+    trustState: CodexHookTrustState
+  ) -> String {
+    if activeSessionCount > 0 {
       return
-        "\(store.activeSessionCount) active \(store.activeSessionCount == 1 ? "session" : "sessions")"
+        "\(activeSessionCount) active \(activeSessionCount == 1 ? "session" : "sessions")"
     }
-    switch hookTrust.state {
+    switch trustState {
     case .needsReview:
       return "Trust Cowlick in Codex /hooks"
     case .incomplete:
@@ -225,13 +359,17 @@ struct MenuBarContentView: View {
     return "No recent Codex activity"
   }
 
-  private func headerTitle(_ store: SessionStore) -> String {
-    if let status = store.displaySession?.status { return status.shortLabel }
-    switch hookTrust.state {
+  static func headerTitle(
+    status: AgentStatus?,
+    trustState: CodexHookTrustState
+  ) -> String {
+    if let status, status != .idle { return status.shortLabel }
+    switch trustState {
     case .needsReview: return "Codex review required"
     case .incomplete: return "Integration needs repair"
-    case .notChecked, .trusted, .unavailable: return "Idle"
+    case .notChecked, .trusted, .unavailable: break
     }
+    return "Idle"
   }
 
   private func stateIcon(_ status: AgentStatus?) -> String {

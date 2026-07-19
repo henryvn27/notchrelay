@@ -24,6 +24,20 @@ final class NotchPanel: NSPanel {
   override var canBecomeMain: Bool { false }
 }
 
+struct ApprovalFocusTracker {
+  private var hasPresentedApproval = false
+
+  mutating func shouldActivate(isApproval: Bool) -> Bool {
+    guard isApproval else {
+      hasPresentedApproval = false
+      return false
+    }
+    guard !hasPresentedApproval else { return false }
+    hasPresentedApproval = true
+    return true
+  }
+}
+
 @MainActor
 final class NotchPanelController {
   private let store: SessionStore
@@ -31,6 +45,7 @@ final class NotchPanelController {
   private let presentation = NotchPanelPresentation()
   private var observers: [NSObjectProtocol] = []
   private var presentationUpdateScheduled = false
+  private var approvalFocusTracker = ApprovalFocusTracker()
   private(set) var currentGeometry: ResolvedNotchGeometry?
 
   init(store: SessionStore) {
@@ -66,8 +81,13 @@ final class NotchPanelController {
   }
 
   func updatePresentation() {
+    let interactiveApproval = store.currentApproval != nil
+    if !interactiveApproval {
+      _ = approvalFocusTracker.shouldActivate(isApproval: false)
+    }
+
     let baseSize: CGSize
-    if store.currentApproval != nil {
+    if interactiveApproval {
       baseSize = NotchTheme.approvalSize
     } else if store.isExpanded {
       baseSize = NotchTheme.sessionListSize(sessionCount: store.sessionSummaries.count)
@@ -107,7 +127,6 @@ final class NotchPanelController {
     currentGeometry = geometry
     presentation.update(from: geometry)
     panel.hasShadow = !geometry.hasNotch
-    let interactiveApproval = store.currentApproval != nil
     panel.permitsKeyInteraction = interactiveApproval
     panel.ignoresMouseEvents = false
     if interactiveApproval {
@@ -145,7 +164,9 @@ final class NotchPanelController {
     }
 
     let wasVisible = panel.isVisible
-    if interactiveApproval {
+    let shouldActivateApproval =
+      interactiveApproval && approvalFocusTracker.shouldActivate(isApproval: true)
+    if shouldActivateApproval {
       NSApp.activate(ignoringOtherApps: true)
       panel.makeKeyAndOrderFront(nil)
     } else {

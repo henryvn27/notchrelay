@@ -8,6 +8,16 @@ enum UsageProvider: String, CaseIterable, Codable, Sendable {
   case cursor
   case githubCopilot = "github-copilot"
   case gemini
+
+  static let supportedBillingAccounts: [UsageProvider] = [.openAIAPI, .anthropicAPI]
+
+  var billingAccountName: String? {
+    switch self {
+    case .openAIAPI: "OpenAI API"
+    case .anthropicAPI: "Anthropic API"
+    default: nil
+    }
+  }
 }
 
 struct CredentialReference: Hashable, Codable, Sendable {

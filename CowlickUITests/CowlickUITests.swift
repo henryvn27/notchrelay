@@ -92,6 +92,19 @@ final class CowlickUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Appearance"].waitForExistence(timeout: 3))
   }
 
+  func testAccountsSettingsOpens() {
+    let app = launch(arguments: ["--open-settings"])
+    let accountsTab = app.descendants(matching: .any).matching(identifier: "Accounts").firstMatch
+    XCTAssertTrue(accountsTab.waitForExistence(timeout: 3))
+
+    accountsTab.click()
+
+    XCTAssertTrue(
+      app.staticTexts["Organization billing accounts"].waitForExistence(timeout: 3))
+    XCTAssertTrue(app.staticTexts["Active local Codex account"].exists)
+    XCTAssertTrue(app.staticTexts["No billing accounts"].exists)
+  }
+
   func testDiagnosticsOpens() {
     let app = launch(arguments: ["--open-diagnostics"])
     XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 3))

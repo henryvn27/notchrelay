@@ -31,9 +31,10 @@ struct CodexUsageService: CodexUsageFetching, Sendable {
   }
 
   func fetchUsage() async throws -> CodexUsageSnapshot {
-    let executable = try locator.locate()
+    let locator = locator
     return try await Task.detached(priority: .utility) {
-      try Self.runProbe(executable: executable)
+      let executable = try locator.locate()
+      return try Self.runProbe(executable: executable)
     }.value
   }
 

@@ -65,10 +65,11 @@ struct CodexHookTrustService: Sendable {
     async -> CodexHookTrustReport
   {
     do {
-      let executable = try locator.locate()
+      let locator = locator
       let command = expectedCommand
       return try await Task.detached(priority: .utility) {
-        try Self.runProbe(
+        let executable = try locator.locate()
+        return try Self.runProbe(
           executable: executable,
           workingDirectory: workingDirectory,
           expectedCommand: command

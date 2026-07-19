@@ -37,6 +37,7 @@ final class SessionStore {
   var displaySession: AgentSession? {
     sessions.values
       .filter { session in
+        if session.isRecovered { return false }
         if case .completed = session.status {
           return (session.completionVisibleUntil ?? .distantPast) > Date()
         }
@@ -48,10 +49,13 @@ final class SessionStore {
   }
 
   var sessionSummaries: [AgentSession] {
-    let cutoff = Date().addingTimeInterval(-15 * 60)
+    let now = Date()
+    let cutoff = now.addingTimeInterval(-15 * 60)
+    let recoveredCutoff = now.addingTimeInterval(-LifecycleLedger.staleInterval)
     return sessions.values
       .filter { session in
         if case .idle = session.status { return false }
+        if session.isRecovered { return session.updatedAt >= recoveredCutoff }
         return session.updatedAt >= cutoff
       }
       .sorted(by: sessionSort)
@@ -233,7 +237,8 @@ final class SessionStore {
         cwd: entry.workingDirectory,
         model: entry.model,
         status: .working(prompt: nil),
-        timestamp: entry.updatedAt
+        timestamp: entry.updatedAt,
+        isRecovered: true
       )
     }
     notifyPresentationChanged()
@@ -395,7 +400,8 @@ final class SessionStore {
     cwd: String,
     model: String?,
     status: AgentStatus,
-    timestamp: Date
+    timestamp: Date,
+    isRecovered: Bool = false
   ) {
     let existing = sessions[id]
     sessions[id] = AgentSession(
@@ -406,7 +412,8 @@ final class SessionStore {
       model: model ?? existing?.model,
       status: status,
       updatedAt: timestamp,
-      completionVisibleUntil: existing?.completionVisibleUntil
+      completionVisibleUntil: existing?.completionVisibleUntil,
+      isRecovered: isRecovered
     )
   }
 

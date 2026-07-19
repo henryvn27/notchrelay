@@ -14,7 +14,7 @@ struct ActualBilledSnapshot: Equatable, Codable, Sendable {
       amount: amount,
       currency: currency,
       interval: interval,
-      coverage: .accountWide,
+      coverage: provider == .anthropicAPI ? .partial : .accountWide,
       pricingAsOf: nil
     )
   }

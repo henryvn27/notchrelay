@@ -10,10 +10,14 @@ The sensitive asset is authority to approve a Codex operation. Codex and the hel
 | Tool input executes | Decode, truncate/render, optionally copy; never execute |
 | Hook output injects behavior | No stdout for status, `{}` for Stop, fixed official permission dictionaries |
 | Installer destroys config | Locked merge/validate, optimistic re-read, unknown-field preservation, private backup, atomic replace, exact marker/command ownership |
-| Update is replaced | HTTPS, Sparkle EdDSA, Developer ID, Hardened Runtime, notarization, stapling |
+| Update is replaced | Public-artifact gate requiring HTTPS, Sparkle EdDSA, Developer ID, Hardened Runtime, notarization, and stapling; no public artifact exists yet |
 | Diagnostics disclose data | Bounded sanitized metadata; secret and home-component redaction; no full values logged |
 | Lifecycle recovery leaks private work | Owner-only directory and file modes, atomic replacement under a file lock, minimal fields only, 24-hour stale ceiling, no prompt or operation content |
 | Local quota access exposes account identity | Ask the installed Codex app-server only for `account/rateLimits/read`; never read `auth.json` or call account identity methods |
+| Billing credential leaks through metadata | Store only an opaque credential reference in owner-only metadata; store the credential as a device-only macOS Keychain item |
+| One billing account receives another account's result | Separate UUID, credential reference, refresh token, snapshot, and error state per account; reject provider or account-ID mismatches |
+| Provider response or error leaks a secret | Fixed HTTPS endpoints, bounded responses, strict decoding, sanitized errors, no authorization-header or credential logging |
+| Billing totals imply complete or subscription-equivalent coverage | Label values as organization API billing, mark Anthropic partial because its official cost report excludes Priority Tier usage, keep OpenAI account-wide, and perform no cross-account aggregation or API-to-subscription conversion |
 | Third-party forecast is mistaken for Cowlick truth | Disabled by default; separate heading, source link, and no-warranty attribution in settings and every display |
 | Third-party response attacks the app | HTTPS-only fixed endpoint, ephemeral session, 10-second timeout, 512 KiB limit, strict minimal decoding, display-only values, no persistence |
 
@@ -23,9 +27,11 @@ Core features need no Accessibility permission. Caps Lock may require Input Moni
 
 Enabling the unofficial forecast expands the network trust boundary to willcodexquotareset.com. Cowlick does not authenticate to that site, send Codex content, accept executable instructions, or combine its response with approval decisions. A compromised response can at worst supply bounded display values before validation and clamping.
 
-The lifecycle ledger is a recovery aid inside the documented same-user boundary. Cowlick rejects ledger files that are not regular files owned by the current user with owner-only permissions. The helper updates it before attempting socket delivery, so an app crash does not erase future working state; a Stop event removes only its matching session.
+Adding an organization-billing account expands the network boundary to that provider's official billing API. OpenAI accounts use `https://api.openai.com/v1/organization/costs`; Anthropic accounts use `https://api.anthropic.com/v1/organizations/cost_report`. Credentials are scoped by the provider, retrieved from Keychain only for a refresh, and never reused across accounts. OpenAI organization costs are treated as account-wide. Anthropic coverage is partial because its official cost report excludes Priority Tier usage. This feature reports actual organization API charges only. It does not manage Codex subscription identities or estimate an API-equivalent price for subscription activity.
 
-## v1.0 security review
+The lifecycle ledger is a recovery aid inside the documented same-user boundary. Cowlick rejects ledger files that are not regular files owned by the current user with owner-only permissions. The helper updates it before attempting socket delivery, so an app crash does not erase future working state; a Stop event removes only its matching session. Recovered entries are explicitly unconfirmed and cannot create an active count or passive island on their own.
+
+## Pre-release v1.0 security review
 
 The launch review traced the shipped IPC, approval, hook-output, installer, diagnostics, update, and script boundaries. The review found and fixed five issues before release packaging:
 

@@ -13,6 +13,8 @@ Cowlick puts local Codex status and approval actions at the MacBook notch.
 
 Working, multi-session, completed, and failed states. Allow once or Deny matches the exact permission request, with safe fallback to Codex. Native Swift, local only, open source.
 
+It also shows Codex quota pace and time-to-empty, plus separate month-to-date billing for labeled OpenAI and Anthropic organization accounts.
+
 Install: `brew install --cask henryvn27/cowlick/cowlick`
 
 Source and demo: https://github.com/henryvn27/cowlick
@@ -21,13 +23,13 @@ Source and demo: https://github.com/henryvn27/cowlick
 
 **Show HN: Cowlick – a local macOS notch companion for Codex**
 
-Cowlick is a native SwiftUI/AppKit utility that shows local Codex lifecycle state around the MacBook notch, with a top-center fallback on other Macs. It can return Allow once or Deny for official synchronous permission hooks. Every decision matches a unique request; failures and timeouts return no decision so Codex keeps its prompt. No accounts, analytics, transcript parsing, or cloud backend. MIT licensed.
+Cowlick is a native SwiftUI/AppKit utility that shows local Codex lifecycle state around the MacBook notch, with a top-center fallback on other Macs. It can return Allow once or Deny for official synchronous permission hooks. Every decision matches a unique request; failures and timeouts return no decision so Codex keeps its prompt. It also shows Codex quota pace and time-to-empty, and can keep multiple labeled OpenAI or Anthropic organization-billing accounts separate. No Cowlick account, analytics, transcript parsing, or cloud backend. MIT licensed.
 
 Install: `brew install --cask henryvn27/cowlick/cowlick`
 
 ## Reddit
 
-I built Cowlick, an open-source native macOS companion for Codex. It shows working, approval, completion, failure, and multiple-session state near the notch. Supported permission hooks can be allowed once or denied there; unavailable or failed IPC always falls back to Codex. Prompt previews are off by default.
+I built Cowlick, an open-source native macOS companion for Codex. It shows working, approval, completion, failure, and multiple-session state near the notch. Supported permission hooks can be allowed once or denied there; unavailable or failed IPC always falls back to Codex. It also shows quota pace and estimated time-to-empty, with optional separate month-to-date billing accounts. Prompt previews are off by default.
 
 Source and demo: https://github.com/henryvn27/cowlick
 
@@ -35,7 +37,7 @@ Install: `brew install --cask henryvn27/cowlick/cowlick`
 
 ## Product Hunt
 
-Cowlick is a native, local-first macOS status companion for OpenAI Codex. It keeps active projects, approvals, completion, and failures visible at the MacBook notch without becoming another client. Decisions are explicit, request-matched, and fail safely back to Codex. Open source, no account, no analytics, no backend.
+Cowlick is a native, local-first macOS status companion for OpenAI Codex. It keeps active projects, approvals, completion, failures, and quota pace visible at the MacBook notch without becoming another client. Decisions are explicit, request-matched, and fail safely back to Codex. Optional organization-billing accounts stay separate and local. Open source, no Cowlick account, no analytics, no backend.
 
 Install with Homebrew or download the signed build from GitHub Releases.
 
@@ -43,4 +45,4 @@ Install with Homebrew or download the signed build from GitHub Releases.
 
 Do not publish these notes until the signed, notarized artifacts, Sparkle feed, and Homebrew cask pass release verification.
 
-Cowlick 1.0.0 introduces a native notch and menu-bar companion for local Codex sessions: working and multi-session status, safe request-matched approvals, completion and failure feedback, non-notch support, optional Caps Lock signals, private authenticated IPC, reversible hook onboarding, signed updates, and sanitized diagnostics. Requires macOS 14+. Universal for Apple Silicon and Intel.
+Cowlick 1.0.0 introduces a native notch and menu-bar companion for local Codex sessions: working and multi-session status, safe request-matched approvals, completion and failure feedback, Codex quota pace and time-to-empty, separate OpenAI and Anthropic organization-billing accounts, non-notch support, optional Caps Lock signals, private authenticated IPC, reversible hook onboarding, signed updates, and sanitized diagnostics. Requires macOS 14+. Universal for Apple Silicon and Intel.

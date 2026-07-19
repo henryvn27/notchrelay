@@ -6,6 +6,7 @@ struct UsageSectionView: View {
   let showForecast: Bool
   let metricPreference: UsageMetricPreference
   let refresh: () -> Void
+  @State private var presentationDate = Date()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -18,6 +19,10 @@ struct UsageSectionView: View {
     }
     .padding(.horizontal, 14)
     .padding(.vertical, 12)
+    .background {
+      MenuPresentationObserver { presentationDate = Date() }
+        .frame(width: 0, height: 0)
+    }
   }
 
   private var officialUsage: some View {
@@ -53,22 +58,31 @@ struct UsageSectionView: View {
                 .monospacedDigit()
             }
             .font(.caption)
-            let pace = limit.pace()
+            let pace = QuotaPaceCalculator.pace(
+              for: QuotaWindow(
+                usedPercent: limit.usedPercent,
+                duration: limit.windowDurationMinutes.map { TimeInterval($0 * 60) },
+                resetsAt: limit.resetsAt
+              ),
+              observedAt: snapshot.fetchedAt
+            )
             QuotaProgressBar(
               displayedPercent: limit.displayedPercent(for: metricPreference),
               metricPreference: metricPreference,
               pace: pace
             )
             if let pace {
-              Text(paceLabel(pace, preference: metricPreference))
+              Text(paceLabel(pace, relativeTo: presentationDate))
                 .font(.caption2)
                 .foregroundStyle(paceColor(pace.status))
                 .monospacedDigit()
             }
             if let resetsAt = limit.resetsAt {
-              Text("Resets \(resetsAt, style: .relative)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+              Text(
+                "Resets \(RelativeTimeLabel.string(for: resetsAt, relativeTo: presentationDate))"
+              )
+              .font(.caption2)
+              .foregroundStyle(.secondary)
             }
           }
           .accessibilityElement(children: .combine)
@@ -108,9 +122,13 @@ struct UsageSectionView: View {
 
       if let fetchedAt = store.forecast?.fetchedAt {
         HStack(spacing: 4) {
-          Text("Source updated \(fetchedAt, style: .relative)")
+          Text(
+            "Source updated \(RelativeTimeLabel.string(for: fetchedAt, relativeTo: presentationDate))"
+          )
           if let checkedAt = store.lastForecastRefresh {
-            Text("· checked \(checkedAt, style: .relative)")
+            Text(
+              "· checked \(RelativeTimeLabel.string(for: checkedAt, relativeTo: presentationDate))"
+            )
           }
         }
         .font(.caption2)
@@ -168,21 +186,46 @@ struct UsageSectionView: View {
 
   private func officialFreshness(_ snapshot: CodexUsageSnapshot) -> String {
     let prefix = store.officialError == nil ? "Updated" : "Stale · updated"
-    return "\(prefix) \(snapshot.fetchedAt.formatted(.relative(presentation: .named)))"
+    return
+      "\(prefix) \(RelativeTimeLabel.string(for: snapshot.fetchedAt, relativeTo: presentationDate))"
   }
 
-  private func paceLabel(_ pace: QuotaPace, preference: UsageMetricPreference) -> String {
-    let expected = Int(pace.expectedDisplayedPercent(for: preference).rounded())
-    let metric = preference.accessibilityLabel
+  private func paceLabel(_ pace: QuotaPace, relativeTo referenceDate: Date) -> String {
+    let paceSummary = paceSummary(pace)
+    guard let forecast = pace.exhaustionForecast else { return paceSummary }
+    let forecastSummary: String
+    if forecast.willLastThroughReset {
+      forecastSummary = "Should last through reset"
+    } else {
+      let timeToEmpty = forecast.estimatedAt.timeIntervalSince(referenceDate)
+      forecastSummary =
+        timeToEmpty < 60
+        ? "Runs out in under 1m"
+        : "Runs out in \(compactDuration(timeToEmpty))"
+    }
+    return "\(forecastSummary) · \(paceSummary)"
+  }
+
+  private func paceSummary(_ pace: QuotaPace) -> String {
     let balance = Int(abs(pace.balancePercent).rounded())
     switch pace.status {
     case .reserve:
-      return "\(balance)% in reserve · expected \(expected)% \(metric)"
+      return "\(balance) pp reserve"
     case .onPace:
-      return "On pace · expected \(expected)% \(metric)"
+      return "On pace"
     case .deficit:
-      return "\(balance)% deficit · expected \(expected)% \(metric)"
+      return "\(balance) pp deficit"
     }
+  }
+
+  private func compactDuration(_ interval: TimeInterval) -> String {
+    let totalMinutes = max(1, Int(max(0, interval) / 60))
+    let days = totalMinutes / (24 * 60)
+    let hours = (totalMinutes % (24 * 60)) / 60
+    let minutes = totalMinutes % 60
+    if days > 0 { return hours > 0 ? "\(days)d \(hours)h" : "\(days)d" }
+    if hours > 0 { return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h" }
+    return "\(minutes)m"
   }
 
   private func paceColor(_ status: QuotaPaceStatus) -> Color {
@@ -229,15 +272,24 @@ private struct QuotaProgressBar: View {
   private var accessibilityValue: String {
     let displayed = Int(displayedPercent.rounded())
     guard let pace else { return "\(displayed)% \(metricPreference.accessibilityLabel)" }
-    let expected = Int(pace.expectedDisplayedPercent(for: metricPreference).rounded())
-    return
-      "\(displayed)% \(metricPreference.accessibilityLabel), expected \(expected)% \(metricPreference.accessibilityLabel) by now"
+    let balance = Int(abs(pace.balancePercent).rounded())
+    let paceSummary =
+      switch pace.status {
+      case .reserve: "\(balance) percentage points in reserve"
+      case .onPace: "on pace"
+      case .deficit: "\(balance) percentage points in deficit"
+      }
+    let forecastSummary =
+      switch pace.exhaustionForecast?.willLastThroughReset {
+      case .some(true): ", should last through reset"
+      case .some(false): ", projected to run out before reset"
+      case .none: ""
+      }
+    return "\(displayed)% \(metricPreference.accessibilityLabel), \(paceSummary)\(forecastSummary)"
   }
 
   private var helpText: String {
-    guard let pace else { return "Quota usage" }
-    let expected = Int(pace.expectedDisplayedPercent(for: metricPreference).rounded())
-    return "Expected \(expected)% \(metricPreference.accessibilityLabel) by now"
+    pace == nil ? "Quota usage" : "The marker shows an even pace through the reset window"
   }
 
   private func fraction(_ percent: Double) -> CGFloat {
