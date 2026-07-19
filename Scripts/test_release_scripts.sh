@@ -27,6 +27,61 @@ if "$script_dir/release_notes.sh" 9.9.9 >/dev/null 2>&1; then
   exit 1
 fi
 
+expected_release_assets=(
+  Cowlick-1.0.0.dmg
+  Cowlick-1.0.0.zip
+  appcast.xml
+  checksums.txt
+)
+"$script_dir/release_verify_asset_names.sh" 1.0.0 \
+  "${expected_release_assets[@]}" >/dev/null
+asset_failure="$temporary_directory/asset-failure.txt"
+if "$script_dir/release_verify_asset_names.sh" 1.0.0 \
+  "${expected_release_assets[@]}" unexpected.txt >"$asset_failure" 2>&1; then
+  print -u2 -- "unexpected GitHub release asset set passed"
+  exit 1
+fi
+grep -Fq 'GitHub release assets do not match the expected set' "$asset_failure"
+if "$script_dir/release_verify_asset_names.sh" 1.0.0 \
+  Cowlick-1.0.0.dmg Cowlick-1.0.0.zip appcast.xml >/dev/null 2>&1; then
+  print -u2 -- "incomplete GitHub release asset set passed"
+  exit 1
+fi
+if "$script_dir/release_verify_asset_names.sh" 1.0.0 \
+  "${expected_release_assets[@]}" appcast.xml >/dev/null 2>&1; then
+  print -u2 -- "duplicate GitHub release asset set passed"
+  exit 1
+fi
+
+tap_fixture="$temporary_directory/tap-rollback"
+mkdir -p "$tap_fixture"
+print -n -- 'prior cask' > "$tap_fixture/prior.rb"
+print -n -- 'published cask' > "$tap_fixture/published.rb"
+print -n -- 'published cask' > "$tap_fixture/desired.rb"
+[[ "$("$script_dir/release_tap_rollback_guard.sh" \
+  present prior-content "$tap_fixture/prior.rb" \
+  present prior-content "$tap_fixture/prior.rb" \
+  published-content published-commit published-commit "$tap_fixture/desired.rb")" == restored ]]
+[[ "$("$script_dir/release_tap_rollback_guard.sh" \
+  present prior-content "$tap_fixture/prior.rb" \
+  present published-content "$tap_fixture/published.rb" \
+  published-content published-commit published-commit "$tap_fixture/desired.rb")" == owned ]]
+[[ "$("$script_dir/release_tap_rollback_guard.sh" \
+  absent '' "$tap_fixture/missing-prior.rb" \
+  absent '' "$tap_fixture/missing-current.rb" \
+  published-content published-commit published-commit "$tap_fixture/desired.rb")" == restored ]]
+for rejected_guard in \
+  "present prior-content $tap_fixture/prior.rb absent '' $tap_fixture/missing-current.rb published-content published-commit published-commit $tap_fixture/desired.rb" \
+  "present prior-content $tap_fixture/prior.rb present published-content $tap_fixture/published.rb published-content concurrent-commit published-commit $tap_fixture/desired.rb" \
+  "present prior-content $tap_fixture/prior.rb present concurrent-content $tap_fixture/published.rb published-content published-commit published-commit $tap_fixture/desired.rb" \
+  "present prior-content $tap_fixture/prior.rb present published-content $tap_fixture/prior.rb published-content published-commit published-commit $tap_fixture/desired.rb" \
+  "absent '' $tap_fixture/missing-prior.rb present concurrent-content $tap_fixture/published.rb published-content published-commit published-commit $tap_fixture/desired.rb"; do
+  if "$script_dir/release_tap_rollback_guard.sh" ${(z)rejected_guard} >/dev/null 2>&1; then
+    print -u2 -- "tap rollback accepted state not owned by this release: $rejected_guard"
+    exit 1
+  fi
+done
+
 fake_bin="$temporary_directory/fake-bin"
 mkdir -p "$fake_bin"
 /usr/bin/printf '%s\n' \
@@ -110,6 +165,7 @@ provenance_script="$script_dir/verify_release_provenance.sh"
 package_script="$script_dir/package_release.sh"
 artifact_verifier="$script_dir/verify_release_artifacts.sh"
 create_release_script="$script_dir/create_release.sh"
+tap_rollback_guard="$script_dir/release_tap_rollback_guard.sh"
 grep -Fq 'derived_data="$project_root/DerivedData"' "$package_script"
 grep -Fq -- '-derivedDataPath "$derived_data"' "$package_script"
 grep -Fq '"$script_dir/verify_release_artifacts.sh" "$version" "$output"' \
@@ -132,6 +188,11 @@ grep -Fq 'name: Require main to remain at the release commit' "$release_workflow
 grep -Fq "'\${{ needs.provenance.outputs.release_sha }}'" "$release_workflow"
 grep -Fq 'gh release view "$tag"' "$release_workflow"
 grep -Fq 'gh release upload "$tag" "${assets[@]}" --clobber' "$release_workflow"
+grep -Fq './Scripts/release_verify_asset_names.sh "$version" "${release_assets[@]}"' \
+  "$release_workflow"
+[[ "$(grep -Fc './Scripts/release_verify_asset_names.sh "$version" "${release_assets[@]}"' \
+  "$release_workflow")" == 2 ]] \
+  || { print -u2 -- "exact asset-set verification must cover draft and public releases"; exit 1; }
 grep -Fq './Scripts/release_notes.sh "$version"' "$release_workflow"
 grep -Fq -- '--notes-file "$release_notes"' "$release_workflow"
 grep -Fq "if: steps.release_state.outputs.state == 'draft'" "$release_workflow"
@@ -145,6 +206,9 @@ grep -Fq -- '--retry-all-errors' "$release_workflow"
 grep -Fq 'brew audit --cask --strict "$test_tap/cowlick"' "$release_workflow"
 grep -Fq 'brew install --cask "$test_tap/cowlick"' "$release_workflow"
 grep -Fq 'name: Capture Homebrew tap state' "$release_workflow"
+grep -Fq 'name: Persist rollback snapshot' "$release_workflow"
+grep -Fq 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' \
+  "$release_workflow"
 grep -Fq 'name: Verify canonical Homebrew installation' "$release_workflow"
 grep -Fq "canonical_tap='henryvn27/cowlick'" "$release_workflow"
 grep -Fq 'cmp Config/Homebrew/cowlick.rb "$tap_directory/Casks/cowlick.rb"' \
@@ -158,37 +222,64 @@ if grep -Fq 'git merge-base --is-ancestor HEAD origin/main' "$release_workflow";
   exit 1
 fi
 publish_line="$(grep -n 'name: Publish verified GitHub release' "$release_workflow" | cut -d: -f1)"
+draft_asset_verify_line="$(grep -nF './Scripts/release_verify_asset_names.sh "$version"' "$release_workflow" | head -n 1 | cut -d: -f1)"
+public_asset_verify_line="$(grep -nF './Scripts/release_verify_asset_names.sh "$version"' "$release_workflow" | tail -n 1 | cut -d: -f1)"
 public_verify_line="$(grep -n 'name: Verify public downloads' "$release_workflow" | cut -d: -f1)"
 homebrew_verify_line="$(grep -n 'name: Verify Homebrew cask and installation' "$release_workflow" | cut -d: -f1)"
 homebrew_snapshot_line="$(grep -n 'name: Capture Homebrew tap state' "$release_workflow" | cut -d: -f1)"
+rollback_snapshot_line="$(grep -n 'name: Persist rollback snapshot' "$release_workflow" | cut -d: -f1)"
 homebrew_line="$(grep -n 'name: Update Homebrew tap' "$release_workflow" | cut -d: -f1)"
 canonical_homebrew_line="$(grep -n 'name: Verify canonical Homebrew installation' "$release_workflow" | cut -d: -f1)"
-rollback_line="$(grep -n 'name: Restore failed publication state' "$release_workflow" | cut -d: -f1)"
+rollback_line="$(grep -n 'name: Restore failed or cancelled publication state' "$release_workflow" | cut -d: -f1)"
 main_recheck_line="$(grep -n 'name: Require main to remain at the release commit' "$release_workflow" | cut -d: -f1)"
 tag_line="$(grep -n 'name: Create or verify release tag' "$release_workflow" | cut -d: -f1)"
 (( main_recheck_line < tag_line )) \
   || { print -u2 -- "main provenance is not rechecked before tag mutation"; exit 1; }
-(( publish_line < public_verify_line \
+(( draft_asset_verify_line < homebrew_snapshot_line \
+  && homebrew_snapshot_line < rollback_snapshot_line \
+  && rollback_snapshot_line < publish_line \
+  && publish_line < public_verify_line \
+  && public_verify_line < public_asset_verify_line \
   && public_verify_line < homebrew_verify_line \
-  && homebrew_verify_line < homebrew_snapshot_line \
-  && homebrew_snapshot_line < homebrew_line \
+  && homebrew_verify_line < homebrew_line \
   && homebrew_line < canonical_homebrew_line \
   && canonical_homebrew_line < rollback_line )) \
   || { print -u2 -- "release publication steps are out of order"; exit 1; }
 [[ "$(tail -n +"$rollback_line" "$release_workflow" | grep -c '^[[:space:]]*- name:')" == 1 ]] \
   || { print -u2 -- "release rollback is not the final workflow step"; exit 1; }
-grep -Fq 'if: ${{ failure() }}' "$release_workflow"
+if grep -Fq 'if: ${{ failure() }}' "$release_workflow"; then
+  print -u2 -- "release rollback still depends on same-job failure state"
+  exit 1
+fi
 grep -Fq -- '--draft=true --latest=false' "$release_workflow"
-grep -Fq ': > "$snapshot/changed"' "$release_workflow"
-grep -Fq 'if [[ -f "$snapshot/changed" ]]' "$release_workflow"
+grep -Fq "needs.release.result == 'cancelled'" "$release_workflow"
+grep -Fq 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093' \
+  "$release_workflow"
+grep -Fq 'name: Require durable rollback snapshot' "$release_workflow"
+if grep -Eq '(^|[^[:alnum:]_])(mapfile|readarray)([^[:alnum:]_]|$)' "$release_workflow"; then
+  print -u2 -- "release workflow uses a shell builtin unavailable in macOS Bash 3.2"
+  exit 1
+fi
+grep -Fq 'TAP_PUBLISHED_CONTENT_SHA: ${{ needs.release.outputs.tap_published_content_sha }}' \
+  "$release_workflow"
+grep -Fq 'TAP_PUBLISHED_COMMIT_SHA: ${{ needs.release.outputs.tap_published_commit_sha }}' \
+  "$release_workflow"
+grep -Fq 'published_content_sha=%s' "$release_workflow"
+grep -Fq 'published_commit_sha=%s' "$release_workflow"
+grep -Fq '"$latest_commit_sha" == "$published_commit_sha"' "$tap_rollback_guard"
+grep -Fq 'Homebrew tap no longer matches this run publication' "$tap_rollback_guard"
+grep -Fq './Scripts/release_tap_rollback_guard.sh' "$release_workflow"
 grep -Fq 'Restore Cowlick cask after failed release' "$release_workflow"
 grep -Fq 'Remove Cowlick cask after failed release' "$release_workflow"
-grep -Fq 'refusing to overwrite it' "$release_workflow"
+grep -Fq 'refusing to overwrite it' "$tap_rollback_guard"
 grep -Fq 'release_demoted=true' "$release_workflow"
-changed_line="$(grep -nF "printf 'changed=true" "$release_workflow" | cut -d: -f1)"
-tap_put_line="$(grep -nF 'if ! gh api "$endpoint" "${args[@]}"' "$release_workflow" | cut -d: -f1)"
-[[ -n "$changed_line" && -n "$tap_put_line" && "$changed_line" -lt "$tap_put_line" ]] \
-  || { print -u2 -- "tap rollback ownership is not recorded before mutation"; exit 1; }
+publication_marker_line="$(grep -nF 'publication_message="Update Cowlick to $RELEASE_VERSION' "$release_workflow" | head -n 1 | cut -d: -f1)"
+tap_put_line="$(grep -nF 'if ! published_record="$(gh api "$endpoint" "${args[@]}"' "$release_workflow" | cut -d: -f1)"
+published_output_line="$(grep -nF "printf 'published_commit_sha=%s" "$release_workflow" | cut -d: -f1)"
+[[ -n "$publication_marker_line" && -n "$tap_put_line" && -n "$published_output_line" \
+  && "$publication_marker_line" -lt "$tap_put_line" \
+  && "$tap_put_line" -lt "$published_output_line" ]] \
+  || { print -u2 -- "tap publication identity is not recorded around mutation"; exit 1; }
 if grep -A8 -F 'state=published' "$release_workflow" | grep -Fq -- '--clobber'; then
   print -u2 -- "published release path can overwrite assets"
   exit 1
