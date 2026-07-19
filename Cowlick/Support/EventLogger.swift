@@ -253,6 +253,19 @@ final class EventLogger {
       }
 
       let identifier = scalars[identifierStart..<identifierEnd]
+      let whitespaceEnd = skipWhitespace(in: scalars, from: afterIdentifier)
+      let hasDelimitedValue =
+        whitespaceEnd < scalars.count && isCredentialDelimiter(scalars[whitespaceEnd])
+      if whitespaceEnd > afterIdentifier, !hasDelimitedValue, isBearerIdentifier(identifier),
+        let valueEnd = protectedValueEnd(in: scalars, from: whitespaceEnd)
+      {
+        output.append(contentsOf: string(from: scalars[cursor..<index]))
+        output.append("bearer=<redacted>")
+        cursor = valueEnd
+        index = valueEnd
+        continue
+      }
+
       if let field = sensitiveField(in: scalars, from: index) {
         let valueStart = skipWhitespace(in: scalars, from: field.delimiter + 1)
         let protectsContinuation =
@@ -272,17 +285,6 @@ final class EventLogger {
           index = valueEnd
           continue
         }
-      }
-
-      let whitespaceEnd = skipWhitespace(in: scalars, from: afterIdentifier)
-      if whitespaceEnd > afterIdentifier, isBearerIdentifier(identifier),
-        let valueEnd = protectedValueEnd(in: scalars, from: whitespaceEnd)
-      {
-        output.append(contentsOf: string(from: scalars[cursor..<index]))
-        output.append("bearer=<redacted>")
-        cursor = valueEnd
-        index = valueEnd
-        continue
       }
 
       index = max(index + 1, afterIdentifier)
@@ -314,6 +316,14 @@ final class EventLogger {
       while end < scalars.count {
         if scalars[end] == quote { return end + 1 }
         end += scalars[end].value == 0x5C && end + 1 < scalars.count ? 2 : 1
+      }
+      return scalars.count
+    }
+    if let closingQuote = unicodeCredentialValueClosingQuote(for: scalars[start]) {
+      var end = start + 1
+      while end < scalars.count {
+        if scalars[end] == closingQuote { return end + 1 }
+        end += 1
       }
       return scalars.count
     }
@@ -473,6 +483,18 @@ final class EventLogger {
   private static func isCredentialLabelQuote(_ scalar: UnicodeScalar) -> Bool {
     isQuote(scalar) || scalar.properties.generalCategory == .initialPunctuation
       || scalar.properties.generalCategory == .finalPunctuation
+  }
+
+  private static func unicodeCredentialValueClosingQuote(
+    for openingQuote: UnicodeScalar
+  ) -> UnicodeScalar? {
+    switch openingQuote.value {
+    case 0x201C: UnicodeScalar(0x201D)
+    case 0x2018: UnicodeScalar(0x2019)
+    case 0x00AB: UnicodeScalar(0x00BB)
+    case 0x2039: UnicodeScalar(0x203A)
+    default: nil
+    }
   }
 
   private static func isCredentialDelimiter(_ scalar: UnicodeScalar) -> Bool {

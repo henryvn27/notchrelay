@@ -186,10 +186,64 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertEqual(EventLogger.sanitizeError(#""token=secret"#), "token=<redacted>")
   }
 
+  func testUnicodeCredentialValueWrappersFailClosedWithoutChangingUnquotedTermination() {
+    for input in [
+      "token=“curly secret value” visible",
+      "token=‘curly secret value’ visible",
+      "token=«guillemet secret value» visible",
+      "token=‹guillemet secret value› visible",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "token=<redacted> visible")
+    }
+
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=“curly secret value” visible"),
+      "api.key=<redacted> visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=«guillemet secret value»; visible"),
+      "api.key=<redacted>; visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("token=“first»secret tail” visible"),
+      "token=<redacted> visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=«first’secret tail» visible"),
+      "api.key=<redacted> visible"
+    )
+    XCTAssertEqual(EventLogger.sanitizeError("token=“secret value trailing"), "token=<redacted>")
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=«secret value trailing"),
+      "api.key=<redacted>"
+    )
+    XCTAssertEqual(EventLogger.sanitizeError("token=“first»secret tail"), "token=<redacted>")
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=«first”secret tail"),
+      "api.key=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError(#"token="abc\"def" visible"#),
+      "token=<redacted> visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("token=secret visible"),
+      "token=<redacted> visible"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("api.key=secret; visible"),
+      "api.key=<redacted>; visible"
+    )
+  }
+
   func testBearerDelimiterFormsAndProtectedContinuationsFailClosed() {
     XCTAssertEqual(
       EventLogger.sanitizeError("bearer=first; Bearer: second"),
       "bearer=<redacted>; Bearer=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Bearer = third; Bearer : fourth"),
+      "Bearer=<redacted>; Bearer=<redacted>"
     )
     XCTAssertEqual(
       EventLogger.sanitizeError("Authorization: Bearer sk-live-\n tail"),
@@ -207,6 +261,18 @@ final class DiagnosticsTests: XCTestCase {
       EventLogger.sanitizeError("Authorization: Bearer auth.value API key: field.value"),
       "authorization=<redacted> API key=<redacted>"
     )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Bearer auth.value api.key: field.value"),
+      "bearer=<redacted> api.key=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Bearer auth.value API key: field.value"),
+      "bearer=<redacted> API key=<redacted>"
+    )
+
+    for prose in ["Bearer", #""Bearer""#, "Bearer, visible prose", "A Bearer, by definition"] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
   }
 
   func testRedactsExactStandardizedCustomHomeBeforeUsersFallback() {
