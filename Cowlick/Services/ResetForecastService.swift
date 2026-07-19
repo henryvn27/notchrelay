@@ -37,12 +37,28 @@ struct ResetForecastService: ResetForecastFetching, @unchecked Sendable {
     request.timeoutInterval = 10
     request.setValue("application/json", forHTTPHeaderField: "Accept")
     request.setValue("Cowlick/\(ProductVersion.marketing)", forHTTPHeaderField: "User-Agent")
-    let (data, response) = try await session.data(for: request)
+    let (bytes, response) = try await session.bytes(for: request)
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+      bytes.task.cancel()
       throw ResetForecastServiceError.unavailable
     }
-    guard data.count <= Self.maximumResponseSize else {
+    let expectedContentLength = http.expectedContentLength
+    guard expectedContentLength < 0 || expectedContentLength <= Int64(Self.maximumResponseSize)
+    else {
+      bytes.task.cancel()
       throw ResetForecastServiceError.responseTooLarge
+    }
+
+    var data = Data()
+    if expectedContentLength > 0, let capacity = Int(exactly: expectedContentLength) {
+      data.reserveCapacity(capacity)
+    }
+    for try await byte in bytes {
+      guard data.count < Self.maximumResponseSize else {
+        bytes.task.cancel()
+        throw ResetForecastServiceError.responseTooLarge
+      }
+      data.append(byte)
     }
     return try Self.parseResponse(data)
   }

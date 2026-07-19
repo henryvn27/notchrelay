@@ -25,17 +25,23 @@ struct CodexUsageService: CodexUsageFetching, Sendable {
   static let processTimeout: TimeInterval = 8
 
   private let locator: CodexExecutableLocator
+  private let timeout: TimeInterval
 
-  init(locator: CodexExecutableLocator = CodexExecutableLocator()) {
+  init(
+    locator: CodexExecutableLocator = CodexExecutableLocator(),
+    timeout: TimeInterval = Self.processTimeout
+  ) {
     self.locator = locator
+    self.timeout = timeout
   }
 
   func fetchUsage() async throws -> CodexUsageSnapshot {
     let locator = locator
-    return try await Task.detached(priority: .utility) {
+    let timeout = timeout
+    return try await runBoundedProcessOperation {
       let executable = try locator.locate()
-      return try Self.runProbe(executable: executable)
-    }.value
+      return try Self.runProbe(executable: executable, timeout: timeout)
+    }
   }
 
   static func parseResponse(_ data: Data, fetchedAt: Date = Date()) throws
@@ -96,78 +102,60 @@ struct CodexUsageService: CodexUsageFetching, Sendable {
     )
   }
 
-  private static func runProbe(executable: URL) throws -> CodexUsageSnapshot {
-    let process = Process()
-    let input = Pipe()
-    let output = Pipe()
-    process.executableURL = executable
-    process.arguments = ["app-server", "--stdio"]
-    process.standardInput = input
-    process.standardOutput = output
-    process.standardError = FileHandle.nullDevice
-
+  private static func runProbe(executable: URL, timeout: TimeInterval) throws
+    -> CodexUsageSnapshot
+  {
     var environment = ProcessInfo.processInfo.environment
     let executableDirectory = executable.deletingLastPathComponent().path
     environment["PATH"] =
       environment["PATH"].map { "\(executableDirectory):\($0)" }
       ?? executableDirectory
-    process.environment = environment
-    try process.run()
+    do {
+      let runner = try BoundedProcessRunner(
+        executableURL: executable,
+        arguments: ["app-server", "--stdio"],
+        environment: environment,
+        acceptsInput: true,
+        timeout: timeout,
+        maximumOutputSize: maximumResponseSize
+      )
+      defer { runner.stop() }
 
-    let timeout = DispatchWorkItem {
-      if process.isRunning { process.terminate() }
-    }
-    DispatchQueue.global(qos: .utility).asyncAfter(
-      deadline: .now() + processTimeout, execute: timeout)
-    defer {
-      timeout.cancel()
-      if process.isRunning { process.terminate() }
-    }
-
-    try write(
-      [
-        "method": "initialize",
-        "id": 0,
-        "params": [
-          "clientInfo": [
-            "name": "cowlick", "title": "Cowlick", "version": ProductVersion.marketing,
-          ]
-        ],
-      ], to: input.fileHandleForWriting)
-
-    var response = Data()
-    guard read(until: 0, from: output.fileHandleForReading, into: &response) else {
+      try runner.write(
+        encoded(
+          [
+            "method": "initialize",
+            "id": 0,
+            "params": [
+              "clientInfo": [
+                "name": "cowlick", "title": "Cowlick", "version": ProductVersion.marketing,
+              ]
+            ],
+          ]))
+      try runner.read { containsResponse(id: 0, in: $0) }
+      try runner.write(encoded(["method": "initialized", "params": [:]]))
+      try runner.write(
+        encoded(["method": "account/rateLimits/read", "id": 2, "params": [:]]))
+      try runner.read { containsResponse(id: 2, in: $0) }
+      return try parseResponse(runner.output)
+    } catch let error as BoundedProcessRunnerError {
+      if error == .responseTooLarge {
+        throw CodexUsageServiceError.responseTooLarge
+      }
+      throw CodexUsageServiceError.processFailed
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch let error as CodexUsageServiceError {
+      throw error
+    } catch {
       throw CodexUsageServiceError.processFailed
     }
-    try write(["method": "initialized", "params": [:]], to: input.fileHandleForWriting)
-    try write(
-      ["method": "account/rateLimits/read", "id": 2, "params": [:]],
-      to: input.fileHandleForWriting)
-    guard read(until: 2, from: output.fileHandleForReading, into: &response) else {
-      throw CodexUsageServiceError.processFailed
-    }
-    try? input.fileHandleForWriting.close()
-    return try parseResponse(response)
   }
 
-  private static func write(_ message: [String: Any], to handle: FileHandle) throws {
+  private static func encoded(_ message: [String: Any]) throws -> Data {
     var data = try JSONSerialization.data(withJSONObject: message, options: [.sortedKeys])
     data.append(0x0A)
-    try handle.write(contentsOf: data)
-  }
-
-  private static func read(
-    until expectedID: Int,
-    from handle: FileHandle,
-    into response: inout Data
-  ) -> Bool {
-    while !containsResponse(id: expectedID, in: response) {
-      let chunk = handle.availableData
-      guard !chunk.isEmpty else { return false }
-      guard response.count + chunk.count <= maximumResponseSize else { return false }
-      response.append(chunk)
-    }
-    return true
+    return data
   }
 
   private static func containsResponse(id: Int, in data: Data) -> Bool {

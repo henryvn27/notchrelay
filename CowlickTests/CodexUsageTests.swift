@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import XCTest
 
@@ -48,6 +49,171 @@ final class CodexUsageTests: XCTestCase {
 
   func testResponseLimitIsOneMegabyte() {
     XCTAssertEqual(CodexUsageService.maximumResponseSize, 1_048_576)
+  }
+
+  func testProbeCompletesNormalHandshakeWithBoundedRunner() async throws {
+    let fixture = try ExecutableFixture(
+      script: """
+        #!/bin/sh
+        IFS= read -r initialize || exit 3
+        case "$initialize" in *'"id":0'*) ;; *) exit 3 ;; esac
+        case "$initialize" in *'"method":"initialize"'*) ;; *) exit 3 ;; esac
+        printf '%s\n' '{"id":0,"result":{}}'
+        IFS= read -r initialized || exit 3
+        case "$initialized" in
+          *'"method":"initialized"'*) ;;
+          *) exit 3 ;;
+        esac
+        IFS= read -r request || exit 3
+        case "$request" in *'"id":2'*) ;; *) exit 3 ;; esac
+        case "$request" in
+          *'"method":"account/rateLimits/read"'*|*'"method":"account\\/rateLimits\\/read"'*) ;;
+          *) exit 3 ;;
+        esac
+        printf '%s\n' '{"id":2,"result":{"rateLimits":{"limitId":"codex","planType":"plus","primary":{"usedPercent":25,"windowDurationMins":300}}}}'
+        while IFS= read -r _; do :; done
+        """)
+    defer { fixture.remove() }
+    let service = CodexUsageService(
+      locator: CodexExecutableLocator(candidates: [fixture.url], validator: { _ in true }))
+
+    let snapshot = try await service.fetchUsage()
+
+    XCTAssertEqual(snapshot.planType, "plus")
+    XCTAssertEqual(snapshot.limits.map(\.usedPercent), [25])
+  }
+
+  func testProbeMapsOversizedStreamingOutputToResponseTooLarge() async throws {
+    let fixture = try ExecutableFixture(script: "#!/bin/sh\nexec /usr/bin/yes malicious\n")
+    defer { fixture.remove() }
+    let service = CodexUsageService(
+      locator: CodexExecutableLocator(candidates: [fixture.url], validator: { _ in true }))
+
+    do {
+      _ = try await service.fetchUsage()
+      XCTFail("Expected oversized output to fail")
+    } catch {
+      XCTAssertEqual(error as? CodexUsageServiceError, .responseTooLarge)
+    }
+  }
+
+  func testProbeMapsEarlyAndNonzeroExitToProcessFailed() async throws {
+    for status in [0, 7] {
+      let fixture = try ExecutableFixture(script: "#!/bin/sh\nexit \(status)\n")
+      defer { fixture.remove() }
+      let service = CodexUsageService(
+        locator: CodexExecutableLocator(candidates: [fixture.url], validator: { _ in true }))
+
+      do {
+        _ = try await service.fetchUsage()
+        XCTFail("Expected exit \(status) to fail")
+      } catch {
+        XCTAssertEqual(error as? CodexUsageServiceError, .processFailed)
+      }
+    }
+  }
+
+  func testProbeTimeoutMapsToProcessFailedWithinBound() async throws {
+    let fixture = try ExecutableFixture(
+      script: "#!/bin/sh\ntrap '' TERM\nwhile :; do :; done\n")
+    defer { fixture.remove() }
+    let service = CodexUsageService(
+      locator: CodexExecutableLocator(candidates: [fixture.url], validator: { _ in true }),
+      timeout: 0.05
+    )
+    let startedAt = Date()
+
+    do {
+      _ = try await service.fetchUsage()
+      XCTFail("Expected timeout")
+    } catch {
+      XCTAssertEqual(error as? CodexUsageServiceError, .processFailed)
+    }
+
+    XCTAssertLessThan(Date().timeIntervalSince(startedAt), 0.75)
+  }
+
+  func testProbeCancellationKillsAppServerProcessGroup() async throws {
+    let parentPIDURL = temporaryURL("usage-parent")
+    let descendantPIDURL = temporaryURL("usage-descendant")
+    let fixture = try ExecutableFixture(
+      script: stubbornProcessTreeScript(
+        parentPID: parentPIDURL, descendantPID: descendantPIDURL))
+    defer { remove([fixture.url, parentPIDURL, descendantPIDURL]) }
+    let service = CodexUsageService(
+      locator: CodexExecutableLocator(candidates: [fixture.url], validator: { _ in true }),
+      timeout: 5
+    )
+    let task = Task { try await service.fetchUsage() }
+    guard let parentPID = await waitForProcessID(at: parentPIDURL),
+      let descendantPID = await waitForProcessID(at: descendantPIDURL)
+    else {
+      task.cancel()
+      return XCTFail("Expected app-server process tree to start")
+    }
+    defer {
+      Darwin.kill(parentPID, SIGKILL)
+      Darwin.kill(descendantPID, SIGKILL)
+    }
+    let startedAt = Date()
+
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+
+    let processTreeExited = await waitForProcessesToExit([parentPID, descendantPID])
+    XCTAssertTrue(processTreeExited)
+    XCTAssertLessThan(Date().timeIntervalSince(startedAt), 0.75)
+  }
+
+  func testCancellationStopsLocatorAndSkipsLaterCandidates() async throws {
+    let parentPIDURL = temporaryURL("locator-parent")
+    let descendantPIDURL = temporaryURL("locator-descendant")
+    let laterCandidateMarker = temporaryURL("locator-later-candidate")
+    let first = try ExecutableFixture(
+      script: stubbornProcessTreeScript(
+        parentPID: parentPIDURL, descendantPID: descendantPIDURL))
+    let second = try ExecutableFixture(
+      script: "#!/bin/sh\nprintf reached > '\(laterCandidateMarker.path)'\nprintf 'codex-cli 1.0'\n"
+    )
+    defer {
+      remove([
+        first.url, second.url, parentPIDURL, descendantPIDURL, laterCandidateMarker,
+      ])
+    }
+    let service = CodexUsageService(
+      locator: CodexExecutableLocator(candidates: [first.url, second.url]),
+      timeout: 5
+    )
+    let task = Task { try await service.fetchUsage() }
+    guard let parentPID = await waitForProcessID(at: parentPIDURL),
+      let descendantPID = await waitForProcessID(at: descendantPIDURL)
+    else {
+      task.cancel()
+      return XCTFail("Expected locator validation process tree to start")
+    }
+    defer {
+      Darwin.kill(parentPID, SIGKILL)
+      Darwin.kill(descendantPID, SIGKILL)
+    }
+
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("Expected cancellation")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+
+    let processTreeExited = await waitForProcessesToExit([parentPID, descendantPID])
+    XCTAssertTrue(processTreeExited)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: laterCandidateMarker.path))
   }
 
   func testLimitDisplaysSelectedMetric() {
@@ -131,6 +297,15 @@ final class CodexUsageTests: XCTestCase {
     try info.write(to: contents.appendingPathComponent("Info.plist"))
     return application
   }
+
+  private func temporaryURL(_ name: String) -> URL {
+    FileManager.default.temporaryDirectory
+      .appendingPathComponent("cowlick-\(name)-\(UUID().uuidString)")
+  }
+
+  private func remove(_ urls: [URL]) {
+    for url in urls { try? FileManager.default.removeItem(at: url) }
+  }
 }
 
 private actor UsageFetchRecorder: CodexUsageFetching {
@@ -166,6 +341,50 @@ private actor ForecastFetchRecorder: ResetForecastFetching {
 
 @MainActor
 final class UsageStoreTests: XCTestCase {
+  func testResetCancelsRunningUsageProcessTree() async throws {
+    let parentPIDURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent("cowlick-store-parent-\(UUID().uuidString)")
+    let descendantPIDURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent("cowlick-store-descendant-\(UUID().uuidString)")
+    let fixture = try ExecutableFixture(
+      script: stubbornProcessTreeScript(
+        parentPID: parentPIDURL, descendantPID: descendantPIDURL))
+    defer {
+      fixture.remove()
+      try? FileManager.default.removeItem(at: parentPIDURL)
+      try? FileManager.default.removeItem(at: descendantPIDURL)
+    }
+    let settings = makeTestSettings()
+    settings.showCodexUsage = true
+    settings.showResetForecast = false
+    let service = CodexUsageService(
+      locator: CodexExecutableLocator(candidates: [fixture.url], validator: { _ in true }),
+      timeout: 5
+    )
+    let store = UsageStore(
+      settings: settings,
+      usageService: service,
+      forecastService: ForecastFetchRecorder()
+    )
+
+    store.refreshIfNeeded(force: true)
+    guard let parentPID = await waitForProcessID(at: parentPIDURL),
+      let descendantPID = await waitForProcessID(at: descendantPIDURL)
+    else {
+      store.reset()
+      return XCTFail("Expected UsageStore process tree to start")
+    }
+    defer {
+      Darwin.kill(parentPID, SIGKILL)
+      Darwin.kill(descendantPID, SIGKILL)
+    }
+
+    store.reset()
+
+    let processTreeExited = await waitForProcessesToExit([parentPID, descendantPID])
+    XCTAssertTrue(processTreeExited)
+  }
+
   func testForecastIsNeverFetchedWhileDisabled() async {
     let settings = makeTestSettings()
     settings.showResetForecast = false

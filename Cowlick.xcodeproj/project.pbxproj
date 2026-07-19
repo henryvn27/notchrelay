@@ -52,6 +52,7 @@
 		750A2443E3BA5974479344E5 /* LifecycleLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */; };
 		7B218C8C52D3E4922082235B /* CapsLockSignalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AB75B90DFE478F9E58804F /* CapsLockSignalService.swift */; };
 		7BD37F706FF3F446092EE259 /* CollapsedIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5975C0B5D5E68661DB6EF1 /* CollapsedIslandView.swift */; };
+		7D5FE4F2AD304E0C57FA2ED3 /* BoundedProcessRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D8F94CE47D18B68CAAB9205 /* BoundedProcessRunner.swift */; };
 		7E55B9345585BA5684A2883D /* DiagnosticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D59D05A03D746971D939704 /* DiagnosticsService.swift */; };
 		7F2252103C2374B6E4007AC7 /* ProviderAccountEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F354262AEDBE7AD60387B22F /* ProviderAccountEditorView.swift */; };
 		809528534D6F5C05251CF572 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */; };
@@ -208,6 +209,7 @@
 		9B1F17405E9329567C0E3660 /* RelativeTimeLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTimeLabel.swift; sourceTree = "<group>"; };
 		9C5975C0B5D5E68661DB6EF1 /* CollapsedIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapsedIslandView.swift; sourceTree = "<group>"; };
 		9D59D05A03D746971D939704 /* DiagnosticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsService.swift; sourceTree = "<group>"; };
+		9D8F94CE47D18B68CAAB9205 /* BoundedProcessRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundedProcessRunner.swift; sourceTree = "<group>"; };
 		A1594E6652349760A9BCE9B7 /* UpdateConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateConfigurationTests.swift; sourceTree = "<group>"; };
 		AB3651BA18513BBA1AA7CF71 /* IntegrationSelfTestServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationSelfTestServiceTests.swift; sourceTree = "<group>"; };
 		AB95EF8576E68328ADE34D9E /* UITestingProviderServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestingProviderServices.swift; sourceTree = "<group>"; };
@@ -425,6 +427,7 @@
 			isa = PBXGroup;
 			children = (
 				B8ADE618862771F340A8867C /* ApprovalCoordinator.swift */,
+				9D8F94CE47D18B68CAAB9205 /* BoundedProcessRunner.swift */,
 				04AB75B90DFE478F9E58804F /* CapsLockSignalService.swift */,
 				EC0DAB84AA88DE3A5EABA5FE /* CodexActivationService.swift */,
 				30CA3AE3DD687EA18FEE2B26 /* CodexExecutableLocator.swift */,
@@ -678,6 +681,7 @@
 				20AB9F2ADA6E1012EE0E363C /* ApprovalDecision.swift in Sources */,
 				3802A31B29D0B752ADAA7C02 /* ApprovalRequest.swift in Sources */,
 				B0D71888B1383B820B1C4E35 /* ApprovalView.swift in Sources */,
+				7D5FE4F2AD304E0C57FA2ED3 /* BoundedProcessRunner.swift in Sources */,
 				FD508F9A14D61BF56C1636CA /* BridgeEvent.swift in Sources */,
 				7B218C8C52D3E4922082235B /* CapsLockSignalService.swift in Sources */,
 				C7149358CEACF1326296F613 /* CodexActivationService.swift in Sources */,

@@ -51,12 +51,15 @@ struct CodexHookTrustService: Sendable {
 
   private let locator: CodexExecutableLocator
   private let expectedCommand: String
+  private let timeout: TimeInterval
 
   init(
     locator: CodexExecutableLocator = CodexExecutableLocator(),
-    homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
+    homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+    timeout: TimeInterval = Self.processTimeout
   ) {
     self.locator = locator
+    self.timeout = timeout
     let shim = homeDirectory.appendingPathComponent(".local/bin/cowlick-hook").path
     expectedCommand = "'\(shim.replacingOccurrences(of: "'", with: "'\\''"))' hook"
   }
@@ -67,14 +70,16 @@ struct CodexHookTrustService: Sendable {
     do {
       let locator = locator
       let command = expectedCommand
-      return try await Task.detached(priority: .utility) {
+      let timeout = timeout
+      return try await runBoundedProcessOperation {
         let executable = try locator.locate()
         return try Self.runProbe(
           executable: executable,
           workingDirectory: workingDirectory,
-          expectedCommand: command
+          expectedCommand: command,
+          timeout: timeout
         )
-      }.value
+      }
     } catch {
       return CodexHookTrustReport(
         state: .unavailable(error.localizedDescription), eventStatuses: [:])
@@ -127,82 +132,61 @@ struct CodexHookTrustService: Sendable {
   private static func runProbe(
     executable: URL,
     workingDirectory: String,
-    expectedCommand: String
+    expectedCommand: String,
+    timeout: TimeInterval
   ) throws -> CodexHookTrustReport {
-    let process = Process()
-    let input = Pipe()
-    let output = Pipe()
-    process.executableURL = executable
-    process.arguments = ["app-server", "--stdio"]
-    process.standardInput = input
-    process.standardOutput = output
-    process.standardError = FileHandle.nullDevice
-
     var environment = ProcessInfo.processInfo.environment
     let executableDirectory = executable.deletingLastPathComponent().path
     environment["PATH"] =
       environment["PATH"].map { "\(executableDirectory):\($0)" }
       ?? executableDirectory
-    process.environment = environment
-    try process.run()
+    do {
+      let runner = try BoundedProcessRunner(
+        executableURL: executable,
+        arguments: ["app-server", "--stdio"],
+        environment: environment,
+        acceptsInput: true,
+        timeout: timeout,
+        maximumOutputSize: maximumResponseSize
+      )
+      defer { runner.stop() }
 
-    let timeout = DispatchWorkItem {
-      if process.isRunning { process.terminate() }
-    }
-    DispatchQueue.global(qos: .utility).asyncAfter(
-      deadline: .now() + processTimeout, execute: timeout)
-    defer {
-      timeout.cancel()
-      if process.isRunning { process.terminate() }
-    }
-
-    try write(
-      [
-        "method": "initialize",
-        "id": 0,
-        "params": [
-          "clientInfo": [
-            "name": "cowlick", "title": "Cowlick", "version": ProductVersion.marketing,
-          ]
-        ],
-      ], to: input.fileHandleForWriting)
-
-    var response = Data()
-    guard try read(until: 0, from: output.fileHandleForReading, into: &response) else {
-      throw CodexHookTrustServiceError.processFailed
-    }
-    try write(["method": "initialized", "params": [:]], to: input.fileHandleForWriting)
-    try write(
-      ["method": "hooks/list", "id": 2, "params": ["cwds": [workingDirectory]]],
-      to: input.fileHandleForWriting)
-    guard try read(until: 2, from: output.fileHandleForReading, into: &response) else {
-      throw CodexHookTrustServiceError.processFailed
-    }
-    try? input.fileHandleForWriting.close()
-    return try parseResponse(
-      response, workingDirectory: workingDirectory, expectedCommand: expectedCommand)
-  }
-
-  private static func write(_ message: [String: Any], to handle: FileHandle) throws {
-    var data = try JSONSerialization.data(withJSONObject: message, options: [.sortedKeys])
-    data.append(0x0A)
-    try handle.write(contentsOf: data)
-  }
-
-  private static func read(
-    until expectedID: Int,
-    from handle: FileHandle,
-    into response: inout Data
-  ) throws -> Bool {
-    while !containsResponse(id: expectedID, in: response) {
-      let chunk = handle.availableData
-      guard !chunk.isEmpty else { return false }
-      guard response.count + chunk.count <= maximumResponseSize else {
+      try runner.write(
+        encoded(
+          [
+            "method": "initialize",
+            "id": 0,
+            "params": [
+              "clientInfo": [
+                "name": "cowlick", "title": "Cowlick", "version": ProductVersion.marketing,
+              ]
+            ],
+          ]))
+      try runner.read { containsResponse(id: 0, in: $0) }
+      try runner.write(encoded(["method": "initialized", "params": [:]]))
+      try runner.write(
+        encoded(["method": "hooks/list", "id": 2, "params": ["cwds": [workingDirectory]]]))
+      try runner.read { containsResponse(id: 2, in: $0) }
+      return try parseResponse(
+        runner.output, workingDirectory: workingDirectory, expectedCommand: expectedCommand)
+    } catch let error as BoundedProcessRunnerError {
+      if error == .responseTooLarge {
         throw CodexHookTrustServiceError.responseTooLarge
       }
-      response.append(chunk)
+      throw CodexHookTrustServiceError.processFailed
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch let error as CodexHookTrustServiceError {
+      throw error
+    } catch {
+      throw CodexHookTrustServiceError.processFailed
     }
-    return true
+  }
+
+  private static func encoded(_ message: [String: Any]) throws -> Data {
+    var data = try JSONSerialization.data(withJSONObject: message, options: [.sortedKeys])
+    data.append(0x0A)
+    return data
   }
 
   private static func containsResponse(id: Int, in data: Data) -> Bool {

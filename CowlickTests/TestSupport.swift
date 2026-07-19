@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 @testable import Cowlick
@@ -65,4 +66,58 @@ func waitUntil(
     try? await Task.sleep(for: .milliseconds(10))
   }
   return condition()
+}
+
+struct ExecutableFixture {
+  let url: URL
+
+  init(script: String) throws {
+    url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("cowlick-executable-fixture-\(UUID().uuidString)")
+    try Data(script.utf8).write(to: url, options: .atomic)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+  }
+
+  func remove() {
+    try? FileManager.default.removeItem(at: url)
+  }
+}
+
+func stubbornProcessTreeScript(parentPID: URL, descendantPID: URL) -> String {
+  """
+  #!/bin/sh
+  trap '' TERM
+  (trap '' TERM; while :; do :; done) &
+  printf '%s' "$$" > '\(parentPID.path)'
+  printf '%s' "$!" > '\(descendantPID.path)'
+  while :; do :; done
+  """
+}
+
+func waitForProcessID(at url: URL, timeout: TimeInterval = 1) async -> pid_t? {
+  let deadline = Date().addingTimeInterval(timeout)
+  while Date() < deadline {
+    if let data = try? Data(contentsOf: url),
+      let value = String(data: data, encoding: .utf8),
+      let processID = pid_t(value.trimmingCharacters(in: .whitespacesAndNewlines))
+    {
+      return processID
+    }
+    try? await Task.sleep(for: .milliseconds(5))
+  }
+  return nil
+}
+
+func processIsAlive(_ processID: pid_t) -> Bool {
+  errno = 0
+  return Darwin.kill(processID, 0) == 0 || errno == EPERM
+}
+
+func waitForProcessesToExit(_ processIDs: [pid_t], timeout: TimeInterval = 1) async -> Bool {
+  let deadline = Date().addingTimeInterval(timeout)
+  while Date() < deadline {
+    if processIDs.allSatisfy({ !processIsAlive($0) }) { return true }
+    try? await Task.sleep(for: .milliseconds(5))
+  }
+  return processIDs.allSatisfy { !processIsAlive($0) }
 }

@@ -61,9 +61,11 @@ struct CodexExecutableLocator: Sendable {
   func locate() throws -> URL {
     var seen = Set<String>()
     for candidate in candidates {
+      try Task.checkCancellation()
       let path = candidate.standardizedFileURL.path
       guard seen.insert(path).inserted else { continue }
       if validator(candidate) { return candidate }
+      try Task.checkCancellation()
     }
     throw CodexExecutableLocatorError.notFound
   }
@@ -86,35 +88,22 @@ struct CodexExecutableLocator: Sendable {
     var info = stat()
     guard stat(url.path, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG else { return false }
 
-    let process = Process()
-    let output = Pipe()
-    process.executableURL = url
-    process.arguments = ["--version"]
-    process.standardOutput = output
-    process.standardError = FileHandle.nullDevice
     do {
-      try process.run()
+      let runner = try BoundedProcessRunner(
+        executableURL: url,
+        arguments: ["--version"],
+        timeout: 2,
+        maximumOutputSize: 4_096
+      )
+      defer { runner.stop() }
+      try runner.readToExit()
+      guard let version = String(data: runner.output, encoding: .utf8)?.lowercased() else {
+        return false
+      }
+      return version.hasPrefix("codex-cli ") || version.hasPrefix("codex ")
     } catch {
       return false
     }
-
-    let deadline = Date().addingTimeInterval(2)
-    while process.isRunning, Date() < deadline {
-      Thread.sleep(forTimeInterval: 0.01)
-    }
-    guard !process.isRunning else {
-      process.terminate()
-      Thread.sleep(forTimeInterval: 0.05)
-      if process.isRunning { Darwin.kill(process.processIdentifier, SIGKILL) }
-      return false
-    }
-    guard process.terminationStatus == 0 else { return false }
-
-    let data = output.fileHandleForReading.readDataToEndOfFile()
-    guard data.count <= 4_096,
-      let version = String(data: data, encoding: .utf8)?.lowercased()
-    else { return false }
-    return version.hasPrefix("codex-cli ") || version.hasPrefix("codex ")
   }
 
   private static func runningCodexApplicationURLs() -> [URL] {

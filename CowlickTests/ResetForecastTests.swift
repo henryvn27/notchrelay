@@ -33,4 +33,144 @@ final class ResetForecastTests: XCTestCase {
   func testResponseLimitIsHalfMegabyte() {
     XCTAssertEqual(ResetForecastService.maximumResponseSize, 524_288)
   }
+
+  func testFetchForecastStreamsNormalResponse() async throws {
+    ForecastStreamingURLProtocol.configure(
+      .body(Data(#"{"forecast":{"score":72,"resetAnnounced":false}}"#.utf8)))
+    defer { ForecastStreamingURLProtocol.reset() }
+    let session = makeForecastSession()
+    defer { session.invalidateAndCancel() }
+    let service = ResetForecastService(
+      session: session, endpoint: URL(string: "https://cowlick.invalid/forecast")!)
+
+    let forecast = try await service.fetchForecast()
+
+    XCTAssertEqual(forecast.score, 72)
+  }
+
+  func testFetchForecastCancelsKnownOversizedResponseFromHeader() async {
+    let cancelled = expectation(description: "Known oversized forecast task cancelled")
+    ForecastStreamingURLProtocol.configure(
+      .endless(Data(repeating: 0x20, count: 65_536)),
+      expectedContentLength: Int64(ResetForecastService.maximumResponseSize + 1),
+      onStop: { cancelled.fulfill() }
+    )
+    defer { ForecastStreamingURLProtocol.reset() }
+    let session = makeForecastSession()
+    let service = ResetForecastService(
+      session: session, endpoint: URL(string: "https://cowlick.invalid/forecast")!)
+
+    do {
+      _ = try await service.fetchForecast()
+      XCTFail("Expected known oversized output to fail")
+    } catch {
+      XCTAssertEqual(error as? ResetForecastServiceError, .responseTooLarge)
+    }
+    await fulfillment(of: [cancelled], timeout: 1)
+    session.invalidateAndCancel()
+  }
+
+  func testFetchForecastCancelsUnknownLengthOversizedStreamAtBound() async {
+    let cancelled = expectation(description: "Oversized forecast task cancelled")
+    ForecastStreamingURLProtocol.configure(
+      .endless(Data(repeating: 0x20, count: 65_536)),
+      onStop: { cancelled.fulfill() }
+    )
+    defer { ForecastStreamingURLProtocol.reset() }
+    let session = makeForecastSession()
+    let service = ResetForecastService(
+      session: session, endpoint: URL(string: "https://cowlick.invalid/forecast")!)
+
+    do {
+      _ = try await service.fetchForecast()
+      XCTFail("Expected oversized output to fail")
+    } catch {
+      XCTAssertEqual(error as? ResetForecastServiceError, .responseTooLarge)
+    }
+    await fulfillment(of: [cancelled], timeout: 1)
+    session.invalidateAndCancel()
+  }
+
+  private func makeForecastSession() -> URLSession {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [ForecastStreamingURLProtocol.self]
+    return URLSession(configuration: configuration)
+  }
+}
+
+private final class ForecastStreamingURLProtocol: URLProtocol, @unchecked Sendable {
+  enum Payload: Sendable {
+    case body(Data)
+    case endless(Data)
+  }
+
+  private static let configurationLock = NSLock()
+  nonisolated(unsafe) private static var payload = Payload.body(Data())
+  nonisolated(unsafe) private static var expectedContentLength: Int64?
+  nonisolated(unsafe) private static var stopHandler: (() -> Void)?
+
+  private let stateLock = NSLock()
+  private var stopped = false
+
+  static func configure(
+    _ payload: Payload,
+    expectedContentLength: Int64? = nil,
+    onStop: (() -> Void)? = nil
+  ) {
+    configurationLock.lock()
+    self.payload = payload
+    self.expectedContentLength = expectedContentLength
+    stopHandler = onStop
+    configurationLock.unlock()
+  }
+
+  static func reset() {
+    configure(.body(Data()))
+  }
+
+  override class func canInit(with _: URLRequest) -> Bool { true }
+
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+  override func startLoading() {
+    Self.configurationLock.lock()
+    let payload = Self.payload
+    let expectedContentLength = Self.expectedContentLength
+    Self.configurationLock.unlock()
+    let response = HTTPURLResponse(
+      url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+      headerFields: expectedContentLength.map { ["Content-Length": String($0)] }
+    )!
+    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+
+    switch payload {
+    case .body(let data):
+      client?.urlProtocol(self, didLoad: data)
+      client?.urlProtocolDidFinishLoading(self)
+    case .endless(let chunk):
+      DispatchQueue.global(qos: .utility).async { [self] in
+        while !isStopped {
+          client?.urlProtocol(self, didLoad: chunk)
+          Thread.sleep(forTimeInterval: 0.001)
+        }
+      }
+    }
+  }
+
+  override func stopLoading() {
+    stateLock.lock()
+    stopped = true
+    stateLock.unlock()
+
+    Self.configurationLock.lock()
+    let stopHandler = Self.stopHandler
+    Self.configurationLock.unlock()
+    stopHandler?()
+  }
+
+  private var isStopped: Bool {
+    stateLock.lock()
+    defer { stateLock.unlock() }
+    return stopped
+  }
 }
