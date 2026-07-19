@@ -322,6 +322,7 @@ struct MenuBarContentView: View {
       }
       .menuStyle(.borderlessButton)
       .accessibilityIdentifier("test-state-menu")
+      .disabled(!store.canPreviewTestStates)
       actionButton("Settings", systemImage: "gearshape") {
         WindowCoordinator.shared.openSettingsForTesting()
       }

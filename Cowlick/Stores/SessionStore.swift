@@ -8,6 +8,7 @@ final class SessionStore {
   private(set) var approvalQueue: [ApprovalRequest] = []
   private var seenApprovalRequestIDs: [UUID: Date] = [:]
   private var localDemoApprovalIDs: Set<UUID> = []
+  private var localDemoSessionIDs: Set<String> = []
   var isExpanded = false
   var presentationDidChange: (() -> Void)?
 
@@ -32,6 +33,17 @@ final class SessionStore {
 
   var activeSessionCount: Int {
     sessions.values.filter(\.isActive).count
+  }
+
+  var canPreviewTestStates: Bool {
+    guard approvalQueue.allSatisfy({ localDemoApprovalIDs.contains($0.id) }) else { return false }
+    return sessions.values.allSatisfy { session in
+      guard !localDemoSessionIDs.contains(session.id) else { return true }
+      return switch session.status {
+      case .working, .awaitingApproval: false
+      case .idle, .failed, .completed: true
+      }
+    }
   }
 
   var displaySession: AgentSession? {
@@ -72,6 +84,7 @@ final class SessionStore {
     let projectName = await Task.detached(priority: .utility) {
       ProjectNameResolver.resolve(workingDirectory: event.cwd)
     }.value
+    clearLocalDemoState()
 
     switch event.event {
     case .ping:
@@ -162,6 +175,7 @@ final class SessionStore {
     approvalQueue.removeAll()
     seenApprovalRequestIDs.removeAll()
     localDemoApprovalIDs.removeAll()
+    localDemoSessionIDs.removeAll()
     sessions.removeAll()
     isExpanded = false
     eventLogger.reset()
@@ -171,10 +185,13 @@ final class SessionStore {
   }
 
   func testState(_ state: BridgeEventName) {
+    guard canPreviewTestStates else { return }
+    clearLocalDemoState()
     let id = "demo-visual-state"
     let now = Date()
     switch state {
     case .working:
+      localDemoSessionIDs.insert(id)
       upsertSession(
         id: id, turnID: "demo-turn", projectName: "Scoutly", cwd: "/Demo/Scoutly", model: "gpt-5.6",
         status: .working(prompt: "Refine the match scouting flow"), timestamp: now)
@@ -194,13 +211,15 @@ final class SessionStore {
         expiresAt: now.addingTimeInterval(settings.approvalTimeout)
       )
       localDemoApprovalIDs.insert(request.id)
-      approvalQueue = [request]
+      localDemoSessionIDs.insert(id)
+      approvalQueue.append(request)
       upsertSession(
         id: id, turnID: "demo-turn", projectName: request.projectName,
         cwd: request.workingDirectory, model: nil, status: .awaitingApproval(request),
         timestamp: now)
       isExpanded = true
     case .completed:
+      localDemoSessionIDs.insert(id)
       upsertSession(
         id: id, turnID: "demo-turn", projectName: "Meetly", cwd: "/Demo/Meetly", model: nil,
         status: .completed(message: "All checks passed"), timestamp: now)
@@ -210,12 +229,13 @@ final class SessionStore {
       sessions[id] = session
       isExpanded = false
     case .failed:
+      localDemoSessionIDs.insert(id)
       upsertSession(
         id: id, turnID: "demo-turn", projectName: "Scoutly", cwd: "/Demo/Scoutly", model: nil,
-        status: .failed(message: "Build verification failed"), timestamp: now)
+        status: .failed(message: "Bridge self-test failed"), timestamp: now)
       isExpanded = false
     case .sessionStart, .ping:
-      reset()
+      break
     }
     notifyPresentationChanged()
   }
@@ -230,6 +250,7 @@ final class SessionStore {
         )
       }
     }.value
+    clearLocalDemoState()
     for (entry, projectName) in resolved where sessions[entry.sessionID] == nil {
       upsertSession(
         id: entry.sessionID,
@@ -246,11 +267,10 @@ final class SessionStore {
   }
 
   func testMultipleSessions() {
-    approvalCoordinator.deferAll()
-    approvalQueue.removeAll()
-    localDemoApprovalIDs.removeAll()
-    sessions.removeAll()
+    guard canPreviewTestStates else { return }
+    clearLocalDemoState()
     let now = Date()
+    localDemoSessionIDs.formUnion(["demo-primary", "demo-secondary"])
     upsertSession(
       id: "demo-primary", turnID: "demo-turn-1", projectName: "Scoutly",
       cwd: "/Demo/Scoutly", model: "gpt-5.6",
@@ -262,6 +282,15 @@ final class SessionStore {
       timestamp: now.addingTimeInterval(0.01))
     isExpanded = true
     notifyPresentationChanged()
+  }
+
+  private func clearLocalDemoState() {
+    approvalQueue.removeAll { localDemoApprovalIDs.contains($0.id) }
+    for sessionID in localDemoSessionIDs {
+      sessions.removeValue(forKey: sessionID)
+    }
+    localDemoApprovalIDs.removeAll()
+    localDemoSessionIDs.removeAll()
   }
 
   private func handleApproval(_ event: BridgeEvent, projectName: String) async -> ApprovalDecision {

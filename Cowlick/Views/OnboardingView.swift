@@ -173,6 +173,7 @@ struct OnboardingView: View {
         }
         .disabled(integrationTestInProgress)
         Button("Preview Approval") { services.sessionStore.testState(.approvalRequested) }
+          .disabled(!services.sessionStore.canPreviewTestStates)
       }
       Text(integrationTestStatus)
         .font(.caption)

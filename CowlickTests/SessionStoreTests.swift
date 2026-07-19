@@ -149,6 +149,99 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertTrue(store.approvalQueue.isEmpty)
   }
 
+  func testEveryPreviewActionPreservesLivePendingApprovalAndSession() async {
+    let previews: [(String, (SessionStore) -> Void)] = [
+      ("Working", { $0.testState(.working) }),
+      ("Approval", { $0.testState(.approvalRequested) }),
+      ("Completed", { $0.testState(.completed) }),
+      ("Failed", { $0.testState(.failed) }),
+      ("Multiple Sessions", { $0.testMultipleSessions() }),
+    ]
+
+    for (name, preview) in previews {
+      let settings = makeTestSettings()
+      settings.approvalTimeout = 10
+      let store = SessionStore(settings: settings)
+      let requestID = UUID()
+      let event = makeBridgeEvent(
+        event: .approvalRequested,
+        requestID: requestID,
+        sessionID: "live-approval",
+        toolName: "Bash",
+        toolInput: .object(["command": .string("git push")])
+      )
+      let decisionTask = Task { await store.receive(event) }
+      let queued = await waitUntil { store.currentApproval?.id == requestID }
+      XCTAssertTrue(queued, name)
+      guard let liveSession = store.sessions[event.sessionId] else {
+        decisionTask.cancel()
+        return XCTFail("Expected live session before \(name) preview")
+      }
+
+      preview(store)
+
+      XCTAssertEqual(store.approvalQueue.map(\.id), [requestID], name)
+      XCTAssertEqual(store.sessions[event.sessionId], liveSession, name)
+      XCTAssertEqual(store.sessions.count, 1, name)
+      XCTAssertTrue(store.decide(requestID: requestID, decision: .allow), name)
+      let decision = await decisionTask.value
+      XCTAssertEqual(decision, .allow, name)
+    }
+  }
+
+  func testEveryPreviewActionPreservesLiveWorkingSession() async {
+    let previews: [(String, (SessionStore) -> Void)] = [
+      ("Working", { $0.testState(.working) }),
+      ("Approval", { $0.testState(.approvalRequested) }),
+      ("Completed", { $0.testState(.completed) }),
+      ("Failed", { $0.testState(.failed) }),
+      ("Multiple Sessions", { $0.testMultipleSessions() }),
+    ]
+
+    for (name, preview) in previews {
+      let store = SessionStore(settings: makeTestSettings())
+      _ = await store.receive(
+        makeBridgeEvent(event: .working, sessionID: "live-working", prompt: "Ship Cowlick"))
+      let liveSession = store.sessions["live-working"]
+
+      preview(store)
+
+      XCTAssertEqual(store.sessions["live-working"], liveSession, name)
+      XCTAssertEqual(store.sessions.count, 1, name)
+      XCTAssertTrue(store.approvalQueue.isEmpty, name)
+    }
+  }
+
+  func testLiveApprovalClearsOnlyLocallyOwnedDemoState() async {
+    let settings = makeTestSettings()
+    settings.approvalTimeout = 10
+    let store = SessionStore(settings: settings)
+    _ = await store.receive(
+      makeBridgeEvent(event: .failed, sessionID: "existing-failure", error: "Build failed"))
+    let existingSession = store.sessions["existing-failure"]
+    store.testState(.approvalRequested)
+    let demoRequestID = store.currentApproval?.id
+    let liveRequestID = UUID()
+    let event = makeBridgeEvent(
+      event: .approvalRequested,
+      requestID: liveRequestID,
+      sessionID: "live-approval",
+      toolName: "Bash"
+    )
+
+    let decisionTask = Task { await store.receive(event) }
+    let queued = await waitUntil { store.currentApproval?.id == liveRequestID }
+
+    XCTAssertTrue(queued)
+    XCTAssertFalse(store.approvalQueue.contains { $0.id == demoRequestID })
+    XCTAssertEqual(store.approvalQueue.map(\.id), [liveRequestID])
+    XCTAssertEqual(store.sessions["existing-failure"], existingSession)
+    XCTAssertNil(store.sessions["demo-visual-state"])
+    XCTAssertTrue(store.decide(requestID: liveRequestID, decision: .deny))
+    let decision = await decisionTask.value
+    XCTAssertEqual(decision, .deny)
+  }
+
   func testDuplicateApprovalRequestIDDefersWithoutAliasingDecision() async {
     let settings = makeTestSettings()
     settings.approvalTimeout = 10

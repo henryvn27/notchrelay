@@ -85,6 +85,7 @@ struct SettingsView: View {
             Button("Completed") { services.sessionStore.testState(.completed) }
             Button("Failed Preview") { services.sessionStore.testState(.failed) }
           }
+          .disabled(!services.sessionStore.canPreviewTestStates)
         }
       }
       .formStyle(.grouped)
