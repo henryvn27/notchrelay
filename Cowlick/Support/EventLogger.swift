@@ -187,12 +187,19 @@ final class EventLogger {
       guard labelStart > 0, isCredentialLabelQuote(scalars[labelStart - 1]) else { return false }
       tokenStart -= 1
     }
-    return tokenStart == 0 || !isIdentifierScalar(scalars[tokenStart - 1])
+    guard tokenStart > 0 else { return true }
+    let precedingScalar = scalars[tokenStart - 1]
+    return !isIdentifierScalar(precedingScalar)
+      && precedingScalar.value != 0x2F && precedingScalar.value != 0x5C
   }
 
   private static func isBearerValueScalar(_ scalar: UnicodeScalar) -> Bool {
-    !CharacterSet.whitespacesAndNewlines.contains(scalar)
-      && !isCredentialDelimiter(scalar) && !isExplicitValueTerminator(scalar)
+    let value = scalar.value
+    return (value >= 0x30 && value <= 0x39)
+      || (value >= 0x41 && value <= 0x5A)
+      || (value >= 0x61 && value <= 0x7A)
+      || [0x2B, 0x2D, 0x2E, 0x2F, 0x5F, 0x7E].contains(value)
+      || isQuote(scalar) || isUnicodeQuoteMarker(scalar)
   }
 
   private static func redactHome(

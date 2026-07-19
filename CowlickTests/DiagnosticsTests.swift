@@ -139,6 +139,41 @@ final class DiagnosticsTests: XCTestCase {
     )
   }
 
+  func testRemovedBearerBoundariesRejectPathAndProseContexts() {
+    for (input, expected) in [
+      ("/tmp/Bearer\u{2060}Token/file", "/tmp/BearerToken/file"),
+      ("C:\\Bearer\u{2060}Token\\file", "C:\\BearerToken\\file"),
+      ("/tmp/“Bearer”\u{2060}Token/file", "/tmp/“Bearer”Token/file"),
+      ("C:\\\"Bearer\"\nToken\\file", "C:\\\"Bearer\"Token\\file"),
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), expected)
+    }
+
+    for (input, expected) in [
+      ("Bearer\n) public", "Bearer) public"),
+      ("Bearer\n— public", "Bearer— public"),
+      ("Bearer\n， public", "Bearer， public"),
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), expected)
+    }
+
+    for starter in ["+", "/", "~", ".", "_", "-"] {
+      XCTAssertEqual(
+        EventLogger.sanitizeError("Bearer\n\(starter)token; public"),
+        "bearer=<redacted>; public"
+      )
+      XCTAssertEqual(
+        EventLogger.sanitizeError("Bearer \(starter)token; public"),
+        "bearer=<redacted>; public"
+      )
+    }
+    XCTAssertEqual(
+      EventLogger.sanitizeError("status:Bearer\nsecret; public"),
+      "status:bearer=<redacted>; public"
+    )
+    XCTAssertEqual(EventLogger.sanitizeError("Bearer\n, public"), "Bearer, public")
+  }
+
   func testRedactsPrefixedSuffixedAndCommonCredentialIdentifiers() {
     let secrets = [
       "openai-secret", "access-secret", "refresh-secret", "client-secret", "anthropic-secret",
