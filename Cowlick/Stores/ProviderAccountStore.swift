@@ -8,6 +8,8 @@ actor ProviderAccountStore {
   private let metadataURL: URL
   private let credentialStore: any CredentialSecretStore
   private var cachedAccounts: [ProviderAccount]?
+  private var credentialMutationInProgress = false
+  private var credentialMutationWaiters: [CheckedContinuation<Void, Never>] = []
 
   init(
     metadataURL: URL = AppSupportPaths.applicationSupportDirectory
@@ -27,7 +29,9 @@ actor ProviderAccountStore {
     provider: UsageProvider,
     alias: String,
     credentialReference: CredentialReference = CredentialReference(id: UUID())
-  ) throws -> ProviderAccount {
+  ) async throws -> ProviderAccount {
+    await beginCredentialMutation()
+    defer { endCredentialMutation() }
     var accounts = try loadIfNeeded()
     guard !accounts.contains(where: { $0.credentialReference == credentialReference }) else {
       throw ProviderAccountStoreError.duplicateCredentialReference
@@ -44,7 +48,43 @@ actor ProviderAccountStore {
     return account
   }
 
-  func rename(accountID: UUID, alias: String) throws {
+  @discardableResult
+  func create(provider: UsageProvider, alias: String, credential: Data) async throws
+    -> ProviderAccount
+  {
+    guard UsageProvider.supportedBillingAccounts.contains(provider) else {
+      throw ProviderAccountStoreError.unsupportedProvider
+    }
+    await beginCredentialMutation()
+    defer { endCredentialMutation() }
+
+    let account = ProviderAccount(
+      id: UUID(),
+      provider: provider,
+      alias: try Self.validatedAlias(alias),
+      credentialReference: CredentialReference(id: UUID())
+    )
+    try await credentialStore.store(credential, for: account.credentialReference)
+
+    do {
+      var accounts = try loadIfNeeded()
+      accounts.append(account)
+      try persist(accounts)
+      cachedAccounts = accounts
+      return account
+    } catch {
+      do {
+        try await credentialStore.deleteSecret(for: account.credentialReference)
+      } catch {
+        throw ProviderAccountStoreError.couldNotRollBackCredential
+      }
+      throw error
+    }
+  }
+
+  func rename(accountID: UUID, alias: String) async throws {
+    await beginCredentialMutation()
+    defer { endCredentialMutation() }
     var accounts = try loadIfNeeded()
     guard let index = accounts.firstIndex(where: { $0.id == accountID }) else {
       throw ProviderAccountStoreError.accountNotFound
@@ -54,18 +94,59 @@ actor ProviderAccountStore {
     cachedAccounts = accounts
   }
 
+  func replaceCredential(accountID: UUID, credential: Data) async throws {
+    await beginCredentialMutation()
+    defer { endCredentialMutation() }
+    let accounts = try loadIfNeeded()
+    guard let account = accounts.first(where: { $0.id == accountID }) else {
+      throw ProviderAccountStoreError.accountNotFound
+    }
+    guard UsageProvider.supportedBillingAccounts.contains(account.provider) else {
+      throw ProviderAccountStoreError.unsupportedProvider
+    }
+    try await credentialStore.store(credential, for: account.credentialReference)
+  }
+
+  func purgeReferencedCredentials() async throws -> Int {
+    await beginCredentialMutation()
+    defer { endCredentialMutation() }
+    let accounts = try loadIfNeeded()
+    for account in accounts {
+      try await credentialStore.deleteSecret(for: account.credentialReference)
+      guard try await credentialStore.secret(for: account.credentialReference) == nil else {
+        throw ProviderAccountStoreError.credentialCleanupCouldNotBeVerified
+      }
+    }
+    return accounts.count
+  }
+
   @discardableResult
   func remove(accountID: UUID) async throws -> ProviderAccount {
+    await beginCredentialMutation()
+    defer { endCredentialMutation() }
     var accounts = try loadIfNeeded()
     guard let index = accounts.firstIndex(where: { $0.id == accountID }) else {
       throw ProviderAccountStoreError.accountNotFound
     }
     let account = accounts[index]
-    try await credentialStore.deleteSecret(for: account.credentialReference)
     accounts.remove(at: index)
     try persist(accounts)
-    cachedAccounts = accounts
-    return account
+    do {
+      try await credentialStore.deleteSecret(for: account.credentialReference)
+      cachedAccounts = accounts
+      return account
+    } catch {
+      do {
+        var restoredAccounts = accounts
+        restoredAccounts.insert(account, at: index)
+        try persist(restoredAccounts)
+        cachedAccounts = restoredAccounts
+      } catch {
+        cachedAccounts = nil
+        throw ProviderAccountStoreError.couldNotRollBackMetadata
+      }
+      throw error
+    }
   }
 
   private struct MetadataFile: Codable {
@@ -164,24 +245,51 @@ actor ProviderAccountStore {
     else { throw ProviderAccountStoreError.invalidAlias }
     return alias
   }
+
+  private func beginCredentialMutation() async {
+    if credentialMutationInProgress {
+      await withCheckedContinuation { credentialMutationWaiters.append($0) }
+      return
+    }
+    credentialMutationInProgress = true
+  }
+
+  private func endCredentialMutation() {
+    guard !credentialMutationWaiters.isEmpty else {
+      credentialMutationInProgress = false
+      return
+    }
+    credentialMutationWaiters.removeFirst().resume()
+  }
 }
 
 enum ProviderAccountStoreError: LocalizedError, Equatable {
   case invalidAlias
   case accountNotFound
   case duplicateCredentialReference
+  case unsupportedProvider
   case unreadableMetadata
   case unsupportedVersion
   case couldNotPersist
+  case couldNotRollBackCredential
+  case couldNotRollBackMetadata
+  case credentialCleanupCouldNotBeVerified
 
   var errorDescription: String? {
     switch self {
     case .invalidAlias: "Use an account name between 1 and 64 characters."
     case .accountNotFound: "That provider account no longer exists."
     case .duplicateCredentialReference: "That credential is already assigned to an account."
+    case .unsupportedProvider: "Cowlick does not support billing accounts for that provider."
     case .unreadableMetadata: "Cowlick could not safely read provider accounts."
     case .unsupportedVersion: "The provider account file was created by a newer Cowlick version."
     case .couldNotPersist: "Cowlick could not save provider accounts."
+    case .couldNotRollBackCredential:
+      "Cowlick could not clean up a credential after the account failed to save."
+    case .couldNotRollBackMetadata:
+      "Cowlick could not restore the account after Keychain cleanup failed."
+    case .credentialCleanupCouldNotBeVerified:
+      "Cowlick could not verify that every provider credential was removed from Keychain."
     }
   }
 }

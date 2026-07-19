@@ -1,12 +1,25 @@
 import AppKit
 import SwiftUI
 
+private enum IntegrationInstallState {
+  case notStarted
+  case installing
+  case installed
+  case failed
+}
+
+private struct IntegrationInstallResult: Sendable {
+  let status: String
+  let succeeded: Bool
+}
+
 struct OnboardingView: View {
   let services: AppServices
 
   @Environment(\.dismiss) private var dismiss
   @State private var step = 0
   @State private var integrationStatus = "Not checked"
+  @State private var integrationInstallState = IntegrationInstallState.notStarted
   @State private var integrationTrust = CodexHookTrustReport.notChecked
   @State private var capsStatus = "Optional"
   @State private var testConfirmed = false
@@ -61,12 +74,20 @@ struct OnboardingView: View {
           }
           Button("Continue") { step += 1 }
             .buttonStyle(.borderedProminent)
-            .disabled(step == 5 && !testConfirmed)
+            .disabled(
+              (step == 3
+                && (integrationInstallState == .notStarted
+                  || integrationInstallState == .installing))
+                || (step == 5 && !testConfirmed))
         }
       }
       .padding(20)
     }
     .background(Color(nsColor: .windowBackgroundColor))
+    .task(id: step) {
+      guard step == 3, integrationInstallState == .notStarted else { return }
+      await installIntegration()
+    }
   }
 
   private var welcome: some View {
@@ -110,8 +131,10 @@ struct OnboardingView: View {
           "Cowlick safely merges four lifecycle hooks into your existing Codex configuration and preserves unrelated entries."
       )
       Text(integrationStatus).font(.caption).foregroundStyle(.secondary)
-      Button("Install or Repair Integration") { installIntegration() }
-        .buttonStyle(.borderedProminent)
+      if integrationInstallState == .failed || integrationTrust.state == .incomplete {
+        Button("Retry Integration") { Task { await installIntegration() } }
+          .buttonStyle(.borderedProminent)
+      }
       Text(integrationGuidance)
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -203,31 +226,36 @@ struct OnboardingView: View {
       withBundleIdentifier: CodexActivationService.codexBundleIdentifier) != nil
   }
 
-  private func installIntegration() {
+  private func installIntegration() async {
     integrationStatus = "Installing…"
-    Task {
-      let result = await Task.detached { () -> String in
-        let installer = HookInstaller()
-        do {
-          try installer.installOrRepair()
-          return installer.status().summary
-        } catch { return error.localizedDescription }
-      }.value
-      integrationStatus = result
-      integrationTrust = await services.hookTrustService.inspect()
-    }
+    integrationInstallState = .installing
+    let result = await Task.detached { () -> IntegrationInstallResult in
+      let installer = HookInstaller()
+      do {
+        try installer.installOrRepair()
+        return IntegrationInstallResult(status: installer.status().summary, succeeded: true)
+      } catch {
+        return IntegrationInstallResult(status: error.localizedDescription, succeeded: false)
+      }
+    }.value
+    integrationStatus = result.status
+    integrationInstallState = result.succeeded ? .installed : .failed
+    integrationTrust = await services.hookTrustService.inspect()
   }
 
   private var integrationGuidance: String {
-    switch integrationTrust.state {
+    if integrationInstallState == .failed {
+      return "Cowlick could not complete installation. Retry or repair it later in Settings."
+    }
+    return switch integrationTrust.state {
     case .trusted:
       "Codex has trusted all four Cowlick lifecycle hooks."
     case .needsReview:
-      "One-time step: open /hooks in Codex and trust the four Cowlick commands."
+      "Cowlick installed the hooks. Codex requires one security review in the Codex CLI: run codex, then /hooks."
     case .incomplete:
       "Some Cowlick hooks are missing. Run Install or Repair again."
     case .notChecked, .unavailable:
-      "Codex may require a one-time review in /hooks after installation."
+      "Codex may require one security review in the Codex CLI /hooks after installation."
     }
   }
 

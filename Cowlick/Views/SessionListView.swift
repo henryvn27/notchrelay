@@ -12,7 +12,7 @@ struct SessionListView: View {
         .foregroundStyle(.white.opacity(0.62))
       ForEach(sessions.prefix(5)) { session in
         HStack(spacing: 10) {
-          statusIcon(for: session.status)
+          statusIcon(for: session)
             .frame(width: 16)
           VStack(alignment: .leading, spacing: 2) {
             Text(session.projectName)
@@ -26,7 +26,7 @@ struct SessionListView: View {
           Spacer()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(session.projectName), \(session.status.shortLabel)")
+        .accessibilityLabel("\(session.projectName), \(session.statusLabel)")
         .accessibilityIdentifier("session-row-\(session.id)")
       }
       if sessions.contains(where: { session in
@@ -43,13 +43,18 @@ struct SessionListView: View {
   }
 
   @ViewBuilder
-  private func statusIcon(for status: AgentStatus) -> some View {
-    switch status {
-    case .working: ProgressView().controlSize(.mini).tint(.white.opacity(0.68))
-    case .awaitingApproval: Image(systemName: "exclamationmark").foregroundStyle(NotchTheme.warning)
-    case .completed: Image(systemName: "checkmark").foregroundStyle(NotchTheme.success)
-    case .failed: Image(systemName: "xmark").foregroundStyle(NotchTheme.failure)
-    case .idle: Image(systemName: "circle").foregroundStyle(.secondary)
+  private func statusIcon(for session: AgentSession) -> some View {
+    if session.isRecovered {
+      Image(systemName: "clock.arrow.circlepath").foregroundStyle(.secondary)
+    } else {
+      switch session.status {
+      case .working: ProgressView().controlSize(.mini).tint(.white.opacity(0.68))
+      case .awaitingApproval:
+        Image(systemName: "exclamationmark").foregroundStyle(NotchTheme.warning)
+      case .completed: Image(systemName: "checkmark").foregroundStyle(NotchTheme.success)
+      case .failed: Image(systemName: "xmark").foregroundStyle(NotchTheme.failure)
+      case .idle: Image(systemName: "circle").foregroundStyle(.secondary)
+      }
     }
   }
 
@@ -60,7 +65,7 @@ struct SessionListView: View {
     switch session.status {
     case .failed(let message): return message.map { String($0.prefix(80)) } ?? "Failed"
     case .completed: return "Completed"
-    default: return session.status.shortLabel
+    default: return session.statusLabel
     }
   }
 }

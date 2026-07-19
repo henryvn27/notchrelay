@@ -2,9 +2,17 @@
 set -euo pipefail
 
 script_dir="${0:A:h}"
+project_root="${script_dir:h}"
 purge=false
 [[ "${1:-}" == "--purge" ]] && purge=true
 [[ $# -le 1 ]] || { print -u2 "usage: $0 [--purge]"; exit 2; }
+
+purge_tool_directory=""
+cleanup() {
+  [[ -n "$purge_tool_directory" && -d "$purge_tool_directory" ]] \
+    && rm -rf "$purge_tool_directory"
+}
+trap cleanup EXIT
 
 stopped_pids=()
 for process_name in Cowlick NotchRelay; do
@@ -27,6 +35,21 @@ for process_id in $stopped_pids; do
     exit 1
   }
 done
+
+if $purge; then
+  purge_tool_directory="$(mktemp -d "${TMPDIR%/}/cowlick-credential-purge.XXXXXX")"
+  chmod 700 "$purge_tool_directory"
+  purge_tool="$purge_tool_directory/purge-provider-credentials"
+  xcrun swiftc -parse-as-library \
+    "$project_root/Cowlick/Support/ProductIdentity.swift" \
+    "$project_root/Cowlick/Support/AppSupportPaths.swift" \
+    "$project_root/Cowlick/Models/UsageProvider.swift" \
+    "$project_root/Cowlick/Services/CredentialSecretStore.swift" \
+    "$project_root/Cowlick/Stores/ProviderAccountStore.swift" \
+    "$script_dir/purge_provider_credentials.swift" \
+    -o "$purge_tool"
+  "$purge_tool" "$HOME/Library/Application Support/Cowlick/provider-accounts.json"
+fi
 
 swift "$script_dir/install_hooks.swift" remove
 

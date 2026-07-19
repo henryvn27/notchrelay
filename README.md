@@ -16,7 +16,9 @@ Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidd
 - Matches approval decisions to a unique pending request and never defaults to Allow.
 - Falls back to Codex's normal approval UI if the app is unavailable, disconnected, malformed, or timed out.
 - Uses the built-in display's real safe-area geometry; non-notch Macs get a compact top-center island.
-- Shows current Codex quota from the local Codex app, with no account-file access or usage history.
+- Shows current Codex quota from the single local Codex identity, with no account-file access or usage history.
+- Estimates whether the current burn rate should last through reset or approximately how long remains before quota exhaustion; it does not present an “expected percent” as the forecast.
+- Keeps multiple labeled OpenAI API and Anthropic API organization-billing accounts separate, with an account switcher in the menu, aliases in owner-only metadata, and Admin API keys in macOS Keychain.
 - Can optionally display an attributed, unofficial reset forecast from [Will Codex Reset?](https://www.willcodexquotareset.com/); it is off by default and never presented as Cowlick data.
 - Optionally pulses the Caps Lock LED while preserving its original state.
 - Keeps prompt and result previews off by default.
@@ -25,7 +27,7 @@ Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidd
 
 ### Public release
 
-There is currently no prebuilt public download. Do not use or redistribute development-signed builds as a public release. When v1.0.0 passes its release gates, this section will link directly to the signed GitHub release and show the verified Homebrew command.
+There is currently no GitHub release, DMG, ZIP, or Homebrew cask. Do not use or redistribute development-signed builds as a public release. When v1.0.0 passes its release gates, this section will link directly to the signed, notarized artifact and show the installation command that was tested from that public artifact.
 
 ### Contributor install
 
@@ -40,6 +42,8 @@ brew install xcodegen
 
 The contributor installer builds Cowlick, installs it in `~/Applications`, installs and merges the local Codex hooks, launches the app, and runs bridge diagnostics. Use `./Scripts/build_and_run.sh --verify` when developing without installing. Once the public release gates pass, normal installation will require no Xcode, Swift, Python, Node, npm, account, or cloud service.
 
+Contributor uninstall preserves preferences, provider accounts, and their Keychain credentials by default. `./Scripts/uninstall_local.sh --purge` first deletes and verifies every referenced provider credential, then removes local data; it stops without deleting account metadata if Keychain cleanup cannot be verified.
+
 ## Approval safety
 
 Cowlick's Allow button is never the default action. Every response contains the exact request UUID received from the helper. A timeout, invalid token, stale event, malformed response, mismatched UUID, unavailable app, or broken socket returns no decision, so Codex continues with its own normal approval prompt. Tool input is display-only and is never executed by Cowlick.
@@ -47,18 +51,18 @@ Cowlick's Allow button is never the default action. Every response contains the 
 ## Supported systems
 
 - macOS 14 Sonoma or newer.
-- Apple Silicon and Intel through a universal release binary.
+- Apple Silicon and Intel are configured as universal build targets; no public release binary exists yet.
 - Notched and non-notched Macs, external displays, multiple displays, Spaces, and full-screen auxiliary presentation where macOS permits it.
 
 ## Privacy
 
-Cowlick has no analytics, cloud backend, account, ads, or third-party crash reporter. It checks the signed Sparkle update feed. If you explicitly enable the unofficial reset forecast, it also requests data from willcodexquotareset.com and labels it as third-party data that Cowlick does not estimate or warrant. It does not persist full prompts, commands, quota history, forecast history, or session history. See [PRIVACY.md](PRIVACY.md) for every stored file, network path, and permission.
+Cowlick has no analytics, cloud backend, Cowlick account, ads, or third-party crash reporter. The app contains Sparkle support for a future signed update feed, but no public update archive or appcast exists yet. If you explicitly enable the unofficial reset forecast, Cowlick requests data from willcodexquotareset.com and labels it as third-party data that Cowlick does not estimate or warrant. Organization-billing requests happen only for accounts you add and go directly to that provider. Cowlick does not persist full prompts, commands, quota history, forecast history, billing history, or session history. See [PRIVACY.md](PRIVACY.md) for every stored file, network path, and permission.
 
 ## How it works
 
 Codex invokes the bundled `cowlick-hook` helper for `SessionStart`, `UserPromptSubmit`, `PermissionRequest`, and `Stop`. The helper sends authenticated, versioned newline-delimited JSON over a private Unix-domain socket. The native app arbitrates independent session state and returns synchronous approval decisions only when the request is still current.
 
-For quota display, Cowlick asks the installed Codex app-server only for `account/rateLimits/read`; it does not read `auth.json` or request account identity. The optional reset forecast is fetched separately from `https://www.willcodexquotareset.com/api/forecast`, decoded as untrusted display-only data, and kept in memory.
+For quota display, Cowlick asks the installed Codex app-server only for `account/rateLimits/read`; it does not read `auth.json` or request account identity. This is the single subscription identity active in the Codex executable Cowlick selects, not a managed multi-login system. In Settings → Accounts, Add Account accepts separately labeled OpenAI API and Anthropic API organization accounts; the menu can switch and refresh the selected account. Cowlick shows each account's month-to-date charges without aggregating providers or presenting them as Codex subscription usage. OpenAI organization costs are account-wide; Anthropic's official cost report excludes Priority Tier usage, so Cowlick marks Anthropic coverage as partial. The optional reset forecast is fetched separately from `https://www.willcodexquotareset.com/api/forecast`, decoded as untrusted display-only data, and kept in memory.
 
 See [architecture](docs/architecture.md) and the [bridge protocol](docs/protocol.md).
 

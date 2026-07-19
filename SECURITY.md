@@ -1,6 +1,6 @@
 # Security policy
 
-Report suspected vulnerabilities through a private [GitHub security advisory](https://github.com/henryvn27/cowlick/security/advisories/new). Do not include secrets, private prompts, or approval commands in a public issue. Supported security fixes are provided for the latest release.
+Report suspected vulnerabilities through a private [GitHub security advisory](https://github.com/henryvn27/cowlick/security/advisories/new). Do not include secrets, private prompts, or approval commands in a public issue. Before the first public release, security fixes are maintained on the default branch; after releases begin, the latest published version will be the supported release line.
 
 ## Security invariants
 
@@ -10,10 +10,12 @@ Report suspected vulnerabilities through a private [GitHub security advisory](ht
 - Bridge tool input is untrusted display data and is never executed.
 - Hook stdout contains only the official Codex-compatible decision shape or a neutral Stop object.
 - Existing Codex hooks and unknown fields survive install and removal.
-- Update archives and appcasts are EdDSA signed; public releases are Developer ID signed, hardened, notarized, and stapled.
+- Organization billing credentials remain in macOS Keychain; owner-only account metadata contains only aliases and opaque references.
+- Billing results and refresh state are isolated by account UUID, and Cowlick performs no cross-provider aggregation.
+- Every future public update archive and appcast must be EdDSA signed; every public app release must be Developer ID signed, hardened, notarized, and stapled. No public release exists yet.
 - Diagnostics never expose full prompts, commands, tokens, secrets, or private home paths.
 
-Credential exposure, approval spoofing or reuse, arbitrary execution from bridge input, update-signature bypass, destructive configuration mutation, and diagnostics disclosure are reportable.
+Credential exposure, cross-account billing disclosure, approval spoofing or reuse, arbitrary execution from bridge input, update-signature bypass, destructive configuration mutation, and diagnostics disclosure are reportable.
 
 Repository: Cowlick
 Version: development snapshot

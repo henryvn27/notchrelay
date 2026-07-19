@@ -15,6 +15,7 @@ xcodegen generate
 archive="$project_root/build/Cowlick.xcarchive"
 output="$project_root/build/release-$version"
 export_dir="$project_root/build/export-$version"
+derived_data="$project_root/DerivedData"
 rm -rf "$archive" "$output" "$export_dir"
 mkdir -p "$output"
 
@@ -22,6 +23,7 @@ xcodebuild archive \
   -project Cowlick.xcodeproj \
   -scheme Cowlick \
   -configuration Release \
+  -derivedDataPath "$derived_data" \
   -archivePath "$archive" \
   -destination 'generic/platform=macOS' \
   ARCHS='arm64 x86_64' \

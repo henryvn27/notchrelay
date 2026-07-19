@@ -13,7 +13,7 @@ mode="${2:---source-only}"
 validate_release_version "$version"
 validate_project_version "$project_root" "$version"
 
-for command_name in xcodebuild xcodegen codesign hdiutil ditto shasum; do
+for command_name in xcodebuild xcodegen codesign hdiutil ditto shasum ruby; do
   require_release_command "$command_name"
 done
 
@@ -26,19 +26,34 @@ done
 bundle_identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$project_root/Config/Info.plist")"
 feed_url="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$project_root/Config/Info.plist")"
 public_key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$project_root/Config/Info.plist")"
+requires_signed_feed="$(/usr/libexec/PlistBuddy -c 'Print :SURequireSignedFeed' "$project_root/Config/Info.plist")"
+export_method="$(/usr/libexec/PlistBuddy -c 'Print :method' "$project_root/Config/ExportOptions.plist")"
+export_signing_style="$(/usr/libexec/PlistBuddy -c 'Print :signingStyle' "$project_root/Config/ExportOptions.plist")"
 [[ "$bundle_identifier" == '$(PRODUCT_BUNDLE_IDENTIFIER)' ]] \
   || release_error "Info.plist must inherit PRODUCT_BUNDLE_IDENTIFIER"
 [[ "$feed_url" == "https://github.com/henryvn27/cowlick/releases/latest/download/appcast.xml" ]] \
   || release_error "Sparkle feed URL does not point to the Cowlick release feed"
 [[ -n "$public_key" ]] || release_error "Sparkle public key is empty"
+[[ "$requires_signed_feed" == "true" ]] || release_error "Sparkle signed feeds are not required"
+[[ "$export_method" == "developer-id" ]] \
+  || release_error "release export method must be developer-id"
+[[ "$export_signing_style" == "manual" ]] \
+  || release_error "release export signing must be manual"
 
 if [[ "$mode" == "--distribution" ]]; then
+  for command_name in security swift xcrun spctl lipo xmllint; do
+    require_release_command "$command_name"
+  done
+
   missing=()
   for variable_name in DEVELOPER_ID_APPLICATION DEVELOPMENT_TEAM NOTARYTOOL_PROFILE SPARKLE_PRIVATE_KEY; do
     [[ -n "${(P)variable_name:-}" ]] || missing+=("$variable_name")
   done
   (( ${#missing} == 0 )) \
     || release_error "missing release environment: ${(j:, :)missing}"
+
+  grep -Eq "^## ${version//./\\.}([[:space:]]|$)" "$project_root/CHANGELOG.md" \
+    || release_error "CHANGELOG.md has no release section for $version"
 
   security find-identity -v -p codesigning | grep -Fq -- "\"$DEVELOPER_ID_APPLICATION\"" \
     || release_error "Developer ID Application identity is not available in the active keychain"

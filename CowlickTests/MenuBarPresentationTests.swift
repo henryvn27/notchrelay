@@ -2,6 +2,7 @@ import XCTest
 
 @testable import Cowlick
 
+@MainActor
 final class MenuBarPresentationTests: XCTestCase {
   func testIconAndDetailsShowsOnlyMultipleSessionCounts() {
     XCTAssertEqual(
@@ -53,6 +54,69 @@ final class MenuBarPresentationTests: XCTestCase {
     XCTAssertEqual(
       resolve(.statusAndPercentage, percentageText: "64%"),
       MenuBarLabelContent(icon: .app, text: "64%")
+    )
+  }
+
+  func testLiveStateOutranksHookReview() {
+    let states: [(AgentStatus, String)] = [
+      (.awaitingApproval(approvalRequest), "Approval needed"),
+      (.failed(message: nil), "Failed"),
+      (.working(prompt: nil), "Working"),
+      (.completed(message: nil), "Completed"),
+    ]
+
+    for (status, title) in states {
+      XCTAssertEqual(
+        MenuBarContentView.headerTitle(status: status, trustState: .needsReview),
+        title
+      )
+    }
+  }
+
+  func testActiveSessionCountOutranksHookReview() {
+    XCTAssertEqual(
+      MenuBarContentView.activitySummary(activeSessionCount: 1, trustState: .needsReview),
+      "1 active session"
+    )
+    XCTAssertEqual(
+      MenuBarContentView.activitySummary(activeSessionCount: 3, trustState: .incomplete),
+      "3 active sessions"
+    )
+  }
+
+  func testIdleStateRetainsIntegrationWarnings() {
+    XCTAssertEqual(
+      MenuBarContentView.headerTitle(status: nil, trustState: .needsReview),
+      "Codex review required"
+    )
+    XCTAssertEqual(
+      MenuBarContentView.activitySummary(activeSessionCount: 0, trustState: .needsReview),
+      "Trust Cowlick in Codex /hooks"
+    )
+    XCTAssertEqual(
+      MenuBarContentView.headerTitle(status: .idle, trustState: .incomplete),
+      "Integration needs repair"
+    )
+    XCTAssertEqual(
+      MenuBarContentView.activitySummary(activeSessionCount: 0, trustState: .incomplete),
+      "Open Settings to repair integration"
+    )
+  }
+
+  func testTrustedIntegrationKeepsLiveSessionHeadline() {
+    XCTAssertEqual(
+      MenuBarContentView.headerTitle(
+        status: .working(prompt: nil),
+        trustState: .trusted
+      ),
+      "Working"
+    )
+    XCTAssertEqual(
+      MenuBarContentView.activitySummary(
+        activeSessionCount: 2,
+        trustState: .trusted
+      ),
+      "2 active sessions"
     )
   }
 

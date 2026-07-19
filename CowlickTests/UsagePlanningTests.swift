@@ -52,6 +52,8 @@ final class UsagePlanningTests: XCTestCase {
     XCTAssertEqual(onPace.expectedUsedPercent, 40, accuracy: 0.000_001)
     XCTAssertEqual(onPace.balancePercent, 0, accuracy: 0.000_001)
     XCTAssertEqual(onPace.status, .onPace)
+    XCTAssertEqual(onPace.exhaustionForecast?.estimatedAt, reset)
+    XCTAssertEqual(onPace.exhaustionForecast?.willLastThroughReset, true)
 
     let reserve = try XCTUnwrap(
       QuotaPaceCalculator.pace(
@@ -59,6 +61,8 @@ final class UsagePlanningTests: XCTestCase {
     XCTAssertEqual(reserve.reservePercent, 10, accuracy: 0.000_001)
     XCTAssertEqual(reserve.deficitPercent, 0)
     XCTAssertEqual(reserve.status, .reserve)
+    XCTAssertGreaterThan(try XCTUnwrap(reserve.exhaustionForecast?.estimatedAt), reset)
+    XCTAssertEqual(reserve.exhaustionForecast?.willLastThroughReset, true)
 
     let deficit = try XCTUnwrap(
       QuotaPaceCalculator.pace(
@@ -66,6 +70,13 @@ final class UsagePlanningTests: XCTestCase {
     XCTAssertEqual(deficit.reservePercent, 0)
     XCTAssertEqual(deficit.deficitPercent, 15, accuracy: 0.000_001)
     XCTAssertEqual(deficit.status, .deficit)
+    XCTAssertLessThan(try XCTUnwrap(deficit.exhaustionForecast?.estimatedAt), reset)
+    XCTAssertEqual(deficit.exhaustionForecast?.willLastThroughReset, false)
+    XCTAssertEqual(
+      try XCTUnwrap(deficit.exhaustionForecast?.timeBeforeReset),
+      reset.timeIntervalSince(try XCTUnwrap(deficit.exhaustionForecast?.estimatedAt)),
+      accuracy: 0.000_001
+    )
   }
 
   func testPaceClampsFiniteUsagePercentages() throws {
@@ -77,12 +88,52 @@ final class UsagePlanningTests: XCTestCase {
         for: QuotaWindow(usedPercent: -20, duration: 1_000, resetsAt: reset), now: now))
     XCTAssertEqual(low.actualUsedPercent, 0)
     XCTAssertEqual(low.reservePercent, 50)
+    XCTAssertNil(low.exhaustionForecast)
 
     let high = try XCTUnwrap(
       QuotaPaceCalculator.pace(
         for: QuotaWindow(usedPercent: 120, duration: 1_000, resetsAt: reset), now: now))
     XCTAssertEqual(high.actualUsedPercent, 100)
     XCTAssertEqual(high.deficitPercent, 50)
+    XCTAssertEqual(high.exhaustionForecast?.estimatedAt, now)
+  }
+
+  func testForecastSuppressesWeakUsageButStartsAtOnePercent() throws {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let reset = now.addingTimeInterval(500)
+
+    for usedPercent in [0, 0.5, 0.999] {
+      let pace = try XCTUnwrap(
+        QuotaPaceCalculator.pace(
+          for: QuotaWindow(usedPercent: usedPercent, duration: 1_000, resetsAt: reset),
+          now: now
+        ))
+      XCTAssertNil(pace.exhaustionForecast)
+    }
+
+    let measurable = try XCTUnwrap(
+      QuotaPaceCalculator.pace(
+        for: QuotaWindow(usedPercent: 1, duration: 1_000, resetsAt: reset), now: now))
+    XCTAssertNotNil(measurable.exhaustionForecast)
+  }
+
+  func testForecastRemainsAnchoredToSnapshotObservationAsItAges() throws {
+    let fetchedAt = Date(timeIntervalSince1970: 1_000)
+    let reset = fetchedAt.addingTimeInterval(600)
+    let window = QuotaWindow(usedPercent: 40, duration: 1_000, resetsAt: reset)
+
+    let fresh = try XCTUnwrap(
+      QuotaPaceCalculator.pace(for: window, observedAt: fetchedAt, now: fetchedAt))
+    let aged = try XCTUnwrap(
+      QuotaPaceCalculator.pace(
+        for: window,
+        observedAt: fetchedAt,
+        now: fetchedAt.addingTimeInterval(100)
+      ))
+
+    XCTAssertEqual(fresh.exhaustionForecast?.estimatedAt, reset)
+    XCTAssertEqual(aged.exhaustionForecast?.estimatedAt, reset)
+    XCTAssertNotEqual(fresh.expectedUsedPercent, aged.expectedUsedPercent)
   }
 
   func testPaceSuppressesUnreliableTiming() {
@@ -130,7 +181,8 @@ final class UsagePlanningTests: XCTestCase {
       expectedUsedPercent: 40,
       actualUsedPercent: 30,
       balancePercent: 10,
-      status: .reserve
+      status: .reserve,
+      exhaustionForecast: nil
     )
 
     XCTAssertEqual(pace.expectedDisplayedPercent(for: .used), 40)

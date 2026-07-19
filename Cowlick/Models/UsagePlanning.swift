@@ -32,12 +32,21 @@ enum QuotaPaceStatus: String, Codable, Sendable {
   case deficit
 }
 
+struct QuotaExhaustionForecast: Equatable, Codable, Sendable {
+  let estimatedAt: Date
+  let resetsAt: Date
+
+  var willLastThroughReset: Bool { estimatedAt >= resetsAt }
+  var timeBeforeReset: TimeInterval { max(0, resetsAt.timeIntervalSince(estimatedAt)) }
+}
+
 struct QuotaPace: Equatable, Codable, Sendable {
   let expectedUsedPercent: Double
   let actualUsedPercent: Double
   /// Positive values are reserve; negative values are deficit.
   let balancePercent: Double
   let status: QuotaPaceStatus
+  let exhaustionForecast: QuotaExhaustionForecast?
 
   var reservePercent: Double { max(balancePercent, 0) }
   var deficitPercent: Double { max(-balancePercent, 0) }
@@ -49,8 +58,13 @@ struct QuotaPace: Equatable, Codable, Sendable {
 
 enum QuotaPaceCalculator {
   static let minimumElapsedFraction = 0.03
+  static let minimumObservedUsagePercent = 1.0
 
-  static func pace(for window: QuotaWindow, now: Date = .init()) -> QuotaPace? {
+  static func pace(
+    for window: QuotaWindow,
+    observedAt: Date? = nil,
+    now: Date = .init()
+  ) -> QuotaPace? {
     guard window.usedPercent.isFinite,
       let duration = window.duration,
       duration.isFinite,
@@ -76,11 +90,42 @@ enum QuotaPaceCalculator {
         .deficit
       }
 
+    let observationDate = observedAt ?? now
+    let observedElapsed = duration - resetsAt.timeIntervalSince(observationDate)
+    let exhaustionForecast: QuotaExhaustionForecast? =
+      if actual >= minimumObservedUsagePercent {
+        forecast(
+          actualUsedPercent: actual,
+          elapsed: observedElapsed,
+          observedAt: observationDate,
+          resetsAt: resetsAt
+        )
+      } else {
+        nil
+      }
+
     return QuotaPace(
       expectedUsedPercent: expected,
       actualUsedPercent: actual,
       balancePercent: balance,
-      status: status
+      status: status,
+      exhaustionForecast: exhaustionForecast
+    )
+  }
+
+  private static func forecast(
+    actualUsedPercent: Double,
+    elapsed: TimeInterval,
+    observedAt: Date,
+    resetsAt: Date
+  ) -> QuotaExhaustionForecast? {
+    let burnRate = actualUsedPercent / elapsed
+    guard burnRate.isFinite, burnRate > 0 else { return nil }
+    let timeToEmpty = (100 - actualUsedPercent) / burnRate
+    guard timeToEmpty.isFinite, timeToEmpty >= 0 else { return nil }
+    return QuotaExhaustionForecast(
+      estimatedAt: observedAt.addingTimeInterval(timeToEmpty),
+      resetsAt: resetsAt
     )
   }
 }

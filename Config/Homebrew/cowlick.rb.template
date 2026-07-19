@@ -12,6 +12,8 @@ cask "cowlick" do
     strategy :github_latest
   end
 
+  auto_updates true
+
   depends_on macos: ">= :sonoma"
 
   app "Cowlick.app"
@@ -19,8 +21,15 @@ cask "cowlick" do
   uninstall quit: "com.henryvn27.Cowlick"
 
   zap trash: [
-    "~/Library/Application Support/Cowlick",
+    "~/Library/Application Support/Cowlick/Logs",
+    "~/Library/Application Support/Cowlick/active-sessions.json",
+    "~/Library/Application Support/Cowlick/active-sessions.lock",
+    "~/Library/Application Support/Cowlick/auth-token",
+    "~/Library/Application Support/Cowlick/bin",
+    "~/Library/Application Support/Cowlick/runtime.json",
+    "~/Library/Caches/com.henryvn27.Cowlick",
     "~/Library/Preferences/com.henryvn27.Cowlick.plist",
+    "~/Library/Saved Application State/com.henryvn27.Cowlick.savedState",
   ]
 
   caveats <<~EOS
@@ -28,6 +37,8 @@ cask "cowlick" do
     The app never modifies Codex configuration from a Homebrew install script.
 
     Before uninstalling, choose Remove Codex Integration in Cowlick Settings.
-    `brew uninstall --zap cowlick` also removes preferences and local runtime data.
+    Before using `brew uninstall --zap`, also remove every saved billing account
+    in Settings > Accounts. Homebrew cannot declaratively remove Keychain items,
+    so zap preserves provider-accounts.json rather than orphaning credentials.
   EOS
 end

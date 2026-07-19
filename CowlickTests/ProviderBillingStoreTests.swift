@@ -5,6 +5,14 @@ import XCTest
 
 @MainActor
 final class ProviderBillingStoreTests: XCTestCase {
+  func testAnthropicMeasurementIsPartialWithoutDowngradingOpenAICoverage() {
+    let openAI = makeSnapshot(provider: .openAIAPI)
+    let anthropic = makeSnapshot(provider: .anthropicAPI)
+
+    XCTAssertEqual(openAI.measurement.coverage, .accountWide)
+    XCTAssertEqual(anthropic.measurement.coverage, .partial)
+  }
+
   func testCredentialReferencesKeepSameProviderAccountsSeparated() async throws {
     let credentials = FakeCredentialSecretStore()
     let service = RecordingProviderCostService(provider: .openAIAPI)
@@ -129,6 +137,78 @@ final class ProviderBillingStoreTests: XCTestCase {
     XCTAssertFalse(store.refreshingAccountIDs.contains(account.id))
   }
 
+  func testFailedRefreshMarksCurrentMonthSnapshotStaleWithAge() {
+    let now = testDate(year: 2026, month: 8, day: 18, hour: 12)
+    let snapshot = makeSnapshot(
+      provider: .openAIAPI,
+      interval: DateInterval(
+        start: testDate(year: 2026, month: 8, day: 1),
+        end: now
+      ),
+      fetchedAt: now.addingTimeInterval(-7_200)
+    )
+
+    let presentation = ProviderBillingPresentation.resolve(
+      snapshot: snapshot,
+      errorMessage: "Provider billing data is unavailable.",
+      now: now
+    )
+
+    XCTAssertTrue(presentation.showsAmount)
+    XCTAssertEqual(
+      presentation.detail,
+      "Month to date · stale after failed refresh · updated 2h ago"
+    )
+  }
+
+  func testPriorMonthSnapshotIsSuppressedAndMarkedAfterFailedRefresh() {
+    let now = testDate(year: 2026, month: 8, day: 1, hour: 12)
+    let snapshot = makeSnapshot(
+      provider: .openAIAPI,
+      interval: DateInterval(
+        start: testDate(year: 2026, month: 7, day: 1),
+        end: testDate(year: 2026, month: 7, day: 31, hour: 12)
+      ),
+      fetchedAt: testDate(year: 2026, month: 7, day: 31, hour: 12)
+    )
+
+    let presentation = ProviderBillingPresentation.resolve(
+      snapshot: snapshot,
+      errorMessage: "Provider billing data is unavailable.",
+      now: now
+    )
+
+    XCTAssertFalse(presentation.showsAmount)
+    XCTAssertEqual(
+      presentation.detail,
+      "No current-month data · refresh failed · updated 1d ago"
+    )
+  }
+
+  func testCurrentMonthPresentationUsesUTCBoundaryWhenLocalCalendarIsInPriorMonth() throws {
+    var localCalendar = Calendar(identifier: .gregorian)
+    localCalendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+    let now = testDate(year: 2026, month: 8, day: 1, hour: 0, minute: 30)
+    XCTAssertEqual(localCalendar.component(.month, from: now), 7)
+    let snapshot = makeSnapshot(
+      provider: .openAIAPI,
+      interval: DateInterval(
+        start: testDate(year: 2026, month: 8, day: 1),
+        end: now
+      ),
+      fetchedAt: now
+    )
+
+    let presentation = ProviderBillingPresentation.resolve(
+      snapshot: snapshot,
+      errorMessage: nil,
+      now: now
+    )
+
+    XCTAssertTrue(presentation.showsAmount)
+    XCTAssertEqual(presentation.detail, "Month to date")
+  }
+
   private var testInterval: DateInterval {
     DateInterval(start: .distantPast, duration: 86_400)
   }
@@ -137,6 +217,40 @@ final class ProviderBillingStoreTests: XCTestCase {
     ProviderAccount(
       id: UUID(), provider: provider, alias: alias,
       credentialReference: CredentialReference(id: UUID()))
+  }
+
+  private var testCalendar: Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    return calendar
+  }
+
+  private func testDate(
+    year: Int,
+    month: Int,
+    day: Int,
+    hour: Int = 0,
+    minute: Int = 0
+  ) -> Date {
+    testCalendar.date(
+      from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute)
+    )!
+  }
+
+  private func makeSnapshot(
+    provider: UsageProvider,
+    interval: DateInterval? = nil,
+    fetchedAt: Date? = nil
+  ) -> ActualBilledSnapshot {
+    let interval = interval ?? testInterval
+    return ActualBilledSnapshot(
+      accountID: UUID(),
+      provider: provider,
+      amount: 1,
+      currency: "USD",
+      interval: interval,
+      fetchedAt: fetchedAt ?? interval.end
+    )
   }
 }
 

@@ -143,6 +143,13 @@ struct SettingsView: View {
       .formStyle(.grouped)
       .tabItem { Label("Quota", systemImage: "gauge.with.dots.needle.33percent") }
 
+      ProviderAccountsView(
+        controller: services.providerAccountsController,
+        billingStore: services.providerBillingStore,
+        usageStore: services.usageStore
+      )
+      .tabItem { Label("Accounts", systemImage: "person.2") }
+
       Form {
         Section("Caps Lock signal") {
           Toggle(
@@ -199,14 +206,17 @@ struct SettingsView: View {
     .task { await refreshStatus() }
     .confirmationDialog("Reset Cowlick state?", isPresented: $confirmReset) {
       Button("Reset", role: .destructive) {
-        services.sessionStore.reset()
-        services.usageStore.reset()
-        services.settings.reset()
+        Task {
+          services.sessionStore.reset()
+          services.usageStore.reset()
+          services.settings.reset()
+          await services.providerAccountsController.resetTransientState()
+        }
       }
       Button("Cancel", role: .cancel) {}
     } message: {
       Text(
-        "This clears in-memory sessions, diagnostics, and preferences. It does not remove Codex hooks."
+        "This clears in-memory sessions, diagnostics, billing results, and preferences. Provider accounts and their Keychain credentials remain. It does not remove Codex hooks."
       )
     }
   }
@@ -269,11 +279,11 @@ struct SettingsView: View {
     case .trusted:
       "Cowlick is trusted. New Codex prompts will report working and completion states."
     case .needsReview:
-      "Open /hooks in Codex and trust the four Cowlick commands once. Codex will not run them before review."
+      "Cowlick installed the hooks. Codex requires one security review in the Codex CLI: run codex, then /hooks. Codex will not run them before review."
     case .incomplete:
-      "Install or repair the integration, then review Cowlick in Codex /hooks."
+      "Install or repair the integration, then review Cowlick in the Codex CLI /hooks."
     case .notChecked, .unavailable:
-      "Codex may require a one-time review in /hooks after installation."
+      "Codex may require one security review in the Codex CLI /hooks after installation."
     }
   }
 

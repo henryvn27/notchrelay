@@ -69,7 +69,7 @@ final class LifecycleLedgerTests: XCTestCase {
   }
 
   @MainActor
-  func testSessionStoreRestoresWorkingSessionsWithoutPromptContent() async {
+  func testSessionStoreRestoresWorkingSessionsAsUnconfirmed() async {
     let store = SessionStore(settings: makeTestSettings())
     let entry = Cowlick.PersistedLifecycleSession(
       sessionID: "recovered", turnID: "turn", workingDirectory: "/tmp/Scoutly",
@@ -77,12 +77,59 @@ final class LifecycleLedgerTests: XCTestCase {
 
     await store.restoreLifecycleSessions([entry])
 
-    XCTAssertEqual(store.activeSessionCount, 1)
+    XCTAssertEqual(store.activeSessionCount, 0)
+    XCTAssertNil(store.displaySession)
+    XCTAssertFalse(store.shouldShowOverlay)
+    XCTAssertEqual(store.sessionSummaries.map(\.id), ["recovered"])
     XCTAssertEqual(store.sessions["recovered"]?.projectName, "Scoutly")
+    XCTAssertEqual(store.sessions["recovered"]?.statusLabel, "Unconfirmed after restart")
+    XCTAssertEqual(store.sessions["recovered"]?.isRecovered, true)
     guard case .working(let prompt)? = store.sessions["recovered"]?.status else {
       return XCTFail("Expected recovered working session")
     }
     XCTAssertNil(prompt)
+  }
+
+  @MainActor
+  func testRecoveredSessionSummaryRemainsInspectableForLedgerRetention() async {
+    let store = SessionStore(settings: makeTestSettings())
+    let entry = Cowlick.PersistedLifecycleSession(
+      sessionID: "recovered",
+      turnID: "turn",
+      workingDirectory: "/tmp/Scoutly",
+      model: nil,
+      updatedAt: Date().addingTimeInterval(-LifecycleLedger.staleInterval + 60)
+    )
+
+    await store.restoreLifecycleSessions([entry])
+
+    XCTAssertEqual(store.sessionSummaries.map(\.id), ["recovered"])
+    XCTAssertEqual(store.activeSessionCount, 0)
+    XCTAssertNil(store.displaySession)
+    XCTAssertFalse(store.shouldShowOverlay)
+  }
+
+  @MainActor
+  func testFreshWorkingEventConfirmsRecoveredSession() async {
+    let store = SessionStore(settings: makeTestSettings())
+    let now = Date()
+    let entry = Cowlick.PersistedLifecycleSession(
+      sessionID: "recovered", turnID: "old-turn", workingDirectory: "/tmp/Scoutly",
+      model: nil, updatedAt: now)
+    await store.restoreLifecycleSessions([entry])
+
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .working,
+        sessionID: "recovered",
+        turnID: "fresh-turn",
+        timestamp: now.addingTimeInterval(1)
+      ))
+
+    XCTAssertEqual(store.activeSessionCount, 1)
+    XCTAssertEqual(store.displaySession?.id, "recovered")
+    XCTAssertEqual(store.sessions["recovered"]?.isRecovered, false)
+    XCTAssertEqual(store.sessions["recovered"]?.statusLabel, "Working")
   }
 
   private func makeTemporaryHome() throws -> URL {
