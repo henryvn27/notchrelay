@@ -37,6 +37,13 @@ final class EventLogger {
     let end: Int
   }
 
+  private struct CredentialLabelCandidate {
+    let replacementStart: Int
+    let labelStart: Int
+    var labelEnd: Int
+    var normalizedLabel: String
+  }
+
   private enum ProtectedValueKind {
     case authorization
     case bearer
@@ -732,8 +739,12 @@ final class EventLogger {
     let hasLeadingWrapper = cursor > start
     let labelStart = cursor
     var words: [CredentialLabelWord] = []
+    var candidate: CredentialLabelCandidate?
+    var semanticTail = ""
+    var sawAuthorizationSemantic = false
+    var sawBearerSemantic = false
 
-    while words.count < maximumCredentialLabelWords {
+    while candidate != nil || words.count < maximumCredentialLabelWords {
       let wordStart = cursor
       var normalized = ""
       var wordEnd = cursor
@@ -744,6 +755,13 @@ final class EventLogger {
             let value = scalar.value
             let lowercase = UnicodeScalar(value >= 0x41 && value <= 0x5A ? value + 0x20 : value)!
             normalized.unicodeScalars.append(lowercase)
+            semanticTail.unicodeScalars.append(lowercase)
+            if semanticTail.unicodeScalars.count > maximumSensitiveIdentifierScalars {
+              semanticTail.unicodeScalars.removeFirst()
+            }
+            sawAuthorizationSemantic =
+              sawAuthorizationSemantic || isAuthorizationIdentifier(semanticTail)
+            sawBearerSemantic = sawBearerSemantic || isBearerIdentifier(semanticTail)
           }
           cursor += 1
           wordEnd = cursor
@@ -756,29 +774,39 @@ final class EventLogger {
         cursor = markerEnd
       }
       guard wordEnd > wordStart else { break }
-      words.append(
-        CredentialLabelWord(start: wordStart, end: wordEnd, normalized: normalized)
-      )
+      if candidate == nil {
+        words.append(
+          CredentialLabelWord(start: wordStart, end: wordEnd, normalized: normalized)
+        )
+        candidate = credentialLabelCandidate(
+          in: words,
+          start: start,
+          labelStart: labelStart,
+          hasLeadingWrapper: hasLeadingWrapper
+        )
+      } else {
+        candidate?.labelEnd = wordEnd
+        if sawAuthorizationSemantic {
+          candidate?.normalizedLabel = "authorization"
+        } else if candidate.map({ !isAuthorizationIdentifier($0.normalizedLabel) }) == true,
+          sawBearerSemantic
+        {
+          candidate?.normalizedLabel = "bearer"
+        }
+      }
 
       if let delimiter = credentialDelimiter(in: scalars, afterLabelAt: cursor) {
-        var combined = ""
-        var fallback: SensitiveField?
-        for word in words.reversed() {
-          combined = word.normalized + combined
-          guard isSensitiveIdentifier(combined) else { continue }
+        if let candidate {
           let field = SensitiveField(
-            replacementStart: hasLeadingWrapper ? start : word.start,
-            labelStart: hasLeadingWrapper ? labelStart : word.start,
-            labelEnd: words.last!.end,
+            replacementStart: candidate.replacementStart,
+            labelStart: candidate.labelStart,
+            labelEnd: candidate.labelEnd,
             delimiter: delimiter,
-            normalizedLabel: combined
+            normalizedLabel: candidate.normalizedLabel
           )
-          if isAuthorizationIdentifier(combined) || isBearerIdentifier(combined) {
-            return CredentialLabelScan(field: field, end: delimiter + 1)
-          }
-          if fallback == nil { fallback = field }
+          return CredentialLabelScan(field: field, end: delimiter + 1)
         }
-        return CredentialLabelScan(field: fallback, end: delimiter + 1)
+        return CredentialLabelScan(field: nil, end: delimiter + 1)
       }
 
       var nextWord = cursor
@@ -789,15 +817,46 @@ final class EventLogger {
         }
         nextWord = markerEnd
       }
-      guard words.count < maximumCredentialLabelWords,
+      guard candidate != nil || words.count < maximumCredentialLabelWords,
         nextWord > cursor,
         nextWord < scalars.count, isIdentifierScalar(scalars[nextWord])
       else {
-        return CredentialLabelScan(field: nil, end: words.first?.end ?? max(cursor, nextWord))
+        return CredentialLabelScan(
+          field: nil,
+          end: candidate == nil ? words.first?.end ?? max(cursor, nextWord) : max(cursor, nextWord)
+        )
       }
       cursor = nextWord
     }
-    return CredentialLabelScan(field: nil, end: words.first?.end ?? cursor)
+    return CredentialLabelScan(
+      field: nil,
+      end: candidate == nil ? words.first?.end ?? cursor : cursor
+    )
+  }
+
+  private static func credentialLabelCandidate(
+    in words: [CredentialLabelWord],
+    start: Int,
+    labelStart: Int,
+    hasLeadingWrapper: Bool
+  ) -> CredentialLabelCandidate? {
+    var combined = ""
+    var fallback: CredentialLabelCandidate?
+    for word in words.reversed() {
+      combined = word.normalized + combined
+      guard isSensitiveIdentifier(combined) else { continue }
+      let candidate = CredentialLabelCandidate(
+        replacementStart: hasLeadingWrapper ? start : word.start,
+        labelStart: hasLeadingWrapper ? labelStart : word.start,
+        labelEnd: words.last!.end,
+        normalizedLabel: combined
+      )
+      if isAuthorizationIdentifier(combined) || isBearerIdentifier(combined) {
+        return candidate
+      }
+      if fallback == nil { fallback = candidate }
+    }
+    return fallback
   }
 
   private static func isSensitiveIdentifier(_ identifier: ArraySlice<UnicodeScalar>) -> Bool {

@@ -495,23 +495,46 @@ final class DiagnosticsTests: XCTestCase {
       "s i g n a t u r e=MASKME",
       "c r e d e n t i a l:MASKME",
       "a u t h o r i z a t i o n=MASKME",
+      "“a u t h o r i z a t i o n” x=MASKME",
+      "s i g n a t u r e suffix=MASKME",
+      "c r e d e n t i a l suffix=MASKME",
+      "a u t h o r i z a t i o n " + String(repeating: "x ", count: 64) + "=MASKME",
+      "token authorizationSuffixLong: Digest username=MASKME response=MASKMORE",
+      "token bearerSuffixLong: MASKME response=MASKMORE",
     ] {
       let output = EventLogger.sanitizeError(input)
       XCTAssertTrue(output.contains("<redacted>"), output)
       XCTAssertFalse(output.contains("MASKME"), output)
+      XCTAssertFalse(output.contains("MASKMORE"), output)
     }
 
     for prose in [
       "s i g n a t u r e names only",
       "c r e d e n t i a l names only",
       "a u t h o r i z a t i o n names only",
+      "“a u t h o r i z a t i o n” x names only",
+      "s i g n a t u r e suffix names only",
+      "c r e d e n t i a l suffix names only",
     ] {
       XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
     }
 
-    let adversarial = String(repeating: "a \" ", count: 1_000)
+    let adversarial =
+      "a u t h o r i z a t i o n " + String(repeating: "x ", count: 1_480) + "=MASKME"
     measure(metrics: [XCTClockMetric()]) {
-      XCTAssertEqual(EventLogger.sanitizeError(adversarial).unicodeScalars.count, 400)
+      let output = EventLogger.sanitizeError(adversarial)
+      XCTAssertEqual(output, "authorization=<redacted>")
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+  }
+
+  func testCredentialLabelTailWithoutDelimiterRemainsBoundedProse() {
+    let prose =
+      "a u t h o r i z a t i o n " + String(repeating: "x ", count: 1_480) + "names only"
+    measure(metrics: [XCTClockMetric()]) {
+      let output = EventLogger.sanitizeError(prose)
+      XCTAssertEqual(output.unicodeScalars.count, 400)
+      XCTAssertFalse(output.contains("<redacted>"), output)
     }
   }
 
