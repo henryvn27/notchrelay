@@ -38,6 +38,16 @@ path_exists() {
   [[ -e "$1" || -L "$1" ]]
 }
 
+snapshot_marker_is_valid() {
+  local marker="$1" mode
+  [[ -f "$marker" && ! -L "$marker" ]] || return 1
+  [[ "$(/usr/bin/stat -f '%u' -- "$marker" 2>/dev/null)" == "$(/usr/bin/id -u)" ]] \
+    || return 1
+  mode="$(/usr/bin/stat -f '%Lp' -- "$marker" 2>/dev/null)" || return 1
+  (( (8#$mode & 8#77) == 0 )) || return 1
+  /usr/bin/cmp -s "$marker" <(print -r -- 1)
+}
+
 cleanup_installer() {
   $rollback_snapshot_retained || rm -rf "$rollback_directory"
 }
@@ -138,7 +148,7 @@ rollback_install() {
     fi
   fi
   if $rollback_snapshot_retained; then
-    if path_exists "$rollback_snapshot_marker"; then
+    if snapshot_marker_is_valid "$rollback_snapshot_marker"; then
       print -u2 -- "Rollback snapshot retained at $rollback_directory"
     else
       print -u2 -- "Rollback workspace retained at $rollback_directory"
@@ -200,14 +210,16 @@ integration_install_status=0
 swift "$script_dir/install_hooks.swift" install \
   --helper "$destination/Contents/Helpers/cowlick-hook" \
   --snapshot "$rollback_directory" || integration_install_status=$?
-if path_exists "$rollback_snapshot_marker"; then
+if snapshot_marker_is_valid "$rollback_snapshot_marker"; then
   integration_snapshot_available=true
+elif path_exists "$rollback_snapshot_marker"; then
+  integration_state_uncertain=true
+  rollback_snapshot_retained=true
 fi
 if (( integration_install_status != 0 )); then
   exit "$integration_install_status"
 fi
-if [[ ! -f "$rollback_snapshot_marker" || -L "$rollback_snapshot_marker" \
-  || "$(< "$rollback_snapshot_marker")" != 1 ]]; then
+if ! $integration_snapshot_available; then
   integration_state_uncertain=true
   rollback_snapshot_retained=true
   print -u2 "Cowlick integration install did not produce a valid rollback snapshot."

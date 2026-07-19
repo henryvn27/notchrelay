@@ -234,6 +234,23 @@ if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift && "$2" == install ]] \
   exit 71
 fi
 
+if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift && "$2" == install ]] \
+  && [[ "${COWLICK_TEST_INSTALL_CHILD_DANGLING_MARKER:-}" == 1 ]]; then
+  "$COWLICK_TEST_REAL_SWIFT" "$@"
+  snapshot=""
+  for (( index = 3; index <= $#; index += 1 )); do
+    if [[ "${@[index]}" == --snapshot && $(( index + 1 )) -le $# ]]; then
+      snapshot="${@[$(( index + 1 ))]}"
+      break
+    fi
+  done
+  [[ -n "$snapshot" ]]
+  /bin/rm -f "$snapshot/.cowlick-integration-snapshot-v1"
+  ln -s "$snapshot/missing-marker" "$snapshot/.cowlick-integration-snapshot-v1"
+  print -u2 "forced child failure with a dangling integration snapshot marker"
+  exit 72
+fi
+
 if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift ]] \
   && [[ "$2" == "${COWLICK_TEST_BARRIER_COMMAND:-}" ]] \
   && [[ -n "${COWLICK_TEST_BARRIER_DIRECTORY:-}" ]]; then
@@ -899,6 +916,33 @@ COWLICK_HOME="$child_outer_failure_home" "$real_swift" \
 assert_local_install_present "$child_outer_failure_home"
 grep -Fq 'before-child-outer-failure' \
   "$child_outer_failure_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+dangling_child_marker_home="$temporary_directory/wrapper-dangling-child-marker-home"
+dangling_child_marker_output="$temporary_directory/wrapper-dangling-child-marker-output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$dangling_child_marker_home" \
+  COWLICK_HOME="$dangling_child_marker_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=before-dangling-marker \
+  "$wrapper_scripts/install_local.sh" >/dev/null
+dangling_child_marker_status=0
+env PATH="$wrapper_fake_bin:$PATH" HOME="$dangling_child_marker_home" \
+  COWLICK_HOME="$dangling_child_marker_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=mutated-dangling-marker \
+  COWLICK_TEST_INSTALL_CHILD_DANGLING_MARKER=1 \
+  "$wrapper_scripts/install_local.sh" > "$dangling_child_marker_output" 2>&1 \
+  || dangling_child_marker_status=$?
+[[ "$dangling_child_marker_status" == 72 ]]
+grep -Fq 'forced child failure with a dangling integration snapshot marker' \
+  "$dangling_child_marker_output"
+grep -Fq 'Cowlick integration state is uncertain; no valid rollback snapshot is available.' \
+  "$dangling_child_marker_output"
+if grep -Fq 'Rollback snapshot retained at ' "$dangling_child_marker_output"; then
+  print -u2 "invalid child marker was mislabeled as a retained rollback snapshot"
+  exit 1
+fi
+dangling_child_workspace="$(sed -n 's/^Rollback workspace retained at //p' \
+  "$dangling_child_marker_output" | tail -1)"
+[[ -d "$dangling_child_workspace" ]]
+[[ -L "$dangling_child_workspace/.cowlick-integration-snapshot-v1" ]]
 
 assert_app_rollback_failure_retains_recovery() {
   local name="$1"
