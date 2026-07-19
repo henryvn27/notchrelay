@@ -792,13 +792,16 @@ final class EventLogger {
         return CredentialLabelScan(field: fallback, end: delimiter + 1)
       }
 
-      let whitespaceEnd = skipWhitespace(in: scalars, from: cursor)
-      var nextWord = whitespaceEnd
-      while let markerEnd = credentialLabelTerminatorEnd(in: scalars, from: nextWord) {
+      var nextWord = cursor
+      while true {
+        nextWord = skipWhitespace(in: scalars, from: nextWord)
+        guard let markerEnd = credentialLabelTerminatorEnd(in: scalars, from: nextWord) else {
+          break
+        }
         nextWord = markerEnd
       }
       guard words.count < maximumCredentialLabelWords,
-        whitespaceEnd > cursor || nextWord > cursor,
+        nextWord > cursor,
         nextWord < scalars.count, isIdentifierScalar(scalars[nextWord])
       else {
         return CredentialLabelScan(field: nil, end: words.first?.end ?? max(cursor, nextWord))

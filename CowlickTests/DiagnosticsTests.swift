@@ -425,6 +425,13 @@ final class DiagnosticsTests: XCTestCase {
       #"token\"x=MASKME"#,
       "signature”part=MASKME",
       "credential「part」:MASKME",
+      #"token" x=MASKME"#,
+      #"token\" x=MASKME"#,
+      #"token" "x=MASKME"#,
+      "to” ken=MASKME",
+      "to「 ken」=MASKME",
+      "token\"⁠ x=MASKME",
+      "to”⁠ ken=MASKME",
     ] {
       let output = EventLogger.sanitizeError(input)
       XCTAssertTrue(output.contains("<redacted>"), output)
@@ -453,8 +460,18 @@ final class DiagnosticsTests: XCTestCase {
       #"token\"x names only"#,
       "signature”part names only",
       "credential「part」 names only",
+      #"token" x names only"#,
+      #"token\" x names only"#,
+      #"token" "x names only"#,
+      "to” ken names only",
+      "to「 ken」 names only",
+      "token\"⁠ x names only",
+      "to”⁠ ken names only",
     ] {
-      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+      XCTAssertEqual(
+        EventLogger.sanitizeError(prose),
+        prose.replacingOccurrences(of: "\u{2060}", with: "")
+      )
     }
   }
 
