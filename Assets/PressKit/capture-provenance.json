@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "f1e8c518c834532f1acd0b0714822e8cc386b30c",
+  "bundleIdentifier": "com.henryvn27.Cowlick",
+  "marketingVersion": "1.0.0",
+  "buildVersion": "1",
+  "appExecutableSHA256": "71641d1963e2a5a3d71576f3f0e3ff6254471f55930ceb391dadd11fe6d8969c",
+  "helperExecutableSHA256": "13b709ffb557b99d655979d2d53ed8944dfd07a89a3d67535a89a8ec6bc05414"
+}

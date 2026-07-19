@@ -7,7 +7,9 @@
   <a href="https://github.com/henryvn27/cowlick/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/henryvn27/cowlick/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
-![Cowlick showing a request-matched approval at the MacBook notch](Assets/Screenshots/hero.png)
+![Cowlick showing a request-matched approval and multiple sessions on a non-notch display](Assets/Screenshots/hero.png)
+
+[Watch the 8-second product demo](Assets/Demo/cowlick-demo.mp4) · [Open the press kit](Assets/PressKit/README.md)
 
 > Cowlick does not publish unsigned or development-signed downloads. The [GitHub Releases page](https://github.com/henryvn27/cowlick/releases) is the source of truth: if it lists no release, use the contributor install rather than an unverified build artifact.
 
