@@ -1,39 +1,59 @@
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version to release, without a v prefix
+        required: true
+        type: string
 
 concurrency:
   group: cowlick-release
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   provenance:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      release_sha: ${{ steps.verify.outputs.release_sha }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-      - name: Require the exact current main commit
+      - name: Require a protected-main dispatch
         run: |
-          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' --depth=1
-          head_sha="$(git rev-parse --verify 'HEAD^{commit}')"
-          main_sha="$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')"
-          if [[ "$head_sha" != "$main_sha" ]]; then
-            printf 'Release tag commit %s does not match current main %s\n' "$head_sha" "$main_sha" >&2
+          if [[ "$GITHUB_REF" != 'refs/heads/main' ]]; then
+            printf 'Release workflow must be dispatched from main, not %s\n' "$GITHUB_REF" >&2
             exit 1
           fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: main
+          fetch-depth: 1
+      - id: verify
+        name: Require the exact current main commit
+        run: |
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main' --depth=1
+          release_sha="$(./Scripts/verify_release_provenance.sh "$GITHUB_SHA" refs/remotes/origin/main)"
+          printf 'release_sha=%s\n' "$release_sha" >> "$GITHUB_OUTPUT"
 
   release:
     needs: provenance
     runs-on: macos-15
     timeout-minutes: 45
+    environment: release
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.provenance.outputs.release_sha }}
+          fetch-depth: 0
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Validate release inputs
@@ -47,7 +67,7 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="$RELEASE_VERSION"
           ./Scripts/release_preflight.sh "$version" --source-only
           missing=()
           for variable_name in \
@@ -101,15 +121,33 @@ jobs:
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
           NOTARYTOOL_PROFILE: cowlick-notary
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: ./Scripts/create_release.sh "${GITHUB_REF_NAME#v}"
+        run: ./Scripts/create_release.sh "$RELEASE_VERSION"
       - name: Render Homebrew cask
-        run: ./Scripts/render_homebrew_cask.sh "${GITHUB_REF_NAME#v}" "build/release-${GITHUB_REF_NAME#v}/Cowlick-${GITHUB_REF_NAME#v}.dmg"
+        run: ./Scripts/render_homebrew_cask.sh "$RELEASE_VERSION" "build/release-$RELEASE_VERSION/Cowlick-$RELEASE_VERSION.dmg"
+      - name: Create or verify release tag
+        run: |
+          tag="v$RELEASE_VERSION"
+          if git ls-remote --exit-code --refs origin "refs/tags/$tag" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+            tag_sha="$(git rev-list -n 1 "$tag")"
+            if [[ "$tag_sha" != '${{ needs.provenance.outputs.release_sha }}' ]]; then
+              printf 'Existing tag %s points to %s, expected %s\n' \
+                "$tag" "$tag_sha" '${{ needs.provenance.outputs.release_sha }}' >&2
+              exit 1
+            fi
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag -a "$tag" -m "Cowlick $RELEASE_VERSION" '${{ needs.provenance.outputs.release_sha }}'
+            git push origin "refs/tags/$tag"
+          fi
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" \
+          version="$RELEASE_VERSION"
+          tag="v$version"
+          gh release create "$tag" \
             "build/release-$version/Cowlick-$version.dmg" \
             "build/release-$version/Cowlick-$version.zip" \
             "build/release-$version/checksums.txt" \
@@ -123,6 +161,6 @@ jobs:
         run: |
           content="$(base64 < Config/Homebrew/cowlick.rb | tr -d '\n')"
           existing_sha="$(gh api repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb --jq .sha 2>/dev/null || true)"
-          args=(-X PUT -f message="Update Cowlick to ${GITHUB_REF_NAME#v}" -f content="$content" -f branch=main)
+          args=(-X PUT -f message="Update Cowlick to $RELEASE_VERSION" -f content="$content" -f branch=main)
           if [[ -n "$existing_sha" ]]; then args+=(-f sha="$existing_sha"); fi
           gh api repos/henryvn27/homebrew-cowlick/contents/Casks/cowlick.rb "${args[@]}"

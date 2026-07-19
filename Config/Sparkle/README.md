@@ -8,4 +8,4 @@ Public EdDSA key:
 jdfVgATZX2FxlG7vDWmIFurSoELcZ/qJbnkQbaWg4H4=
 ```
 
-The existing private key remains in the maintainer's macOS Keychain under the legacy `cowlick` account and in the GitHub Actions `SPARKLE_PRIVATE_KEY` secret. `SPARKLE_KEY_ACCOUNT` can select another local account. The key must never be committed. The app reads its feed from the `appcast.xml` asset attached to the latest GitHub release.
+The existing private key remains in the maintainer's macOS Keychain under the legacy `cowlick` account and in the protected GitHub Actions `release` environment as the `SPARKLE_PRIVATE_KEY` secret. `SPARKLE_KEY_ACCOUNT` can select another local account. The key must never be committed. The app reads its feed from the `appcast.xml` asset attached to the latest GitHub release.
