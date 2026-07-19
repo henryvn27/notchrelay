@@ -337,25 +337,43 @@ final class EventLogger {
     guard start < scalars.count else { return nil }
     var end = start
     var quote: UnicodeScalar?
+    var quoteAllowsEscapes = false
     while end < scalars.count {
       let scalar = scalars[end]
       if let activeQuote = quote {
-        if scalar.value == 0x5C, end + 1 < scalars.count {
+        if quoteAllowsEscapes, scalar.value == 0x5C, end + 1 < scalars.count {
           end += 2
           continue
         }
-        if scalar == activeQuote { quote = nil }
+        if scalar == activeQuote {
+          quote = nil
+          quoteAllowsEscapes = false
+        }
         end += 1
         continue
       }
       if isQuote(scalar) {
         quote = scalar
+        quoteAllowsEscapes = true
+        end += 1
+        continue
+      }
+      if let closingQuote = unicodeCredentialValueClosingQuote(for: scalar) {
+        quote = closingQuote
+        quoteAllowsEscapes = false
         end += 1
         continue
       }
       if isExplicitValueTerminator(scalar) { break }
       if CharacterSet.whitespacesAndNewlines.contains(scalar) {
         let nextField = skipWhitespace(in: scalars, from: end)
+        if nextField < scalars.count,
+          isQuote(scalars[nextField])
+            || unicodeCredentialValueClosingQuote(for: scalars[nextField]) != nil
+        {
+          end = nextField
+          continue
+        }
         if let field = isSensitiveField(in: scalars, from: nextField) {
           var boundary = field.replacementStart
           while boundary > start,
@@ -498,7 +516,10 @@ final class EventLogger {
   }
 
   private static func isCredentialDelimiter(_ scalar: UnicodeScalar) -> Bool {
-    scalar.value == 0x3A || scalar.value == 0x3D
+    switch scalar.value {
+    case 0x3A, 0x3D, 0xFF1A, 0xFF1D: true
+    default: false
+    }
   }
 
   private static func isValueTerminator(_ scalar: UnicodeScalar) -> Bool {

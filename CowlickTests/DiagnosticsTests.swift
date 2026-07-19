@@ -181,6 +181,30 @@ final class DiagnosticsTests: XCTestCase {
     }
   }
 
+  func testFullwidthCredentialDelimitersRemainBoundedToSensitiveLabels() {
+    for (input, expected) in [
+      ("token：direct.secret", "token=<redacted>"),
+      ("api.key＝dotted.secret", "api.key=<redacted>"),
+      (#""token"：quoted.secret"#, "token=<redacted>"),
+      (#"'api.key'＝quoted.dotted"#, "api.key=<redacted>"),
+      ("API key：spaced.secret", "API key=<redacted>"),
+      (#""AWS secret access key"＝compound.secret"#, "AWS secret access key=<redacted>"),
+      ("Bearer：auth.value", "Bearer=<redacted>"),
+      ("Authorization＝Bearer auth.value", "authorization=<redacted>"),
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), expected)
+    }
+
+    for prose in [
+      "key＝visible",
+      "release.version：1.2.3",
+      #""display.name"：public.value"#,
+      "token；visible",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+  }
+
   func testQuotedCredentialValuesHonorEscapesAndUnmatchedQuotedKeysFallBack() {
     XCTAssertEqual(EventLogger.sanitizeError(#"token="abc\"def""#), "token=<redacted>")
     XCTAssertEqual(EventLogger.sanitizeError(#""token=secret"#), "token=<redacted>")
@@ -269,9 +293,47 @@ final class DiagnosticsTests: XCTestCase {
       EventLogger.sanitizeError("Bearer auth.value API key: field.value"),
       "bearer=<redacted> API key=<redacted>"
     )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Bearer auth.value api.key：field.value"),
+      "bearer=<redacted> api.key=<redacted>"
+    )
 
     for prose in ["Bearer", #""Bearer""#, "Bearer, visible prose", "A Bearer, by definition"] {
       XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+  }
+
+  func testProtectedValuesHonorPairedUnicodeWrappersAndFailClosed() {
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Bearer “first;secret tail” visible"),
+      "bearer=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Authorization: Bearer «first,secret tail» visible"),
+      "authorization=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Bearer “first api.key: inner.secret; tail” API key: field.value"),
+      "bearer=<redacted> API key=<redacted>"
+    )
+    XCTAssertEqual(
+      EventLogger.sanitizeError(
+        "Authorization: Bearer «first API key: inner.secret, tail» api.key: field.value"
+      ),
+      "authorization=<redacted> api.key=<redacted>"
+    )
+
+    for input in [
+      "Bearer “first;secret tail",
+      "Bearer “first»secret; tail",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "bearer=<redacted>")
+    }
+    for input in [
+      "Authorization: Bearer «first,secret tail",
+      "Authorization: Bearer «first”secret, tail",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(input), "authorization=<redacted>")
     }
   }
 
