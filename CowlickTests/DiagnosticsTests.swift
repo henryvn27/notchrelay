@@ -34,7 +34,7 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertFalse(output.contains("tail"))
     XCTAssertFalse(output.contains("sk-key"))
     XCTAssertFalse(output.contains("\u{E000}"))
-    XCTAssertTrue(output.contains("~/private"))
+    XCTAssertTrue(output.contains("~/private"), output)
     XCTAssertTrue(output.contains("authorization=<redacted>"))
     XCTAssertFalse(output.contains("OPENAI_API_KEY"))
     XCTAssertFalse(
@@ -51,7 +51,7 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertFalse(output.contains("tail"))
     XCTAssertFalse(output.contains("sk-live"))
     XCTAssertFalse(output.contains("secret"))
-    XCTAssertTrue(output.contains("~/private"))
+    XCTAssertTrue(output.contains("~/private"), output)
     XCTAssertTrue(output.contains("OPENAI_API_KEY=<redacted>"))
     XCTAssertTrue(output.contains("authorization=<redacted>"))
     XCTAssertFalse(
@@ -67,7 +67,7 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertFalse(output.contains("token-secret"))
     XCTAssertFalse(output.contains("api-secret"))
     XCTAssertFalse(output.contains("bearer-secret"))
-    XCTAssertTrue(output.contains("~/private"))
+    XCTAssertTrue(output.contains("~/private"), output)
     XCTAssertTrue(output.contains("token=<redacted>"))
     XCTAssertTrue(output.contains("api_key=<redacted>"))
     XCTAssertTrue(output.contains("bearer=<redacted>"))
@@ -266,7 +266,7 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertTrue(output.contains("access.token=<redacted>"))
     XCTAssertTrue(output.contains("client.secret=<redacted>"))
     XCTAssertTrue(output.contains("API key=<redacted>"))
-    XCTAssertTrue(output.contains("AWS secret access key=<redacted>"))
+    XCTAssertTrue(output.contains("AWS secret access key=<redacted>"), output)
     XCTAssertEqual(EventLogger.sanitizeError(#""API key":"secret""#), "API key=<redacted>")
     XCTAssertEqual(
       EventLogger.sanitizeError(#""AWS secret access key":"secret""#),
@@ -287,6 +287,11 @@ final class DiagnosticsTests: XCTestCase {
     ] {
       XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
     }
+
+    let longFragment = String(repeating: "a”", count: 2_048)
+    let bounded = EventLogger.sanitizeError(longFragment)
+    XCTAssertFalse(bounded.contains("<redacted>"), bounded)
+    XCTAssertEqual(bounded.unicodeScalars.count, 400)
   }
 
   func testMalformedCredentialLabelQuotesOnlyTerminateBeforeDelimiters() {
@@ -381,6 +386,43 @@ final class DiagnosticsTests: XCTestCase {
       #"payload={\"api.key\"x:\"public\"}"#,
       "“token”” prose",
       "token” ” prose",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+  }
+
+  func testEmbeddedAndFragmentedCredentialLabelQuotesCannotBypassRedaction() {
+    for input in [
+      #"to"ken=MASKME"#,
+      #"to\"ken=MASKME"#,
+      "pass'word:MASKME",
+      "api.”key=MASKME",
+      "API “key”：MASKME",
+      "to「ken」=MASKME",
+    ] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertTrue(output.contains("<redacted>"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+
+    for input in [
+      "autho”rization: Bearer MASKME, public",
+      "Authorization “header”: Digest token=MASKME, response=MASKMORE",
+    ] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertEqual(output, "authorization=<redacted>")
+      XCTAssertFalse(output.contains("MASKME"), output)
+      XCTAssertFalse(output.contains("MASKMORE"), output)
+    }
+
+    for prose in [
+      #"to"ken names only"#,
+      #"to\"ken names only"#,
+      "pass'word prose",
+      "api.”key names only",
+      "API “key” names only",
+      "autho”rization prose",
+      "version “name”：public",
     ] {
       XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
     }
@@ -881,7 +923,7 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertFalse(output.contains("alice"))
     XCTAssertFalse(output.contains("hook-secret"))
     XCTAssertFalse(output.contains("trust-secret"))
-    XCTAssertTrue(output.contains("Hook status: invalid configInjected: yes[31m ~/private"))
+    XCTAssertTrue(output.contains("Hook status: invalid configInjected: yes[31m ~/private"), output)
     XCTAssertTrue(output.contains("Codex hook trust: probe failedFake: authorization=<redacted>"))
   }
 
