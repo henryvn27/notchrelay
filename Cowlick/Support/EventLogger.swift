@@ -815,7 +815,8 @@ final class EventLogger {
   private static func isSensitiveIdentifier(_ normalized: String) -> Bool {
     return [
       "accesskey", "accesstoken", "refreshtoken", "clientsecret", "authtoken", "apikey",
-      "authorization", "bearer", "password", "passwd", "token", "secret",
+      "authorization", "bearer", "credential", "signature", "password", "passwd", "token",
+      "secret",
     ].contains { normalized.contains($0) }
   }
 

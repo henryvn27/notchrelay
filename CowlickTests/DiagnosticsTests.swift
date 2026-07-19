@@ -251,6 +251,28 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertEqual(output.components(separatedBy: "<redacted>").count - 1, secrets.count)
   }
 
+  func testRedactsCredentialAndSignatureIdentifiersWithoutMatchingProse() {
+    for input in [
+      "credential=MASKME; signature:MASKMORE",
+      "X-Amz-Credential=MASKME&X-Amz-Signature=MASKMORE",
+      #""X-Amz-Credential":"MASKME"; "X-Amz-Signature":"MASKMORE""#,
+    ] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertTrue(output.contains("<redacted>"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+      XCTAssertFalse(output.contains("MASKMORE"), output)
+    }
+
+    for prose in [
+      "credential names only",
+      "signature verification passed",
+      "signed.headers=public",
+      "designation=public",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+  }
+
   func testRedactsDottedSpacedAndMultiwordCredentialLabels() {
     let input =
       #"api.key=sk.live.secret; "api.key":"quoted.api.value"; "access.token":"access.value.tail"; client.secret='client.value.tail'; API key: spaced.value.tail; AWS secret access key: multi.value.tail"#
