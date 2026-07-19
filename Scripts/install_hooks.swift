@@ -10,6 +10,7 @@ enum InstallerFailure: LocalizedError {
   case shimConflict
   case helperConflict
   case configurationChanged
+  case invalidSnapshot
   case fileOperation(Int32)
 
   var errorDescription: String? {
@@ -24,6 +25,7 @@ enum InstallerFailure: LocalizedError {
       "The installed helper path is not owned by Cowlick. Move it aside before changing the integration."
     case .configurationChanged:
       "hooks.json changed during installation; no configuration was overwritten. Try again."
+    case .invalidSnapshot: "The Cowlick integration snapshot is incomplete or invalid."
     case .fileOperation(let code): "A protected file operation failed (errno \(code))."
     }
   }
@@ -42,6 +44,8 @@ let legacyInstalledHelper = home.appendingPathComponent(
   "Library/Application Support/NotchRelay/bin/notchrelay-hook")
 let legacyShim = home.appendingPathComponent(".local/bin/notchrelay-hook")
 let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
+let snapshotMarkerName = ".cowlick-integration-snapshot-v1"
+let snapshotMarkerContents = Data("1\n".utf8)
 
 enum InstallerCommand {
   case help
@@ -404,6 +408,8 @@ func snapshotIntegration(to directory: URL) throws {
   where ownsHelper(shim: helperShim, installedHelper: helper) && isOwnedRegularFile(helper) {
     try fileManager.copyItem(at: helper, to: directory.appendingPathComponent(name))
   }
+  try writePrivateFile(
+    snapshotMarkerContents, to: directory.appendingPathComponent(snapshotMarkerName))
 }
 
 func restoreIntegration(from directory: URL) throws {
@@ -412,6 +418,15 @@ func restoreIntegration(from directory: URL) throws {
     directoryInformation.st_mode & S_IFMT == S_IFDIR,
     directoryInformation.st_uid == getuid()
   else { throw InstallerFailure.fileOperation(EINVAL) }
+
+  let marker = directory.appendingPathComponent(snapshotMarkerName)
+  var markerInformation = stat()
+  guard lstat(marker.path, &markerInformation) == 0,
+    markerInformation.st_mode & S_IFMT == S_IFREG,
+    markerInformation.st_uid == getuid(),
+    markerInformation.st_mode & 0o077 == 0,
+    (try? Data(contentsOf: marker)) == snapshotMarkerContents
+  else { throw InstallerFailure.invalidSnapshot }
 
   let hooksSnapshot = directory.appendingPathComponent("hooks.json")
   let helperSnapshot = directory.appendingPathComponent("cowlick-hook")

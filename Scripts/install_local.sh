@@ -26,11 +26,13 @@ legacy_destination="$HOME/Applications/NotchRelay.app"
 backup=""
 install_started=false
 legacy_present=false
-hooks_updated=false
 legacy_removed=false
+integration_snapshot_available=false
+integration_state_uncertain=false
 rollback_snapshot_retained=false
 rollback_directory="$(mktemp -d "${TMPDIR%/}/cowlick-install-rollback.XXXXXX")"
 chmod 700 "$rollback_directory"
+rollback_snapshot_marker="$rollback_directory/.cowlick-integration-snapshot-v1"
 
 cleanup_installer() {
   $rollback_snapshot_retained || rm -rf "$rollback_directory"
@@ -44,13 +46,16 @@ rollback_install() {
 
   set +e
   local integration_restored=true
+  local destination_removed=true
+  local app_restored=false
+  local app_relaunched=true
   print -u2 "Local installation failed; restoring the previous Cowlick installation."
   rollback_pids=(${(f)"$(pgrep -x Cowlick 2>/dev/null || true)"})
   for process_id in $rollback_pids; do
     process_path="$(ps -p "$process_id" -o command= 2>/dev/null || true)"
     [[ "$process_path" == *"/Cowlick.app/Contents/MacOS/Cowlick"* ]] && kill "$process_id" 2>/dev/null
   done
-  if $hooks_updated; then
+  if $integration_snapshot_available; then
     local restore_output restore_exit_code
     restore_output="$(
       swift "$script_dir/install_hooks.swift" restore --snapshot "$rollback_directory" 2>&1
@@ -62,28 +67,82 @@ rollback_install() {
       [[ -n "$restore_output" ]] && print -u2 -- "$restore_output"
       print -u2 -- "Cowlick integration restoration failed (exit $restore_exit_code)."
     fi
+  elif $integration_state_uncertain; then
+    integration_restored=false
+    rollback_snapshot_retained=true
+    print -u2 "Cowlick integration state is uncertain; no valid rollback snapshot is available."
   fi
-  [[ -d "$destination" ]] && /bin/rm -rf "$destination"
-  if [[ -n "$backup" && -d "$backup" ]]; then
-    mv "$backup" "$destination"
-    open -n "$destination" >/dev/null 2>&1
-    if $integration_restored; then
-      print -u2 "Previous local Cowlick app restored."
+
+  if [[ -e "$destination" ]]; then
+    if [[ "${COWLICK_TESTING:-}" == 1 \
+      && "${COWLICK_TEST_ROLLBACK_REMOVE_RESULT:-}" == fail ]]; then
+      destination_removed=false
+    elif [[ "${COWLICK_TESTING:-}" == 1 \
+      && "${COWLICK_TEST_ROLLBACK_REMOVE_RESULT:-}" == false-success ]]; then
+      :
     else
+      /bin/rm -rf "$destination" || destination_removed=false
+    fi
+    if [[ -e "$destination" ]]; then
+      destination_removed=false
+    fi
+    if ! $destination_removed; then
+      rollback_snapshot_retained=true
+      print -u2 -- "Failed Cowlick app could not be removed from $destination"
+    fi
+  fi
+
+  if [[ -n "$backup" && -d "$backup" ]]; then
+    local move_exit_code=0
+    if $destination_removed; then
+      case "${COWLICK_TESTING:-}:${COWLICK_TEST_ROLLBACK_MOVE_RESULT:-}" in
+        1:fail) move_exit_code=75 ;;
+        1:false-success) ;;
+        *) /bin/mv "$backup" "$destination" || move_exit_code=$? ;;
+      esac
+    else
+      move_exit_code=76
+    fi
+    if (( move_exit_code == 0 )) && [[ -d "$destination" && ! -e "$backup" ]]; then
+      app_restored=true
+      if ! open -n "$destination" >/dev/null 2>&1; then
+        app_relaunched=false
+        rollback_snapshot_retained=true
+        print -u2 -- "Previous Cowlick app was restored on disk but could not be relaunched from $destination"
+      fi
+    else
+      rollback_snapshot_retained=true
+      print -u2 -- "Previous Cowlick app restoration failed (exit $move_exit_code)."
+      [[ -e "$backup" ]] && print -u2 -- "Previous Cowlick app backup retained at $backup"
+    fi
+    if $app_restored && $app_relaunched && $integration_restored; then
+      print -u2 "Previous local Cowlick app restored."
+    elif $app_restored && $app_relaunched; then
       print -u2 "Previous local Cowlick app restored; integration restoration failed."
     fi
   else
-    if $integration_restored; then
+    app_restored=$destination_removed
+    if $app_restored && $integration_restored; then
       print -u2 "Partial Cowlick installation removed."
-    else
+    elif $app_restored; then
       print -u2 "Partial Cowlick app installation removed; integration restoration failed."
+    else
+      rollback_snapshot_retained=true
+      print -u2 -- "Partial Cowlick app installation remains at $destination"
     fi
   fi
   if $legacy_present && [[ -d "$legacy_destination" ]]; then
-    open -n "$legacy_destination" >/dev/null 2>&1
+    if ! open -n "$legacy_destination" >/dev/null 2>&1; then
+      rollback_snapshot_retained=true
+      print -u2 -- "Legacy NotchRelay app could not be relaunched from $legacy_destination"
+    fi
   fi
   if $rollback_snapshot_retained; then
-    print -u2 -- "Rollback snapshot retained at $rollback_directory"
+    if [[ -e "$rollback_snapshot_marker" ]]; then
+      print -u2 -- "Rollback snapshot retained at $rollback_directory"
+    else
+      print -u2 -- "Rollback workspace retained at $rollback_directory"
+    fi
   fi
   return "$exit_code"
 }
@@ -137,10 +196,23 @@ fi
 install_started=true
 ditto "$source_app" "$destination"
 
+integration_install_status=0
 swift "$script_dir/install_hooks.swift" install \
   --helper "$destination/Contents/Helpers/cowlick-hook" \
-  --snapshot "$rollback_directory"
-hooks_updated=true
+  --snapshot "$rollback_directory" || integration_install_status=$?
+if [[ -e "$rollback_snapshot_marker" || -L "$rollback_snapshot_marker" ]]; then
+  integration_snapshot_available=true
+fi
+if (( integration_install_status != 0 )); then
+  exit "$integration_install_status"
+fi
+if [[ ! -f "$rollback_snapshot_marker" || -L "$rollback_snapshot_marker" \
+  || "$(< "$rollback_snapshot_marker")" != 1 ]]; then
+  integration_state_uncertain=true
+  rollback_snapshot_retained=true
+  print -u2 "Cowlick integration install did not produce a valid rollback snapshot."
+  exit 1
+fi
 open -n "$destination"
 bridge_ready=false
 for _ in {1..20}; do

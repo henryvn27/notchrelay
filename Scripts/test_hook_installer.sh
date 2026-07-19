@@ -67,23 +67,42 @@ fi
     == "$nested_helper_target_hash" ]]
 
 invalid_restore_home="$temporary_directory/invalid-restore-home"
-invalid_restore_snapshot="$temporary_directory/invalid-restore-snapshot"
-mkdir -p "$invalid_restore_home/.codex" "$invalid_restore_snapshot"
+invalid_restore_helper="$invalid_restore_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+invalid_restore_shim="$invalid_restore_home/.local/bin/cowlick-hook"
+invalid_restore_hooks="$invalid_restore_home/.codex/hooks.json"
+mkdir -p "$invalid_restore_home/.codex"
 COWLICK_HOME="$invalid_restore_home" swift "$script_dir/install_hooks.swift" install \
   --helper "$helper" >/dev/null
-print -n -- '{' > "$invalid_restore_snapshot/hooks.json"
-if COWLICK_HOME="$invalid_restore_home" swift "$script_dir/install_hooks.swift" restore \
-  --snapshot "$invalid_restore_snapshot" >/dev/null 2>&1; then
-  print -u2 "invalid rollback snapshot unexpectedly restored"
-  exit 1
-fi
-[[ ! -e "$invalid_restore_home/.local/bin/cowlick-hook" \
-  && ! -L "$invalid_restore_home/.local/bin/cowlick-hook" ]]
-[[ ! -e "$invalid_restore_home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
-if grep -Fq 'cowlick-hook' "$invalid_restore_home/.codex/hooks.json"; then
-  print -u2 "invalid rollback snapshot left Cowlick hook residue"
-  exit 1
-fi
+invalid_restore_helper_hash="$(shasum -a 256 "$invalid_restore_helper" | awk '{print $1}')"
+invalid_restore_hooks_hash="$(shasum -a 256 "$invalid_restore_hooks" | awk '{print $1}')"
+
+assert_invalid_snapshot_rejected_without_mutation() {
+  local name="$1"
+  local snapshot="$2"
+  if COWLICK_HOME="$invalid_restore_home" swift "$script_dir/install_hooks.swift" restore \
+    --snapshot "$snapshot" >/dev/null 2>&1; then
+    print -u2 "$name rollback snapshot unexpectedly restored"
+    exit 1
+  fi
+  [[ "$(shasum -a 256 "$invalid_restore_helper" | awk '{print $1}')" \
+      == "$invalid_restore_helper_hash" ]]
+  [[ "$(shasum -a 256 "$invalid_restore_hooks" | awk '{print $1}')" \
+      == "$invalid_restore_hooks_hash" ]]
+  [[ -L "$invalid_restore_shim" && "$(readlink "$invalid_restore_shim")" \
+      == "$invalid_restore_helper" ]]
+}
+
+missing_marker_snapshot="$temporary_directory/missing-marker-snapshot"
+mkdir -p "$missing_marker_snapshot"
+cp "$invalid_restore_hooks" "$missing_marker_snapshot/hooks.json"
+assert_invalid_snapshot_rejected_without_mutation missing-marker "$missing_marker_snapshot"
+
+malformed_marker_snapshot="$temporary_directory/malformed-marker-snapshot"
+mkdir -p "$malformed_marker_snapshot"
+cp "$invalid_restore_hooks" "$malformed_marker_snapshot/hooks.json"
+print -n -- '2' > "$malformed_marker_snapshot/.cowlick-integration-snapshot-v1"
+chmod 600 "$malformed_marker_snapshot/.cowlick-integration-snapshot-v1"
+assert_invalid_snapshot_rejected_without_mutation malformed-marker "$malformed_marker_snapshot"
 
 COWLICK_TEST_HOME="$test_home" COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   import Foundation
@@ -164,6 +183,10 @@ print -n -- '#!/bin/zsh\nprint replacement\n' > "$replacement_helper"
 chmod 755 "$replacement_helper"
 COWLICK_HOME="$test_home" swift "$script_dir/install_hooks.swift" install \
   --helper "$replacement_helper" --snapshot "$snapshot_directory" >/dev/null
+[[ ! -L "$snapshot_directory/.cowlick-integration-snapshot-v1" ]]
+[[ "$(stat -f '%HT %Su %Lp' "$snapshot_directory/.cowlick-integration-snapshot-v1")" \
+    == "Regular File $(id -un) 600" ]]
+[[ "$(< "$snapshot_directory/.cowlick-integration-snapshot-v1")" == 1 ]]
 grep -Fq 'replacement' \
   "$test_home/Library/Application Support/Cowlick/bin/cowlick-hook"
 COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '

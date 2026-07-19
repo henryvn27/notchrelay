@@ -227,6 +227,13 @@ if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift && "$2" == restore ]] \
   exit 73
 fi
 
+if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift && "$2" == install ]] \
+  && [[ "${COWLICK_TEST_INSTALL_CHILD_FAIL_AFTER_MUTATION:-}" == 1 ]]; then
+  "$COWLICK_TEST_REAL_SWIFT" "$@"
+  print -u2 "forced child failure after integration mutation and failed internal rollback"
+  exit 71
+fi
+
 if (( $# >= 2 )) && [[ "$1" == */install_hooks.swift ]] \
   && [[ "$2" == "${COWLICK_TEST_BARRIER_COMMAND:-}" ]] \
   && [[ -n "${COWLICK_TEST_BARRIER_DIRECTORY:-}" ]]; then
@@ -795,6 +802,93 @@ grep -Fq 'before-restore-failure' \
 [[ "$(readlink "$restore_failure_home/.local/bin/cowlick-hook")" \
     == "$restore_failure_home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
 [[ -d "$retained_snapshot" && -s "$retained_snapshot/hooks.json" ]]
+
+child_failure_home="$temporary_directory/wrapper-child-failure-home"
+child_failure_output="$temporary_directory/wrapper-child-failure-output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$child_failure_home" \
+  COWLICK_HOME="$child_failure_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=before-child-failure \
+  "$wrapper_scripts/install_local.sh" >/dev/null
+child_failure_status=0
+env PATH="$wrapper_fake_bin:$PATH" HOME="$child_failure_home" \
+  COWLICK_HOME="$child_failure_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=mutated-child \
+  COWLICK_TEST_INSTALL_CHILD_FAIL_AFTER_MUTATION=1 \
+  "$wrapper_scripts/install_local.sh" > "$child_failure_output" 2>&1 \
+  || child_failure_status=$?
+[[ "$child_failure_status" == 71 ]]
+grep -Fq 'forced child failure after integration mutation and failed internal rollback' \
+  "$child_failure_output"
+grep -Fxq 'Previous local Cowlick app restored.' "$child_failure_output"
+assert_local_install_present "$child_failure_home"
+grep -Fq 'before-child-failure' \
+  "$child_failure_home/Applications/Cowlick.app/Contents/Helpers/cowlick-hook"
+grep -Fq 'before-child-failure' \
+  "$child_failure_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+child_outer_failure_home="$temporary_directory/wrapper-child-outer-failure-home"
+child_outer_failure_output="$temporary_directory/wrapper-child-outer-failure-output"
+env PATH="$wrapper_fake_bin:$PATH" HOME="$child_outer_failure_home" \
+  COWLICK_HOME="$child_outer_failure_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=before-child-outer-failure \
+  "$wrapper_scripts/install_local.sh" >/dev/null
+child_outer_failure_status=0
+env PATH="$wrapper_fake_bin:$PATH" HOME="$child_outer_failure_home" \
+  COWLICK_HOME="$child_outer_failure_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=mutated-child-outer \
+  COWLICK_TEST_INSTALL_CHILD_FAIL_AFTER_MUTATION=1 COWLICK_TEST_RESTORE_FAIL=1 \
+  "$wrapper_scripts/install_local.sh" > "$child_outer_failure_output" 2>&1 \
+  || child_outer_failure_status=$?
+[[ "$child_outer_failure_status" == 71 ]]
+grep -Fq 'Cowlick integration restoration failed (exit 73).' "$child_outer_failure_output"
+child_outer_snapshot="$(sed -n 's/^Rollback snapshot retained at //p' \
+  "$child_outer_failure_output" | tail -1)"
+[[ -d "$child_outer_snapshot" ]]
+grep -Fq 'before-child-outer-failure' \
+  "$child_outer_failure_home/Applications/Cowlick.app/Contents/Helpers/cowlick-hook"
+grep -Fq 'mutated-child-outer' \
+  "$child_outer_failure_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+COWLICK_HOME="$child_outer_failure_home" "$real_swift" \
+  "$wrapper_scripts/install_hooks.swift" restore --snapshot "$child_outer_snapshot" >/dev/null
+assert_local_install_present "$child_outer_failure_home"
+grep -Fq 'before-child-outer-failure' \
+  "$child_outer_failure_home/Library/Application Support/Cowlick/bin/cowlick-hook"
+
+assert_app_rollback_failure_retains_recovery() {
+  local name="$1"
+  local remove_result="$2"
+  local move_result="$3"
+  local home="$temporary_directory/wrapper-app-rollback-$name-home"
+  local output="$temporary_directory/wrapper-app-rollback-$name-output"
+  env PATH="$wrapper_fake_bin:$PATH" HOME="$home" COWLICK_HOME="$home" \
+    TMPDIR="$temporary_directory" COWLICK_TEST_REAL_SWIFT="$real_swift" \
+    COWLICK_TEST_HELPER_MARKER="before-$name" "$wrapper_scripts/install_local.sh" >/dev/null
+
+  local wrapper_status=0
+  env PATH="$wrapper_fake_bin:$PATH" HOME="$home" COWLICK_HOME="$home" \
+    TMPDIR="$temporary_directory" COWLICK_TEST_REAL_SWIFT="$real_swift" \
+    COWLICK_TEST_HELPER_MARKER="failed-$name" COWLICK_TEST_VERIFY_FAIL=1 \
+    COWLICK_TESTING=1 \
+    COWLICK_TEST_ROLLBACK_REMOVE_RESULT="$remove_result" \
+    COWLICK_TEST_ROLLBACK_MOVE_RESULT="$move_result" \
+    "$wrapper_scripts/install_local.sh" > "$output" 2>&1 || wrapper_status=$?
+  [[ "$wrapper_status" == 1 ]]
+  if grep -Fxq 'Previous local Cowlick app restored.' "$output"; then
+    print -u2 "$name rollback falsely claimed full app restoration"
+    exit 1
+  fi
+  local snapshot="$(sed -n 's/^Rollback snapshot retained at //p' "$output" | tail -1)"
+  local retained_backup="$(sed -n 's/^Previous Cowlick app backup retained at //p' \
+    "$output" | tail -1)"
+  [[ -d "$snapshot" && -d "$retained_backup" ]]
+  grep -Fq "before-$name" "$retained_backup/Contents/Helpers/cowlick-hook"
+  grep -Fq "before-$name" \
+    "$home/Library/Application Support/Cowlick/bin/cowlick-hook"
+}
+
+assert_app_rollback_failure_retains_recovery remove-failure fail ''
+assert_app_rollback_failure_retains_recovery move-failure '' fail
+assert_app_rollback_failure_retains_recovery move-false-success '' false-success
 
 legacy_cleanup_home="$temporary_directory/wrapper-legacy-cleanup-home"
 legacy_cleanup_output="$temporary_directory/wrapper-legacy-cleanup-output"
