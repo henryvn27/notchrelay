@@ -128,6 +128,25 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertTrue(output.contains("/UsersBackup/kept"))
   }
 
+  func testCustomHomeRedactionPreservesPunctuationAndRemovedSeparatorBoundaries() {
+    let customHome = URL(fileURLWithPath: "/Network/Homes/alice")
+    let input =
+      "colon \(customHome.path): permission comma \(customHome.path), close (\(customHome.path)) nbsp \(customHome.path)\u{00A0}private em \(customHome.path)\u{2003}private newline \(customHome.path)\nprivate tab \(customHome.path)\tprivate nul \(customHome.path)\u{0000}private private-use \(customHome.path)\u{E000}private prefix \(customHome.path)2/private inside /Net\u{001B}work/Ho\u{00A0}mes/al\u{2003}ice/private"
+    let output = EventLogger.sanitizeError(input, homeDirectory: customHome)
+
+    XCTAssertTrue(output.contains("colon ~: permission"))
+    XCTAssertTrue(output.contains("comma ~,"))
+    XCTAssertTrue(output.contains("close (~)"))
+    XCTAssertTrue(output.contains("nbsp ~ private"))
+    XCTAssertTrue(output.contains("em ~ private"))
+    XCTAssertTrue(output.contains("newline ~ private"))
+    XCTAssertTrue(output.contains("tab ~ private"))
+    XCTAssertTrue(output.contains("nul ~ private"))
+    XCTAssertTrue(output.contains("private-use ~ private"))
+    XCTAssertTrue(output.contains("prefix \(customHome.path)2/private"))
+    XCTAssertTrue(output.contains("inside ~/private"))
+  }
+
   func testSanitizationRetainedScalarBoundFailsClosedForCombiningInput() {
     let input = "e" + String(repeating: "\u{0301}", count: 10_000)
     let output = EventLogger.sanitizeError(input)

@@ -13,6 +13,11 @@ struct SanitizedBridgeRecord: Identifiable, Equatable, Sendable {
 @MainActor
 @Observable
 final class EventLogger {
+  private struct CanonicalInput {
+    let value: String
+    let removedBoundaryOffsets: Set<Int>
+  }
+
   private static let maximumInputScalars = 4_096
   private static let maximumScannedInputScalars = maximumInputScalars * 4
   private static let maximumErrorScalars = 400
@@ -60,17 +65,23 @@ final class EventLogger {
     _ value: String,
     homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
   ) -> String {
-    var sanitized = removingUnsafeCharacters(from: value)
-    sanitized = redactHome(in: sanitized, homeDirectory: homeDirectory)
+    let canonical = removingUnsafeCharacters(from: value)
+    var sanitized = redactHome(
+      in: canonical.value,
+      removedBoundaryOffsets: canonical.removedBoundaryOffsets,
+      homeDirectory: homeDirectory
+    )
     sanitized = redactCredentials(in: sanitized)
     sanitized = sanitized.replacingOccurrences(
       of: #"\s+"#, with: " ", options: .regularExpression)
     return String(sanitized.unicodeScalars.prefix(maximumErrorScalars))
   }
 
-  private static func removingUnsafeCharacters(from value: String) -> String {
+  private static func removingUnsafeCharacters(from value: String) -> CanonicalInput {
     let unsafeCharacters = CharacterSet.controlCharacters.union(.newlines)
     var canonical = ""
+    var removedBoundaryOffsets: Set<Int> = []
+    var canonicalUTF16Count = 0
     var iterator = value.unicodeScalars.makeIterator()
     var retainedCount = 0
     var scannedCount = 0
@@ -83,24 +94,38 @@ final class EventLogger {
         scalar.value > 0x7F
         && (category == .spaceSeparator || category == .lineSeparator
           || category == .paragraphSeparator)
-      guard !unsafeCharacters.contains(scalar), !scalar.properties.isDefaultIgnorableCodePoint,
-        category != .format, category != .privateUse, !isNonASCIISeparator
-      else { continue }
+      let isRemovedScalar =
+        unsafeCharacters.contains(scalar) || scalar.properties.isDefaultIgnorableCodePoint
+        || category == .format || category == .privateUse || isNonASCIISeparator
+      if isRemovedScalar {
+        removedBoundaryOffsets.insert(canonicalUTF16Count)
+        continue
+      }
       canonical.unicodeScalars.append(scalar)
+      canonicalUTF16Count += scalar.value > 0xFFFF ? 2 : 1
       retainedCount += 1
     }
-    if iterator.next() != nil { return "<redacted>" }
-    return canonical
+    if iterator.next() != nil {
+      return CanonicalInput(value: "<redacted>", removedBoundaryOffsets: [])
+    }
+    return CanonicalInput(
+      value: canonical,
+      removedBoundaryOffsets: removedBoundaryOffsets
+    )
   }
 
-  private static func redactHome(in value: String, homeDirectory: URL) -> String {
+  private static func redactHome(
+    in value: String,
+    removedBoundaryOffsets: Set<Int>,
+    homeDirectory: URL
+  ) -> String {
     var redacted = value
     let homePath = homeDirectory.standardizedFileURL.path
     if !homePath.isEmpty, homePath != "/" {
-      redacted = redacted.replacingOccurrences(
-        of: NSRegularExpression.escapedPattern(for: homePath) + #"(?=$|[/\s])"#,
-        with: "~",
-        options: [.regularExpression, .caseInsensitive]
+      redacted = redactExactHome(
+        in: redacted,
+        homePath: homePath,
+        removedBoundaryOffsets: removedBoundaryOffsets
       )
     }
 
@@ -109,6 +134,59 @@ final class EventLogger {
       with: "~",
       options: [.regularExpression, .caseInsensitive]
     )
+  }
+
+  private static func redactExactHome(
+    in value: String,
+    homePath: String,
+    removedBoundaryOffsets: Set<Int>
+  ) -> String {
+    guard
+      let expression = try? NSRegularExpression(
+        pattern: NSRegularExpression.escapedPattern(for: homePath),
+        options: .caseInsensitive
+      )
+    else { return value }
+
+    let fullRange = NSRange(value.startIndex..<value.endIndex, in: value)
+    let matches = expression.matches(in: value, range: fullRange).filter { match in
+      hasHomeBoundary(
+        in: value,
+        atUTF16Offset: NSMaxRange(match.range),
+        removedBoundaryOffsets: removedBoundaryOffsets
+      )
+    }
+    var redacted = value
+    for match in matches.reversed() {
+      guard let range = Range(match.range, in: redacted) else { continue }
+      let matchEnd = NSMaxRange(match.range)
+      let replacement =
+        removedBoundaryOffsets.contains(matchEnd)
+          && nextScalar(in: value, atUTF16Offset: matchEnd).map({ !isHomeBoundary($0) }) == true
+        ? "~ " : "~"
+      redacted.replaceSubrange(range, with: replacement)
+    }
+    return redacted
+  }
+
+  private static func hasHomeBoundary(
+    in value: String,
+    atUTF16Offset offset: Int,
+    removedBoundaryOffsets: Set<Int>
+  ) -> Bool {
+    removedBoundaryOffsets.contains(offset)
+      || nextScalar(in: value, atUTF16Offset: offset).map(isHomeBoundary) ?? true
+  }
+
+  private static func nextScalar(in value: String, atUTF16Offset offset: Int) -> UnicodeScalar? {
+    let index = String.Index(utf16Offset: offset, in: value)
+    return index < value.endIndex ? value[index...].unicodeScalars.first : nil
+  }
+
+  private static func isHomeBoundary(_ scalar: UnicodeScalar) -> Bool {
+    scalar.value == 0x2F
+      || CharacterSet.whitespacesAndNewlines.contains(scalar)
+      || CharacterSet.punctuationCharacters.contains(scalar)
   }
 
   private static func redactCredentials(in value: String) -> String {
