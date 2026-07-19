@@ -2,10 +2,14 @@
 <h1 align="center">Cowlick</h1>
 <p align="center"><strong>Codex status and safe approval actions, right at the MacBook notch.</strong></p>
 <p align="center"><a href="#install">Install</a> · <a href="docs/security.md">Security</a> · <a href="docs/privacy.md">Privacy</a> · <a href="docs/troubleshooting.md">Troubleshooting</a></p>
+<p align="center">
+  <a href="https://github.com/henryvn27/cowlick/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/henryvn27/cowlick?display_name=tag&sort=semver"></a>
+  <a href="https://github.com/henryvn27/cowlick/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/henryvn27/cowlick/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+</p>
 
-![Cowlick showing working, approval, and multi-session states](Assets/Screenshots/hero.png)
+![Cowlick showing a request-matched approval at the MacBook notch](Assets/Screenshots/hero.png)
 
-> **Looking for a download?** A signed public build has not been published yet. The verified path available today is the contributor install below; Cowlick will not advertise a DMG or Homebrew cask until that exact artifact is signed, notarized, and installation-tested.
+> Cowlick does not publish unsigned or development-signed downloads. The [GitHub Releases page](https://github.com/henryvn27/cowlick/releases) is the source of truth: if it lists no release, use the contributor install rather than an unverified build artifact.
 
 Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidden while idle, shows active projects and completion near the notch, and lets you allow once or deny supported Codex permission requests without becoming a second Codex client.
 
@@ -20,14 +24,24 @@ Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidd
 - Estimates whether the current burn rate should last through reset or approximately how long remains before quota exhaustion; it does not present an “expected percent” as the forecast.
 - Keeps multiple labeled OpenAI API and Anthropic API organization-billing accounts separate, with an account switcher in the menu, aliases in owner-only metadata, and Admin API keys in macOS Keychain.
 - Can optionally display an attributed, unofficial reset forecast from [Will Codex Reset?](https://www.willcodexquotareset.com/); it is off by default and never presented as Cowlick data.
-- Optionally pulses the Caps Lock LED while preserving its original state.
+- On supported hardware, optionally pulses the Caps Lock LED while preserving its original state; the feature stays disabled when its in-app signal test cannot verify native control.
 - Keeps prompt and result previews off by default.
 
 ## Install
 
-### Public release
+### Homebrew
 
-There is currently no GitHub release, DMG, ZIP, or Homebrew cask. Do not use or redistribute development-signed builds as a public release. When v1.0.0 passes its release gates, this section will link directly to the signed, notarized artifact and show the installation command that was tested from that public artifact.
+When the [release badge](https://github.com/henryvn27/cowlick/releases) shows a version and the public tap contains the matching cask, install the signed and notarized app with:
+
+```sh
+brew install --cask henryvn27/cowlick/cowlick
+```
+
+If Homebrew reports that the cask is unavailable, no verified public cask has been published yet. Do not substitute a development build.
+
+### Direct download
+
+Every public version is listed on [GitHub Releases](https://github.com/henryvn27/cowlick/releases) with its signed, notarized DMG, update ZIP, checksums, release notes, supported architectures, and minimum macOS version. A Releases page with no version means there is no public binary to download. Normal release installation requires no Xcode, Swift, Python, Node, npm, Cowlick account, or cloud service.
 
 ### Contributor install
 
@@ -40,7 +54,7 @@ brew install xcodegen
 ./Scripts/install_local.sh
 ```
 
-The contributor installer builds Cowlick, installs it in `~/Applications`, installs and merges the local Codex hooks, launches the app, and runs bridge diagnostics. Use `./Scripts/build_and_run.sh --verify` when developing without installing. Once the public release gates pass, normal installation will require no Xcode, Swift, Python, Node, npm, account, or cloud service.
+The contributor installer builds Cowlick, installs it in `~/Applications`, installs and merges the local Codex hooks, launches the app, and runs bridge diagnostics. Use `./Scripts/build_and_run.sh --verify` when developing without installing. Contributor builds are not public release artifacts and should not be redistributed as such.
 
 Contributor uninstall preserves preferences, provider accounts, and their Keychain credentials by default. `./Scripts/uninstall_local.sh --purge` first deletes and verifies every referenced provider credential, then removes local data; it stops without deleting account metadata if Keychain cleanup cannot be verified.
 
@@ -51,12 +65,13 @@ Cowlick's Allow button is never the default action. Every response contains the 
 ## Supported systems
 
 - macOS 14 Sonoma or newer.
-- Apple Silicon and Intel are configured as universal build targets; no public release binary exists yet.
-- Notched and non-notched Macs, external displays, multiple displays, Spaces, and full-screen auxiliary presentation where macOS permits it.
+- Apple Silicon and Intel are configured as universal build targets. Each public release records the architectures verified in its release notes and checksums.
+- Notched and non-notched Macs, external displays, multiple displays, Spaces, and full-screen auxiliary presentation are supported design targets where macOS permits them. A release claims physical coverage only for the hardware and display configurations named in its release notes; automated geometry tests are not described as physical verification.
+- Caps Lock signaling is an optional hardware capability, not a core system requirement. Cowlick keeps it disabled when the native signal test does not pass.
 
 ## Privacy
 
-Cowlick has no analytics, cloud backend, Cowlick account, ads, or third-party crash reporter. The app contains Sparkle support for a future signed update feed, but no public update archive or appcast exists yet. If you explicitly enable the unofficial reset forecast, Cowlick requests data from willcodexquotareset.com and labels it as third-party data that Cowlick does not estimate or warrant. Organization-billing requests happen only for accounts you add and go directly to that provider. Cowlick does not persist full prompts, commands, quota history, forecast history, billing history, or session history. See [PRIVACY.md](PRIVACY.md) for every stored file, network path, and permission.
+Cowlick has no analytics, cloud backend, Cowlick account, ads, or third-party crash reporter. Sparkle checks only the signed update feed attached to verified GitHub releases; an absent feed cannot become an unsigned update. If you explicitly enable the unofficial reset forecast, Cowlick requests data from willcodexquotareset.com and labels it as third-party data that Cowlick does not estimate or warrant. Organization-billing requests happen only for accounts you add and go directly to that provider. Cowlick does not persist full prompts, commands, quota history, forecast history, billing history, or session history. See [PRIVACY.md](PRIVACY.md) for every stored file, network path, and permission.
 
 ## How it works
 

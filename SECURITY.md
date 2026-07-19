@@ -12,10 +12,11 @@ Report suspected vulnerabilities through a private [GitHub security advisory](ht
 - Existing Codex hooks and unknown fields survive install and removal.
 - Organization billing credentials remain in macOS Keychain; owner-only account metadata contains only aliases and opaque references.
 - Billing results and refresh state are isolated by account UUID, and Cowlick performs no cross-provider aggregation.
-- Every future public update archive and appcast must be EdDSA signed; every public app release must be Developer ID signed, hardened, notarized, and stapled. No public release exists yet.
+- Every public update archive and appcast must be EdDSA signed; every public app release must be Developer ID signed, hardened, notarized, and stapled. The [GitHub Releases page](https://github.com/henryvn27/cowlick/releases) is the source of truth for published versions.
 - Diagnostics never expose full prompts, commands, tokens, secrets, or private home paths.
 
 Credential exposure, cross-account billing disclosure, approval spoofing or reuse, arbitrary execution from bridge input, update-signature bypass, destructive configuration mutation, and diagnostics disclosure are reportable.
 
 Repository: Cowlick
-Version: development snapshot
+
+Supported version: the latest published release; before the first release, security fixes are maintained on `main`.
