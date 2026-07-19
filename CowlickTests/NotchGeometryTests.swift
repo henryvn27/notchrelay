@@ -1,9 +1,68 @@
+import AppKit
 import CoreGraphics
+import SwiftUI
 import XCTest
 
 @testable import Cowlick
 
 final class NotchGeometryTests: XCTestCase {
+  @MainActor
+  func testLongDistinctReasonAndOperationFitNotchAndNonNotchPanels() throws {
+    let request = ApprovalRequest(
+      id: UUID(),
+      sessionID: "layout-test",
+      turnID: "turn",
+      projectName: "ActivityPilot",
+      workingDirectory: "/tmp/ActivityPilot",
+      toolName: "Bash",
+      operationDescription: String(
+        repeating: "Publish the verified release only after every required check succeeds. ",
+        count: 4
+      ),
+      operationSummary: String(
+        repeating: "git push --atomic origin release/product-acceptance ",
+        count: 5
+      ),
+      fullOperation: "git push --atomic origin release/product-acceptance",
+      requestedAt: .now,
+      expiresAt: .now.addingTimeInterval(60)
+    )
+    let content = ApprovalView(request: request, allow: {}, deny: {}, openCodex: {})
+      .frame(width: NotchTheme.approvalSize.width)
+      .background(Color.black)
+    let hostingView = NSHostingView(rootView: content)
+    let requiredHeight = ceil(hostingView.fittingSize.height)
+
+    XCTAssertGreaterThan(requiredHeight, 156)
+    XCTAssertLessThanOrEqual(requiredHeight, NotchTheme.approvalSize.height)
+
+    let attachedSize = NotchTheme.attachedSize(
+      baseSize: NotchTheme.approvalSize,
+      notchGapWidth: 212,
+      safeAreaTop: 38,
+      expanded: true
+    )
+    XCTAssertEqual(attachedSize.width, NotchTheme.approvalSize.width)
+    XCTAssertEqual(
+      attachedSize.height,
+      NotchTheme.approvalSize.height + 38
+    )
+
+    try attachPNG(
+      of: content,
+      size: NotchTheme.approvalSize,
+      name: "long-approval-non-notch"
+    )
+    try attachPNG(
+      of:
+        content
+        .padding(.top, 38)
+        .frame(width: attachedSize.width, height: attachedSize.height, alignment: .top),
+      size: attachedSize,
+      name: "long-approval-simulated-notch"
+    )
+  }
+
   func testApprovalFocusActivatesOnlyWhenEnteringApproval() {
     var tracker = ApprovalFocusTracker()
 
@@ -78,7 +137,7 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(expanded.panelFrame.maxY, compact.panelFrame.maxY)
     XCTAssertGreaterThanOrEqual(expanded.panelFrame.width, compact.panelFrame.width)
     XCTAssertLessThan(expanded.panelFrame.minY, compact.panelFrame.minY)
-    XCTAssertEqual(expanded.panelFrame.height, 194)
+    XCTAssertEqual(expanded.panelFrame.height, 218)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {
@@ -121,11 +180,11 @@ final class NotchGeometryTests: XCTestCase {
         safeAreaTop: 0,
         auxiliaryTopLeftArea: nil,
         auxiliaryTopRightArea: nil,
-        requestedContentSize: CGSize(width: 380, height: 156),
+        requestedContentSize: NotchTheme.approvalSize,
         displayID: 9,
         showOnNonNotch: true
       ))
-    XCTAssertEqual(result.panelFrame.size, CGSize(width: 380, height: 156))
+    XCTAssertEqual(result.panelFrame.size, NotchTheme.approvalSize)
     XCTAssertEqual(result.displayID, 9)
   }
 
@@ -140,5 +199,23 @@ final class NotchGeometryTests: XCTestCase {
       displayID: 7,
       showOnNonNotch: true
     )
+  }
+
+  @MainActor
+  private func attachPNG<Content: View>(of content: Content, size: CGSize, name: String) throws {
+    let hostingView = NSHostingView(rootView: content)
+    hostingView.frame = CGRect(origin: .zero, size: size)
+    hostingView.layoutSubtreeIfNeeded()
+    let representation = try XCTUnwrap(
+      hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds)
+    )
+    hostingView.cacheDisplay(in: hostingView.bounds, to: representation)
+    let png = try XCTUnwrap(representation.representation(using: .png, properties: [:]))
+    XCTAssertGreaterThan(png.count, 1_000)
+
+    let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+    attachment.name = name
+    attachment.lifetime = .keepAlways
+    add(attachment)
   }
 }

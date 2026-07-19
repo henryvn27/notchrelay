@@ -16,7 +16,7 @@ enum NotchTheme {
   static let hairline = Color.white.opacity(0.12)
 
   static let compactSize = CGSize(width: 158, height: 34)
-  static let approvalSize = CGSize(width: 380, height: 156)
+  static let approvalSize = CGSize(width: 380, height: 180)
   static let attachedWingWidth: CGFloat = 82
   static let compactRadius: CGFloat = 14
   static let expandedBottomRadius: CGFloat = 22
