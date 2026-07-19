@@ -324,6 +324,21 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertNotNil(store.sessions[demoSessionID])
   }
 
+  func testKeepFinishBeforeCompletionRetainsOwnershipThroughLateDelivery() async {
+    let store = SessionStore(settings: makeTestSettings())
+    let demoSessionID = "cowlick-self-test-\(UUID().uuidString)"
+    XCTAssertTrue(store.beginIntegrationDemoSession(demoSessionID))
+
+    store.finishIntegrationDemoSession(demoSessionID, discardPresentedState: false)
+    XCTAssertTrue(store.isIntegrationDemoSessionActive(demoSessionID))
+
+    _ = await store.receive(makeBridgeEvent(event: .completed, sessionID: demoSessionID))
+
+    XCTAssertTrue(store.hasObservedIntegrationDemoEvent(.completed, sessionID: demoSessionID))
+    XCTAssertFalse(store.isIntegrationDemoSessionActive(demoSessionID))
+    XCTAssertNotNil(store.sessions[demoSessionID])
+  }
+
   func testPingClearsPreviewAndNotifiesPresentation() async {
     let store = SessionStore(settings: makeTestSettings())
     store.testState(.approvalRequested)

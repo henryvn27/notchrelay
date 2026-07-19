@@ -1,11 +1,25 @@
 import AppKit
 import SwiftUI
 
+struct SelfTestRunState {
+  private(set) var isRunning = false
+
+  mutating func begin() -> Bool {
+    guard !isRunning else { return false }
+    isRunning = true
+    return true
+  }
+
+  mutating func finish() {
+    isRunning = false
+  }
+}
+
 struct DiagnosticsView: View {
   let services: AppServices
   @State private var report = "Loading diagnostics…"
   @State private var selfTestStatus = ""
-  @State private var selfTestInProgress = false
+  @State private var selfTestRunState = SelfTestRunState()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
@@ -41,10 +55,10 @@ struct DiagnosticsView: View {
         Button("Export…") { exportReport() }
         Button("Reveal Logs") { NSWorkspace.shared.open(AppSupportPaths.logDirectory) }
         Spacer()
-        Button(selfTestInProgress ? "Testing…" : "Run Self-Test") {
+        Button(selfTestRunState.isRunning ? "Testing…" : "Run Self-Test") {
           Task { await runSelfTest() }
         }
-        .disabled(selfTestInProgress)
+        .disabled(selfTestRunState.isRunning)
       }
     }
     .padding(20)
@@ -60,8 +74,8 @@ struct DiagnosticsView: View {
   }
 
   private func runSelfTest() async {
-    selfTestInProgress = true
-    defer { selfTestInProgress = false }
+    guard selfTestRunState.begin() else { return }
+    defer { selfTestRunState.finish() }
     let selfTest = IntegrationSelfTestService(
       helperURL: services.hookInstaller.installedHelperURL)
     do {

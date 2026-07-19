@@ -98,6 +98,7 @@ enum HookBridgeError: LocalizedError {
   case socketFailure(Int32)
   case malformedResponse
   case mismatchedResponse
+  case rejectedResponse
 
   var errorDescription: String? {
     switch self {
@@ -108,6 +109,7 @@ enum HookBridgeError: LocalizedError {
     case .socketFailure(let code): "Local socket operation failed (errno \(code))."
     case .malformedResponse: "The app returned malformed bridge JSON."
     case .mismatchedResponse: "The app response did not match this approval request."
+    case .rejectedResponse: "Cowlick rejected the bridge request."
     }
   }
 }
@@ -152,23 +154,44 @@ struct HookBridgeClient {
     guard payload.count < Self.maximumMessageSize else { throw HookBridgeError.oversizedMessage }
     payload.append(0x0A)
 
+    let responseTimeout: TimeInterval
+    switch event.event {
+    case .approvalRequested:
+      responseTimeout = metadata.approvalTimeout + Self.approvalResponseGracePeriod
+    default:
+      responseTimeout = 1
+    }
     let descriptor = try connect(
       path: metadata.socketPath,
-      timeout: waitForResponse
-        ? metadata.approvalTimeout + Self.approvalResponseGracePeriod : 1)
+      timeout: waitForResponse ? responseTimeout : 1)
     defer { Darwin.close(descriptor) }
     try write(payload, to: descriptor)
     guard waitForResponse else { return nil }
 
     let responseData = try readLine(from: descriptor)
     let decoder = JSONDecoder()
-    guard let response = try? decoder.decode(ApprovalBridgeResponse.self, from: responseData) else {
-      throw HookBridgeError.malformedResponse
+    switch event.event {
+    case .approvalRequested:
+      guard
+        let response = try? decoder.decode(ApprovalBridgeResponse.self, from: responseData)
+      else {
+        throw HookBridgeError.malformedResponse
+      }
+      guard response.version == HookBridgeEvent.currentVersion,
+        response.requestId == event.requestId
+      else { throw HookBridgeError.mismatchedResponse }
+      return response
+    default:
+      guard
+        let acknowledgement = try? decoder.decode(
+          HookBridgeAcknowledgement.self, from: responseData)
+      else { throw HookBridgeError.malformedResponse }
+      guard acknowledgement.version == HookBridgeEvent.currentVersion,
+        acknowledgement.requestId == event.requestId
+      else { throw HookBridgeError.mismatchedResponse }
+      guard acknowledgement.accepted else { throw HookBridgeError.rejectedResponse }
+      return nil
     }
-    guard response.version == HookBridgeEvent.currentVersion,
-      response.requestId == event.requestId
-    else { throw HookBridgeError.mismatchedResponse }
-    return response
   }
 
   func diagnostics() -> [String: Any] {
@@ -176,7 +199,7 @@ struct HookBridgeClient {
       let metadata = try loadMetadata()
       let event = HookBridgeEvent(
         event: .ping, sessionId: "diagnostics", cwd: fileManager.currentDirectoryPath)
-      _ = try send(event, waitForResponse: false)
+      _ = try send(event, waitForResponse: true)
       return [
         "ok": true,
         "appVersion": metadata.appVersion,

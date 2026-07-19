@@ -12,6 +12,13 @@ struct ApprovalBridgeResponse: Codable, Equatable, Sendable {
   let decision: HookApprovalDecision
 }
 
+struct HookBridgeAcknowledgement: Codable, Equatable, Sendable {
+  let version: Int
+  let requestId: UUID
+  let accepted: Bool
+  let error: String?
+}
+
 enum HookOutput {
   static let neutralStop = Data("{}\n".utf8)
 

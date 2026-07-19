@@ -4,6 +4,18 @@ import XCTest
 
 @MainActor
 final class DiagnosticsTests: XCTestCase {
+  func testSelfTestRunStateRejectsOverlappingStarts() {
+    var state = SelfTestRunState()
+
+    XCTAssertTrue(state.begin())
+    XCTAssertTrue(state.isRunning)
+    XCTAssertFalse(state.begin())
+    XCTAssertTrue(state.isRunning)
+    state.finish()
+    XCTAssertFalse(state.isRunning)
+    XCTAssertTrue(state.begin())
+  }
+
   func testSanitizesPathsAndSecrets() {
     let input = "failed /Users/example/private token=abc123 password:letmein"
     let output = EventLogger.sanitizeError(input)

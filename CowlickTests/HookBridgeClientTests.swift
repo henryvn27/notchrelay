@@ -70,6 +70,50 @@ final class HookBridgeClientTests: XCTestCase {
     }
   }
 
+  func testPingWaitsForMatchingAcceptedAcknowledgement() throws {
+    let requestID = UUID()
+    let acknowledgement = HookBridgeAcknowledgement(
+      version: HookBridgeEvent.currentVersion,
+      requestId: requestID,
+      accepted: true,
+      error: nil
+    )
+    var response = try JSONEncoder().encode(acknowledgement)
+    response.append(0x0A)
+    let fixture = try makeSocketFixture(rawResponse: response)
+    defer { fixture.cleanup() }
+
+    XCTAssertNoThrow(
+      try fixture.client.send(
+        HookBridgeEvent(
+          requestId: requestID, event: .ping, sessionId: "diagnostics", cwd: "/tmp"),
+        waitForResponse: true)
+    )
+  }
+
+  func testPingRejectsNegativeAcknowledgement() throws {
+    let requestID = UUID()
+    let acknowledgement = HookBridgeAcknowledgement(
+      version: HookBridgeEvent.currentVersion,
+      requestId: requestID,
+      accepted: false,
+      error: "Authentication failed"
+    )
+    var response = try JSONEncoder().encode(acknowledgement)
+    response.append(0x0A)
+    let fixture = try makeSocketFixture(rawResponse: response)
+    defer { fixture.cleanup() }
+
+    XCTAssertThrowsError(
+      try fixture.client.send(
+        HookBridgeEvent(
+          requestId: requestID, event: .ping, sessionId: "diagnostics", cwd: "/tmp"),
+        waitForResponse: true)
+    ) { error in
+      XCTAssertEqual(error as? HookBridgeError, .rejectedResponse)
+    }
+  }
+
   private func makeTemporaryHome() throws -> URL {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(
       "CowlickTests-\(UUID().uuidString)")
@@ -179,7 +223,8 @@ extension HookBridgeError: Equatable {
     switch (lhs, rhs) {
     case (.appUnavailable, .appUnavailable), (.insecureMetadata, .insecureMetadata),
       (.unsupportedVersion, .unsupportedVersion), (.oversizedMessage, .oversizedMessage),
-      (.malformedResponse, .malformedResponse), (.mismatchedResponse, .mismatchedResponse):
+      (.malformedResponse, .malformedResponse), (.mismatchedResponse, .mismatchedResponse),
+      (.rejectedResponse, .rejectedResponse):
       true
     case (.socketFailure(let left), .socketFailure(let right)): left == right
     default: false

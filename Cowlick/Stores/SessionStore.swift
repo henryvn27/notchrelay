@@ -121,6 +121,7 @@ final class SessionStore {
       return await handleApproval(event, projectName: projectName)
     case .completed:
       complete(event, projectName: projectName)
+      if isIntegrationDemo { integrationDemoSessionIDs.remove(event.sessionId) }
     case .failed:
       fail(event, projectName: projectName)
     }
@@ -307,7 +308,10 @@ final class SessionStore {
   }
 
   func hasObservedIntegrationDemoEvent(_ event: IntegrationDemoEvent, sessionID: String) -> Bool {
-    guard isIntegrationDemoSessionActive(sessionID), let session = sessions[sessionID] else {
+    guard localDemoSessionIDs.contains(sessionID),
+      !ignoredIntegrationDemoSessionIDs.contains(sessionID),
+      let session = sessions[sessionID]
+    else {
       return false
     }
     return switch (event, session.status) {
@@ -317,9 +321,10 @@ final class SessionStore {
   }
 
   func finishIntegrationDemoSession(_ sessionID: String, discardPresentedState: Bool) {
+    guard discardPresentedState else { return }
     integrationDemoSessionIDs.remove(sessionID)
-    if discardPresentedState { ignoredIntegrationDemoSessionIDs.insert(sessionID) }
-    guard discardPresentedState, localDemoSessionIDs.remove(sessionID) != nil else { return }
+    ignoredIntegrationDemoSessionIDs.insert(sessionID)
+    guard localDemoSessionIDs.remove(sessionID) != nil else { return }
     let requestIDs = Set(
       approvalQueue
         .filter { $0.sessionID == sessionID && localDemoApprovalIDs.contains($0.id) }
