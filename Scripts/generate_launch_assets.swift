@@ -82,7 +82,7 @@ struct LaunchAssetGenerator {
         color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.46))
 
       drawText(
-        "$ brew install --cask henryvn27/cowlick/cowlick",
+        "github.com/henryvn27/cowlick",
         at: CGPoint(x: 654 * scale, y: 118 * scale),
         font: .monospacedSystemFont(ofSize: 18 * scale, weight: .regular),
         color: NSColor(red: 0.92, green: 0.91, blue: 0.87, alpha: 0.82))
