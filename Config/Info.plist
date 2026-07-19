@@ -37,7 +37,7 @@
     <key>SUFeedURL</key>
     <string>https://github.com/henryvn27/cowlick/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>
-    <string>jdfVgATZX2FxlG7vDWmIFurSoELcZ/qJbnkQbaWg4H4=</string>
+    <string>U2GKgH2li8tJeeXoL5raezmbqNXRuIHa8yvIW3dn7m4=</string>
     <key>SURequireSignedFeed</key>
     <true/>
     <key>SUVerifyUpdateBeforeExtraction</key>
