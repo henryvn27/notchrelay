@@ -271,3 +271,12 @@ jobs:
           args=(-X PUT -f message="Update Cowlick to $RELEASE_VERSION" -f content="$content" -f branch=main)
           if [[ -n "$existing_sha" ]]; then args+=(-f sha="$existing_sha"); fi
           gh api "$endpoint" "${args[@]}"
+      - name: Return failed new release to draft
+        if: ${{ failure() && steps.release_state.outputs.state == 'draft' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$RELEASE_VERSION"
+          gh release edit "$tag" --draft=true --latest=false
+          printf 'Cowlick %s returned to draft because a post-publication gate failed.\n' \
+            "$RELEASE_VERSION"

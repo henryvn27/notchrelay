@@ -117,12 +117,16 @@ publish_line="$(grep -n 'name: Publish verified GitHub release' "$release_workfl
 public_verify_line="$(grep -n 'name: Verify public downloads' "$release_workflow" | cut -d: -f1)"
 homebrew_verify_line="$(grep -n 'name: Verify Homebrew cask and installation' "$release_workflow" | cut -d: -f1)"
 homebrew_line="$(grep -n 'name: Update Homebrew tap' "$release_workflow" | cut -d: -f1)"
+rollback_line="$(grep -n 'name: Return failed new release to draft' "$release_workflow" | cut -d: -f1)"
 (( publish_line < public_verify_line \
   && public_verify_line < homebrew_verify_line \
-  && homebrew_verify_line < homebrew_line )) \
+  && homebrew_verify_line < homebrew_line \
+  && homebrew_line < rollback_line )) \
   || { print -u2 -- "release publication steps are out of order"; exit 1; }
-[[ "$(tail -n +"$homebrew_line" "$release_workflow" | grep -c '^[[:space:]]*- name:')" == 1 ]] \
-  || { print -u2 -- "Homebrew tap update is not the final release step"; exit 1; }
+[[ "$(tail -n +"$rollback_line" "$release_workflow" | grep -c '^[[:space:]]*- name:')" == 1 ]] \
+  || { print -u2 -- "release rollback is not the final workflow step"; exit 1; }
+grep -Fq "failure() && steps.release_state.outputs.state == 'draft'" "$release_workflow"
+grep -Fq 'gh release edit "$tag" --draft=true --latest=false' "$release_workflow"
 if grep -A8 -F 'state=published' "$release_workflow" | grep -Fq -- '--clobber'; then
   print -u2 -- "published release path can overwrite assets"
   exit 1

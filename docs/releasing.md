@@ -38,6 +38,12 @@ Dispatch the Release workflow from protected `main` and enter `1.0.0` as the ver
 
 Draft publication is repairable: rerunning the workflow for the same version and exact `main` commit may replace assets only while the release remains a draft. Published assets are immutable in this workflow. A rerun after publication downloads and validates the existing public files without replacing them, then may safely repair the downstream Homebrew cask. The workflow verifies checksums, notarization, Gatekeeper, signatures, universal architectures and the `releases/latest` Sparkle feed before touching the tap. It renders the cask from that verified public DMG, audits and installs it through a temporary local tap, and repeats signature and architecture checks against the Homebrew-installed app. Updating the public tap is the final step and is skipped when its cask already has identical content. That local cask install is the no-Xcode user path; do not announce the release if it fails.
 
+For a release first published by the current run, any failure in public-download,
+appcast, Homebrew audit/install, or tap-update validation returns the GitHub
+release to draft automatically. Reruns of an already-published immutable release
+are never demoted. This keeps a failed first release from remaining public while
+preserving the safe repair path for a previously verified release.
+
 Keeping these credentials exclusively in the protected `release` environment is a security boundary: historical tag-triggered workflows in Git history do not declare that environment and therefore cannot read its secrets.
 
 After publishing, verify from a clean user account:
