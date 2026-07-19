@@ -326,13 +326,17 @@ final class DiagnosticsTests: XCTestCase {
       XCTAssertEqual(EventLogger.sanitizeError(input), "API key=<redacted>")
     }
 
+    for input in [#""API key'x=MASKME"#, #"'API key"x=MASKME"#] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertTrue(output.contains("<redacted>"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+
     for prose in [
       #""API key' names only"#,
       #"'API key" names only"#,
       #"API key' names only"#,
       #"API key" names only"#,
-      #""API key'x=public"#,
-      #"'API key"x=public"#,
     ] {
       XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
     }
@@ -351,15 +355,22 @@ final class DiagnosticsTests: XCTestCase {
     )
     XCTAssertEqual(EventLogger.sanitizeError("「API key」：cjk.secret"), "API key=<redacted>")
 
+    for input in [
+      "“API key”x=MASKME",
+      "‘AWS secret access key’x=MASKME",
+      "«API key»x=MASKME",
+      "‹AWS secret access key›x=MASKME",
+    ] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertTrue(output.contains("<redacted>"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+
     for prose in [
       "“API key” names only",
       "‘AWS secret access key’ names only",
       "«API key» names only",
       "‹AWS secret access key› names only",
-      "“API key”x=public",
-      "‘AWS secret access key’x=public",
-      "«API key»x=public",
-      "‹AWS secret access key›x=public",
     ] {
       XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
     }
@@ -394,6 +405,8 @@ final class DiagnosticsTests: XCTestCase {
       (#"payload={\"api.key\":\"sk-api-secret\"}"#, "sk-api-secret"),
       (#"{\"token\":\"sk-token-secret\"}"#, "sk-token-secret"),
       (#"\"API key\" : sk-spaced-secret"#, "sk-spaced-secret"),
+      (#"\"API key\"x=MASKME"#, "MASKME"),
+      (#"payload={\"api.key\"x:\"MASKME\"}"#, "MASKME"),
     ] {
       let output = EventLogger.sanitizeError(input)
       XCTAssertTrue(output.contains("<redacted>"), output)
@@ -403,9 +416,7 @@ final class DiagnosticsTests: XCTestCase {
     for prose in [
       "token\"\" prose",
       "token\\\" prose",
-      "\"API key\"x=public",
       #"\"API key\" prose"#,
-      #"payload={\"api.key\"x:\"public\"}"#,
       "“token”” prose",
       "token” ” prose",
     ] {
@@ -432,6 +443,10 @@ final class DiagnosticsTests: XCTestCase {
       "to「 ken」=MASKME",
       "token\"⁠ x=MASKME",
       "to”⁠ ken=MASKME",
+      #""token"x=MASKME"#,
+      #""API key"x=MASKME"#,
+      #"API key'x=MASKME"#,
+      #"to" ken"x=MASKME"#,
     ] {
       let output = EventLogger.sanitizeError(input)
       XCTAssertTrue(output.contains("<redacted>"), output)
@@ -472,6 +487,31 @@ final class DiagnosticsTests: XCTestCase {
         EventLogger.sanitizeError(prose),
         prose.replacingOccurrences(of: "\u{2060}", with: "")
       )
+    }
+  }
+
+  func testCredentialLabelWordBoundCoversLongestSensitiveIdentifier() {
+    for input in [
+      "s i g n a t u r e=MASKME",
+      "c r e d e n t i a l:MASKME",
+      "a u t h o r i z a t i o n=MASKME",
+    ] {
+      let output = EventLogger.sanitizeError(input)
+      XCTAssertTrue(output.contains("<redacted>"), output)
+      XCTAssertFalse(output.contains("MASKME"), output)
+    }
+
+    for prose in [
+      "s i g n a t u r e names only",
+      "c r e d e n t i a l names only",
+      "a u t h o r i z a t i o n names only",
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(prose), prose)
+    }
+
+    let adversarial = String(repeating: "a \" ", count: 1_000)
+    measure(metrics: [XCTClockMetric()]) {
+      XCTAssertEqual(EventLogger.sanitizeError(adversarial).unicodeScalars.count, 400)
     }
   }
 

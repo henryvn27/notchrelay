@@ -44,8 +44,8 @@ final class EventLogger {
 
   private static let maximumInputScalars = 4_096
   private static let maximumScannedInputScalars = maximumInputScalars * 4
-  private static let maximumCredentialLabelWords = 6
   private static let maximumSensitiveIdentifierScalars = 13
+  private static let maximumCredentialLabelWords = maximumSensitiveIdentifierScalars
   private static let maximumErrorScalars = 400
 
   private(set) var recentEvents: [SanitizedBridgeRecord] = []
@@ -732,8 +732,6 @@ final class EventLogger {
     let hasLeadingWrapper = cursor > start
     let labelStart = cursor
     var words: [CredentialLabelWord] = []
-    var normalizedTail = ""
-    var labelPrefixIsSensitive = false
 
     while words.count < maximumCredentialLabelWords {
       let wordStart = cursor
@@ -746,12 +744,6 @@ final class EventLogger {
             let value = scalar.value
             let lowercase = UnicodeScalar(value >= 0x41 && value <= 0x5A ? value + 0x20 : value)!
             normalized.unicodeScalars.append(lowercase)
-            normalizedTail.unicodeScalars.append(lowercase)
-            if normalizedTail.unicodeScalars.count > maximumSensitiveIdentifierScalars {
-              normalizedTail.unicodeScalars.removeFirst()
-            }
-            labelPrefixIsSensitive =
-              labelPrefixIsSensitive || isSensitiveIdentifier(normalizedTail)
           }
           cursor += 1
           wordEnd = cursor
@@ -761,9 +753,6 @@ final class EventLogger {
           let markerEnd = credentialLabelTerminatorEnd(in: scalars, from: cursor),
           markerEnd < scalars.count, isIdentifierScalar(scalars[markerEnd])
         else { break }
-        if labelPrefixIsSensitive, hasLeadingWrapper || !words.isEmpty {
-          return CredentialLabelScan(field: nil, end: max(wordEnd, markerEnd))
-        }
         cursor = markerEnd
       }
       guard wordEnd > wordStart else { break }
