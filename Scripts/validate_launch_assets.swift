@@ -6,10 +6,12 @@ import Vision
 
 private enum ValidationError: LocalizedError {
   case failed([String])
+  case selfCheck(String)
 
   var errorDescription: String? {
     switch self {
     case .failed(let failures): failures.joined(separator: "\n")
+    case .selfCheck(let message): "Launch-asset validator self-check failed: \(message)"
     }
   }
 }
@@ -24,6 +26,47 @@ private struct ImageExpectation {
 private let scriptURL = URL(fileURLWithPath: #filePath)
 private let root = scriptURL.deletingLastPathComponent().deletingLastPathComponent()
 private var failures: [String] = []
+private let synchronizedCopies = [
+  ("Assets/AppIcon/cowlick-icon.svg", "Assets/PressKit/cowlick-icon.svg"),
+  ("Assets/AppIcon/cowlick-icon-1024.png", "Assets/PressKit/cowlick-icon-1024.png"),
+  ("Assets/AppIcon/cowlick-icon-sheet.png", "Assets/PressKit/cowlick-icon-sheet.png"),
+  ("Assets/Screenshots/hero.png", "Assets/PressKit/cowlick-hero.png"),
+  ("Assets/Demo/cowlick-demo.mp4", "Assets/PressKit/Demo/cowlick-demo.mp4"),
+  ("Assets/Screenshots/working.png", "Assets/PressKit/Screenshots/working.png"),
+  ("Assets/Screenshots/approval.png", "Assets/PressKit/Screenshots/approval.png"),
+  ("Assets/Screenshots/completed.png", "Assets/PressKit/Screenshots/completed.png"),
+  ("Assets/Screenshots/failed.png", "Assets/PressKit/Screenshots/failed.png"),
+  ("Assets/Screenshots/failed-expanded.png", "Assets/PressKit/Screenshots/failed-expanded.png"),
+  ("Assets/Screenshots/multi-session.png", "Assets/PressKit/Screenshots/multi-session.png"),
+  ("Assets/Screenshots/settings.png", "Assets/PressKit/Screenshots/settings.png"),
+  ("Assets/Screenshots/onboarding.png", "Assets/PressKit/Screenshots/onboarding.png"),
+  ("Assets/Screenshots/diagnostics.png", "Assets/PressKit/Screenshots/diagnostics.png"),
+  ("Assets/Social/github-social-preview.png", "Assets/PressKit/Social/github-social-preview.png"),
+  ("Assets/Social/x-launch.png", "Assets/PressKit/Social/x-launch.png"),
+  ("Assets/Social/launch-copy.md", "Assets/PressKit/Social/launch-copy.md"),
+  ("LICENSE", "Assets/PressKit/LICENSE.txt"),
+]
+private let pressKitAllowlist: Set<String> = [
+  "README.md",
+  "LICENSE.txt",
+  "cowlick-icon.svg",
+  "cowlick-icon-1024.png",
+  "cowlick-icon-sheet.png",
+  "cowlick-hero.png",
+  "Demo/cowlick-demo.mp4",
+  "Screenshots/working.png",
+  "Screenshots/approval.png",
+  "Screenshots/completed.png",
+  "Screenshots/failed.png",
+  "Screenshots/failed-expanded.png",
+  "Screenshots/multi-session.png",
+  "Screenshots/settings.png",
+  "Screenshots/onboarding.png",
+  "Screenshots/diagnostics.png",
+  "Social/github-social-preview.png",
+  "Social/x-launch.png",
+  "Social/launch-copy.md",
+]
 
 private func absolute(_ path: String) -> URL { root.appendingPathComponent(path) }
 
@@ -61,10 +104,10 @@ private func validateImages() {
       minimumSize: nil, requiredText: ["Cowlick app icon", "16 px", "32 px", "512 px"]),
     ImageExpectation(
       path: "Assets/Screenshots/hero.png", exactSize: CGSize(width: 1_600, height: 900),
-      minimumSize: nil, requiredText: ["Cowlick", "non-notch display capture"]),
+      minimumSize: nil, requiredText: ["Cowlick", "Local-first", "non-notch display capture"]),
     ImageExpectation(
       path: "Assets/Social/github-social-preview.png", exactSize: CGSize(width: 1_280, height: 640),
-      minimumSize: nil, requiredText: ["Cowlick", "non-notch display capture"]),
+      minimumSize: nil, requiredText: ["Cowlick", "Local-first", "non-notch display capture"]),
     ImageExpectation(
       path: "Assets/Social/x-launch.png", exactSize: CGSize(width: 1_600, height: 900),
       minimumSize: nil, requiredText: ["Cowlick", "Working", "Approval", "Done"]),
@@ -205,55 +248,62 @@ private func validateVideo() async {
   }
 }
 
-private func validatePressKit() {
-  let required = [
-    "Assets/PressKit/README.md",
-    "Assets/PressKit/LICENSE.txt",
-    "Assets/PressKit/cowlick-icon.svg",
-    "Assets/PressKit/cowlick-icon-1024.png",
-    "Assets/PressKit/cowlick-icon-sheet.png",
-    "Assets/PressKit/cowlick-hero.png",
-    "Assets/PressKit/Demo/cowlick-demo.mp4",
-    "Assets/PressKit/Screenshots/working.png",
-    "Assets/PressKit/Screenshots/approval.png",
-    "Assets/PressKit/Screenshots/completed.png",
-    "Assets/PressKit/Screenshots/multi-session.png",
-    "Assets/PressKit/Screenshots/settings.png",
-    "Assets/PressKit/Social/github-social-preview.png",
-    "Assets/PressKit/Social/x-launch.png",
-    "Assets/PressKit/Social/launch-copy.md",
-  ]
-  for path in required where !FileManager.default.fileExists(atPath: absolute(path).path) {
-    fail("Press kit is not self-contained; missing \(path)")
+private func pressKitIssues(at validationRoot: URL) -> [String] {
+  let fileManager = FileManager.default
+  var issues: [String] = []
+  let readme = validationRoot.appendingPathComponent("Assets/PressKit/README.md")
+  if !fileManager.fileExists(atPath: readme.path) {
+    issues.append("Press kit is not self-contained; missing Assets/PressKit/README.md")
   }
 
-  let synchronizedCopies = [
-    ("Assets/AppIcon/cowlick-icon.svg", "Assets/PressKit/cowlick-icon.svg"),
-    ("Assets/AppIcon/cowlick-icon-1024.png", "Assets/PressKit/cowlick-icon-1024.png"),
-    ("Assets/AppIcon/cowlick-icon-sheet.png", "Assets/PressKit/cowlick-icon-sheet.png"),
-    ("Assets/Screenshots/hero.png", "Assets/PressKit/cowlick-hero.png"),
-    ("Assets/Demo/cowlick-demo.mp4", "Assets/PressKit/Demo/cowlick-demo.mp4"),
-    ("Assets/Screenshots/working.png", "Assets/PressKit/Screenshots/working.png"),
-    ("Assets/Screenshots/approval.png", "Assets/PressKit/Screenshots/approval.png"),
-    ("Assets/Screenshots/completed.png", "Assets/PressKit/Screenshots/completed.png"),
-    ("Assets/Screenshots/failed.png", "Assets/PressKit/Screenshots/failed.png"),
-    ("Assets/Screenshots/failed-expanded.png", "Assets/PressKit/Screenshots/failed-expanded.png"),
-    ("Assets/Screenshots/multi-session.png", "Assets/PressKit/Screenshots/multi-session.png"),
-    ("Assets/Screenshots/settings.png", "Assets/PressKit/Screenshots/settings.png"),
-    ("Assets/Screenshots/onboarding.png", "Assets/PressKit/Screenshots/onboarding.png"),
-    ("Assets/Screenshots/diagnostics.png", "Assets/PressKit/Screenshots/diagnostics.png"),
-    ("Assets/Social/github-social-preview.png", "Assets/PressKit/Social/github-social-preview.png"),
-    ("Assets/Social/x-launch.png", "Assets/PressKit/Social/x-launch.png"),
-    ("Assets/Social/launch-copy.md", "Assets/PressKit/Social/launch-copy.md"),
-  ]
   for (source, pressCopy) in synchronizedCopies {
-    guard let sourceData = try? Data(contentsOf: absolute(source)),
-      let pressData = try? Data(contentsOf: absolute(pressCopy))
-    else { continue }
+    let sourceURL = validationRoot.appendingPathComponent(source)
+    let pressURL = validationRoot.appendingPathComponent(pressCopy)
+    let sourceExists = fileManager.fileExists(atPath: sourceURL.path)
+    let pressCopyExists = fileManager.fileExists(atPath: pressURL.path)
+    if !sourceExists { issues.append("Missing source asset endpoint: \(source)") }
+    if !pressCopyExists { issues.append("Missing press-kit endpoint: \(pressCopy)") }
+    guard sourceExists, pressCopyExists else { continue }
+
+    guard let sourceData = try? Data(contentsOf: sourceURL) else {
+      issues.append("Could not read source asset endpoint: \(source)")
+      continue
+    }
+    guard let pressData = try? Data(contentsOf: pressURL) else {
+      issues.append("Could not read press-kit endpoint: \(pressCopy)")
+      continue
+    }
     if sourceData != pressData {
-      fail("Press-kit copy is stale: \(pressCopy) does not match \(source).")
+      issues.append("Press-kit copy is stale: \(pressCopy) does not match \(source).")
     }
   }
+
+  let pressKit = validationRoot.appendingPathComponent("Assets/PressKit", isDirectory: true)
+  if fileManager.fileExists(atPath: pressKit.path) {
+    let resolvedPressKit = pressKit.resolvingSymlinksInPath()
+    guard
+      let enumerator = fileManager.enumerator(
+        at: resolvedPressKit, includingPropertiesForKeys: [.isDirectoryKey])
+    else {
+      issues.append("Could not enumerate Assets/PressKit")
+      return issues
+    }
+    for case let url as URL in enumerator {
+      guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true else {
+        continue
+      }
+      let resolvedURL = url.resolvingSymlinksInPath()
+      let relativePath = String(resolvedURL.path.dropFirst(resolvedPressKit.path.count + 1))
+      if !pressKitAllowlist.contains(relativePath) {
+        issues.append("Unexpected press-kit content: Assets/PressKit/\(relativePath)")
+      }
+    }
+  }
+  return issues
+}
+
+private func validatePressKit() {
+  for issue in pressKitIssues(at: root) { fail(issue) }
 }
 
 private func validateTextAssets() {
@@ -274,6 +324,11 @@ private func validateTextAssets() {
       fail(
         "\(url.path.replacingOccurrences(of: root.path + "/", with: "")) contains stale branding.")
     }
+    if lowered.contains("local only") {
+      fail(
+        "\(url.path.replacingOccurrences(of: root.path + "/", with: "")) uses inaccurate local-only copy; use local-first."
+      )
+    }
   }
 
   if let pressReadme = try? String(
@@ -281,6 +336,77 @@ private func validateTextAssets() {
     pressReadme.contains("../")
   {
     fail("Press-kit README contains paths outside the self-contained folder.")
+  }
+}
+
+private func runPressKitSelfCheck() throws {
+  let fileManager = FileManager.default
+  let temporaryRoot = fileManager.temporaryDirectory.appendingPathComponent(
+    "CowlickLaunchAssetValidator-\(UUID().uuidString)", isDirectory: true)
+  try fileManager.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+  defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+  func write(_ value: String, to path: String) throws {
+    let url = temporaryRoot.appendingPathComponent(path)
+    try fileManager.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data(value.utf8).write(to: url)
+  }
+
+  try write("press kit", to: "Assets/PressKit/README.md")
+  for (source, pressCopy) in synchronizedCopies {
+    try write(source, to: source)
+    try write(source, to: pressCopy)
+  }
+  let baselineIssues = pressKitIssues(at: temporaryRoot)
+  guard baselineIssues.isEmpty else {
+    throw ValidationError.selfCheck(
+      "a complete synchronized fixture did not pass: \(baselineIssues.joined(separator: "; "))")
+  }
+
+  let source = "Assets/Screenshots/working.png"
+  let pressCopy = "Assets/PressKit/Screenshots/working.png"
+  try fileManager.removeItem(at: temporaryRoot.appendingPathComponent(source))
+  guard pressKitIssues(at: temporaryRoot).contains("Missing source asset endpoint: \(source)")
+  else {
+    throw ValidationError.selfCheck("a missing screenshot source was not rejected")
+  }
+  try write(source, to: source)
+
+  try fileManager.removeItem(at: temporaryRoot.appendingPathComponent(pressCopy))
+  guard pressKitIssues(at: temporaryRoot).contains("Missing press-kit endpoint: \(pressCopy)")
+  else {
+    throw ValidationError.selfCheck("a missing press-kit screenshot was not rejected")
+  }
+  try write(source, to: pressCopy)
+
+  try write("mismatched license", to: "Assets/PressKit/LICENSE.txt")
+  guard
+    pressKitIssues(at: temporaryRoot).contains(
+      "Press-kit copy is stale: Assets/PressKit/LICENSE.txt does not match LICENSE.")
+  else {
+    throw ValidationError.selfCheck("a stale press-kit license was not rejected")
+  }
+  try write("LICENSE", to: "Assets/PressKit/LICENSE.txt")
+
+  try write("unexpected", to: "Assets/PressKit/Screenshots/unexpected.png")
+  guard
+    pressKitIssues(at: temporaryRoot).contains(
+      "Unexpected press-kit content: Assets/PressKit/Screenshots/unexpected.png")
+  else {
+    throw ValidationError.selfCheck("unexpected press-kit content was not rejected")
+  }
+
+  print("Launch-asset validator self-check passed.")
+}
+
+if CommandLine.arguments.contains("--self-check") {
+  do {
+    try runPressKitSelfCheck()
+    exit(0)
+  } catch {
+    FileHandle.standardError.write(Data("\(error.localizedDescription)\n".utf8))
+    exit(1)
   }
 }
 

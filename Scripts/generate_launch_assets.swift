@@ -56,7 +56,7 @@ private struct LaunchAssetGenerator {
         "NATIVE macOS", in: CGRect(x: 90, y: 432, width: 200, height: 24),
         font: .monospacedSystemFont(ofSize: 15, weight: .semibold), color: accent)
       drawText(
-        "Open source. Local only. No analytics.",
+        "Open source. Local-first. No analytics.",
         in: CGRect(x: 90, y: 388, width: 480, height: 30),
         font: .systemFont(ofSize: 19, weight: .medium),
         color: foreground.withAlphaComponent(0.52))
@@ -101,7 +101,7 @@ private struct LaunchAssetGenerator {
         font: .systemFont(ofSize: 29, weight: .regular),
         color: foreground.withAlphaComponent(0.78), lineHeight: 1.14)
       drawText(
-        "Local only · open source", in: CGRect(x: 68, y: 245, width: 370, height: 30),
+        "Local-first · open source", in: CGRect(x: 68, y: 245, width: 370, height: 30),
         font: .systemFont(ofSize: 17, weight: .medium),
         color: foreground.withAlphaComponent(0.5))
       drawText(

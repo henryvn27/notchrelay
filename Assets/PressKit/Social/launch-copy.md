@@ -11,7 +11,7 @@ These are release-day drafts, not a statement that Cowlick is currently download
 
 Cowlick puts local Codex status and approval actions at the MacBook notch.
 
-Working, multi-session, approval, and completed states. Allow once or Deny matches the exact permission request, with safe fallback to Codex. A separate Failed presentation is reserved for Cowlick bridge and self-test diagnostics, not inferred Codex task failures. Native Swift, local only, open source.
+Working, multi-session, approval, and completed states. Allow once or Deny matches the exact permission request, with safe fallback to Codex. A separate Failed presentation is reserved for Cowlick bridge and self-test diagnostics, not inferred Codex task failures. Native Swift, local-first, open source.
 
 It also shows Codex quota pace and time-to-empty, plus separate month-to-date billing for labeled OpenAI and Anthropic organization accounts.
 

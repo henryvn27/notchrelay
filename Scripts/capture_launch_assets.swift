@@ -15,15 +15,25 @@ private struct WindowCandidate {
   let bounds: CGRect
 }
 
+private struct DisplayGeometry {
+  let id: CGDirectDisplayID
+  let bounds: CGRect
+  let backingScaleFactor: CGFloat
+  let safeAreaTopInset: CGFloat
+}
+
 private enum CaptureError: LocalizedError {
   case usage
   case missingApp(String)
-  case nonRetina(CGFloat)
+  case displayNotFound(CGRect)
+  case nonRetina(CGDirectDisplayID, CGFloat)
+  case notchedDisplay(CGDirectDisplayID, CGFloat)
   case launch(String)
   case windowTimeout(String)
   case screenshot(String)
   case image(String)
   case notRetina(String, CGSize, CGRect)
+  case selfCheck(String)
 
   var errorDescription: String? {
     switch self {
@@ -31,8 +41,12 @@ private enum CaptureError: LocalizedError {
       "Usage: capture_launch_assets.swift --app /path/to/Cowlick.app"
     case .missingApp(let path):
       "Cowlick executable is missing at \(path)."
-    case .nonRetina(let scale):
-      "Launch-asset capture requires a 2x Retina display; the active display scale is \(scale)."
+    case .displayNotFound(let bounds):
+      "Could not resolve a display for the capture window at \(bounds)."
+    case .nonRetina(let displayID, let scale):
+      "Launch-asset capture requires a 2x Retina display; capture display \(displayID) has scale \(scale)."
+    case .notchedDisplay(let displayID, let inset):
+      "Capture display \(displayID) has a \(inset)-point top safe-area inset; non-notch evidence requires a display without notched geometry."
     case .launch(let message):
       "Could not launch Cowlick for capture: \(message)"
     case .windowTimeout(let filename):
@@ -43,6 +57,8 @@ private enum CaptureError: LocalizedError {
       "Could not decode captured image \(filename)."
     case .notRetina(let filename, let pixels, let bounds):
       "\(filename) is not a 2x capture (pixels \(Int(pixels.width))x\(Int(pixels.height)), window \(Int(bounds.width))x\(Int(bounds.height)) points)."
+    case .selfCheck(let message):
+      "Capture self-check failed: \(message)"
     }
   }
 }
@@ -103,6 +119,42 @@ private func windowCandidates(processID: pid_t, minimumSize: CGSize) -> [WindowC
   }
   .sorted { first, second in
     first.bounds.width * first.bounds.height > second.bounds.width * second.bounds.height
+  }
+}
+
+private func displayGeometries() -> [DisplayGeometry] {
+  NSScreen.screens.compactMap { screen in
+    guard
+      let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
+        as? NSNumber
+    else { return nil }
+    let displayID = CGDirectDisplayID(number.uint32Value)
+    return DisplayGeometry(
+      id: displayID,
+      bounds: CGDisplayBounds(displayID),
+      backingScaleFactor: screen.backingScaleFactor,
+      safeAreaTopInset: screen.safeAreaInsets.top)
+  }
+}
+
+private func captureDisplay(
+  for windowBounds: CGRect, displays: [DisplayGeometry]
+) -> DisplayGeometry? {
+  displays
+    .map { ($0, windowBounds.intersection($0.bounds)) }
+    .filter { !$0.1.isNull && !$0.1.isEmpty }
+    .max {
+      $0.1.width * $0.1.height < $1.1.width * $1.1.height
+    }?
+    .0
+}
+
+private func validateCaptureDisplay(_ display: DisplayGeometry) throws {
+  guard display.safeAreaTopInset < 1 else {
+    throw CaptureError.notchedDisplay(display.id, display.safeAreaTopInset)
+  }
+  guard display.backingScaleFactor >= 1.9 else {
+    throw CaptureError.nonRetina(display.id, display.backingScaleFactor)
   }
 }
 
@@ -182,9 +234,6 @@ private func run() throws {
   guard FileManager.default.isExecutableFile(atPath: executableURL.path) else {
     throw CaptureError.missingApp(executableURL.path)
   }
-  let activeScale = NSScreen.main?.backingScaleFactor ?? 1
-  guard activeScale >= 1.9 else { throw CaptureError.nonRetina(activeScale) }
-
   let scriptURL = URL(fileURLWithPath: #filePath)
   let root = scriptURL.deletingLastPathComponent().deletingLastPathComponent()
   let outputDirectory = root.appendingPathComponent("Assets/Screenshots", isDirectory: true)
@@ -194,6 +243,7 @@ private func run() throws {
   try FileManager.default.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
   try FileManager.default.createDirectory(at: isolatedHome, withIntermediateDirectories: true)
   defer { try? FileManager.default.removeItem(at: stagingDirectory) }
+  var captureDisplayIDs = Set<CGDirectDisplayID>()
 
   for specification in specifications {
     let process = Process()
@@ -219,13 +269,19 @@ private func run() throws {
       stop(process)
       throw CaptureError.windowTimeout(specification.filename)
     }
+    guard let display = captureDisplay(for: window.bounds, displays: displayGeometries()) else {
+      stop(process)
+      throw CaptureError.displayNotFound(window.bounds)
+    }
     let stagedURL = stagingDirectory.appendingPathComponent(specification.filename)
     do {
+      try validateCaptureDisplay(display)
       try capture(window: window, to: stagedURL)
     } catch {
       stop(process)
       throw error
     }
+    captureDisplayIDs.insert(display.id)
     stop(process)
   }
 
@@ -234,11 +290,53 @@ private func run() throws {
     let destination = outputDirectory.appendingPathComponent(specification.filename)
     _ = try FileManager.default.replaceItemAt(destination, withItemAt: source)
   }
-  print("Captured \(specifications.count) current Cowlick surfaces at 2x on a non-notch display.")
+  let displayList = captureDisplayIDs.sorted().map(String.init).joined(separator: ", ")
+  print(
+    "Captured \(specifications.count) current Cowlick surfaces at 2x on verified non-notch display \(displayList)."
+  )
+}
+
+private func runSelfCheck() throws {
+  let left = DisplayGeometry(
+    id: 1, bounds: CGRect(x: 0, y: 0, width: 1_920, height: 1_080),
+    backingScaleFactor: 2, safeAreaTopInset: 0)
+  let right = DisplayGeometry(
+    id: 2, bounds: CGRect(x: 1_920, y: 0, width: 2_560, height: 1_440),
+    backingScaleFactor: 2, safeAreaTopInset: 0)
+  guard
+    captureDisplay(
+      for: CGRect(x: 2_100, y: 100, width: 700, height: 300), displays: [left, right])?.id
+      == right.id
+  else {
+    throw CaptureError.selfCheck("a window on the second display did not resolve there")
+  }
+  try validateCaptureDisplay(right)
+
+  let notched = DisplayGeometry(
+    id: 3, bounds: right.bounds, backingScaleFactor: 2, safeAreaTopInset: 74)
+  do {
+    try validateCaptureDisplay(notched)
+    throw CaptureError.selfCheck("notched geometry was accepted")
+  } catch CaptureError.notchedDisplay {
+  }
+
+  let nonRetina = DisplayGeometry(
+    id: 4, bounds: right.bounds, backingScaleFactor: 1, safeAreaTopInset: 0)
+  do {
+    try validateCaptureDisplay(nonRetina)
+    throw CaptureError.selfCheck("a 1x capture display was accepted")
+  } catch CaptureError.nonRetina {
+  }
+
+  print("Launch-asset capture display self-check passed.")
 }
 
 do {
-  try run()
+  if CommandLine.arguments.contains("--self-check") {
+    try runSelfCheck()
+  } else {
+    try run()
+  }
 } catch {
   FileHandle.standardError.write(
     Data("capture_launch_assets: \(error.localizedDescription)\n".utf8))
