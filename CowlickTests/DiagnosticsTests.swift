@@ -80,6 +80,18 @@ final class DiagnosticsTests: XCTestCase {
         "bearer=<redacted>"
       )
     }
+    for (removed, visible) in [
+      ("Be-arer\nsk-hyphen-secret", "Be-arer sk-hyphen-secret"),
+      ("bea.rer\u{2060}sk-dot-secret", "bea.rer sk-dot-secret"),
+      ("bea_rer\nsk-underscore-secret", "bea_rer sk-underscore-secret"),
+    ] {
+      XCTAssertEqual(EventLogger.sanitizeError(removed), "bearer=<redacted>")
+      XCTAssertEqual(EventLogger.sanitizeError(visible), "bearer=<redacted>")
+    }
+    XCTAssertEqual(
+      EventLogger.sanitizeError("“Be-arer”\n“sk-wrapped-normalized”"),
+      "bearer=<redacted>"
+    )
     XCTAssertEqual(
       EventLogger.sanitizeError("\"Bearer\"\nsk-quoted-secret"),
       "bearer=<redacted>"
@@ -94,6 +106,11 @@ final class DiagnosticsTests: XCTestCase {
     )
 
     XCTAssertEqual(EventLogger.sanitizeError("NotBearer\nvisible"), "NotBearervisible")
+    XCTAssertEqual(EventLogger.sanitizeError("Not-Be-arer\nvisible"), "Not-Be-arervisible")
+    XCTAssertEqual(
+      EventLogger.sanitizeError("Not“Be-arer”\nvisible"),
+      "Not“Be-arer”visible"
+    )
     XCTAssertEqual(EventLogger.sanitizeError("BearerSuffix\u{2060}visible"), "BearerSuffixvisible")
     XCTAssertEqual(EventLogger.sanitizeError("Bearer\n, public"), "Bearer, public")
     XCTAssertEqual(EventLogger.sanitizeError("Bearer\t; public"), "Bearer; public")

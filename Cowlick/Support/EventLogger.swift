@@ -165,21 +165,23 @@ final class EventLogger {
     in scalars: [UnicodeScalar],
     endingAt end: Int
   ) -> Bool {
-    var labelStart = end - 6
     var identifierEnd = end
     if end > 0, isCredentialLabelQuote(scalars[end - 1]) {
       identifierEnd -= 1
-      labelStart = identifierEnd - 7
-      guard labelStart >= 0, isCredentialLabelQuote(scalars[labelStart]) else { return false }
-      labelStart += 1
     }
-    guard labelStart >= 0, identifierEnd - labelStart == 6,
+    var labelStart = identifierEnd
+    while labelStart > 0, isIdentifierScalar(scalars[labelStart - 1]) {
+      labelStart -= 1
+    }
+    guard labelStart < identifierEnd,
       normalizedIdentifier(scalars[labelStart..<identifierEnd]) == "bearer"
     else { return false }
 
-    let tokenStart =
-      labelStart > 0 && isCredentialLabelQuote(scalars[labelStart - 1])
-      ? labelStart - 1 : labelStart
+    var tokenStart = labelStart
+    if identifierEnd < end {
+      guard labelStart > 0, isCredentialLabelQuote(scalars[labelStart - 1]) else { return false }
+      tokenStart -= 1
+    }
     return tokenStart == 0 || !isIdentifierScalar(scalars[tokenStart - 1])
   }
 
