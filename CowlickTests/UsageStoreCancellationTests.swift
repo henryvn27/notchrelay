@@ -3,6 +3,14 @@ import XCTest
 
 @testable import Cowlick
 
+private final class WeakReference<Value: AnyObject> {
+  weak var value: Value?
+
+  init(_ value: Value?) {
+    self.value = value
+  }
+}
+
 private actor SuspendedFetch<Value: Sendable> {
   private var nextCall = 0
   private var continuations: [Int: CheckedContinuation<Value, Error>] = [:]
@@ -447,7 +455,7 @@ final class UsageStoreCancellationTests: XCTestCase {
       usageService: SuspendedUsageService(fetch: fetch),
       forecastService: UnusedForecastService()
     )
-    weak let weakStore = store
+    let weakStore = WeakReference(store)
 
     let refresh = store?.refreshIfNeeded(force: true)
     await fetch.waitForCalls(1)
@@ -455,7 +463,7 @@ final class UsageStoreCancellationTests: XCTestCase {
     await fetch.waitForCancellation(of: 0)
     store = nil
 
-    XCTAssertNil(weakStore)
+    XCTAssertNil(weakStore.value)
     await fetch.resume(call: 0, returning: usageSnapshot(usedPercent: 25))
     await refresh?.value
   }
