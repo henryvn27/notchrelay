@@ -43,7 +43,10 @@ let shim = home.appendingPathComponent(".local/bin/cowlick-hook")
 let legacyInstalledHelper = home.appendingPathComponent(
   "Library/Application Support/NotchRelay/bin/notchrelay-hook")
 let legacyShim = home.appendingPathComponent(".local/bin/notchrelay-hook")
-let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
+let events = [
+  "SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop", "Stop",
+]
+let bridgeProtocolVersion = 2
 let snapshotMarkerName = ".cowlick-integration-snapshot-v1"
 let snapshotMarkerContents = Data("1\n".utf8)
 
@@ -188,7 +191,7 @@ func merge(_ original: Data) throws -> Data {
           "command": hookCommand,
           "timeout": event == "PermissionRequest" ? 75 : 5,
           "statusMessage": "Cowlick",
-          "cowlick": ["product": "Cowlick", "protocol": 1],
+          "cowlick": ["product": "Cowlick", "protocol": bridgeProtocolVersion],
         ]
       ]
     ])
@@ -494,7 +497,7 @@ do {
         throw error
       }
     }
-    print("Installed SessionStart, UserPromptSubmit, PermissionRequest, and Stop hooks.")
+    print("Installed Codex session, subagent, approval, and completion hooks.")
   case .remove:
     try withConfigurationLock {
       try validateHelperRemoval(shim: shim, installedHelper: installedHelper)

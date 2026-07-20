@@ -247,4 +247,4 @@ if [[ -n "$backup" && "$backup" == "$HOME/Applications/Cowlick.app.backup-"* ]];
 fi
 
 print "Installed Cowlick locally at $destination"
-print "Open Codex /hooks once to review and trust the four Cowlick commands if prompted."
+print "Open Codex /hooks once to review and trust the Cowlick commands if prompted."

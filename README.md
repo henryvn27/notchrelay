@@ -52,7 +52,7 @@ If Homebrew reports that the cask is unavailable, no verified public cask has be
 
 Every public version is listed on [GitHub Releases](https://github.com/henryvn27/cowlick/releases) with its signed, notarized DMG, update ZIP, checksums, release notes, supported architectures, and minimum macOS version. A Releases page with no version means there is no public binary to download. Normal release installation requires no Xcode, Swift, Python, Node, npm, Cowlick account, or cloud service.
 
-After Cowlick installs its four lifecycle hooks, Codex may require one security review: open the Codex CLI, run `/hooks`, and trust the Cowlick commands. This is a trust confirmation, not a manual hook-installation step.
+After Cowlick installs its lifecycle hooks, Codex may require one security review: open the Codex CLI, run `/hooks`, and trust the Cowlick commands. This is a trust confirmation, not a manual hook-installation step.
 
 To uninstall a public build, first choose Settings → Integration → Remove Integration so Cowlick removes only its hooks and installed helper. Then remove the app with `brew uninstall --cask cowlick` or delete the direct-download app. Before `brew uninstall --zap`, also remove every saved billing account in Settings → Accounts because Homebrew cannot remove its Keychain credential.
 
@@ -88,7 +88,7 @@ Cowlick has no analytics, cloud backend, Cowlick account, ads, or third-party cr
 
 ## How it works
 
-Codex invokes the bundled `cowlick-hook` helper for `SessionStart`, `UserPromptSubmit`, `PermissionRequest`, and `Stop`. The helper sends authenticated, versioned newline-delimited JSON over a private Unix-domain socket. The native app arbitrates independent session state and returns synchronous approval decisions only when the request is still current.
+Codex invokes the bundled `cowlick-hook` helper for `SessionStart`, `UserPromptSubmit`, `PermissionRequest`, `SubagentStart`, `SubagentStop`, and `Stop`. Subagents use their official `agent_id` as a child identity, so concurrent agents stay separate without completing their parent task. The helper sends authenticated, versioned newline-delimited JSON over a private Unix-domain socket. The native app arbitrates independent session state and returns synchronous approval decisions only when the request is still current.
 
 For quota display, Cowlick asks the installed Codex app-server only for `account/rateLimits/read`; it does not read `auth.json` or request account identity. This is the single subscription identity active in the Codex executable Cowlick selects, not a managed multi-login system. The optional API-price equivalent scans local Codex session JSONL but retains only allowlisted model and numeric token-counter fields, applies a bundled reviewed pricing table, and labels unsupported or ambiguous coverage as partial. It excludes tool fees and cannot attribute work to a subscription account. In Settings → Accounts, Add Account accepts separately labeled OpenAI API and Anthropic API organization accounts; the menu can switch and refresh the selected account. Cowlick shows each account's month-to-date charges without aggregating providers or presenting them as Codex subscription usage. OpenAI organization costs are account-wide; Anthropic's official cost report excludes Priority Tier usage, so Cowlick marks Anthropic coverage as partial. The optional reset forecast is fetched separately from `https://www.willcodexquotareset.com/api/forecast`, decoded as untrusted display-only data, and kept in memory.
 

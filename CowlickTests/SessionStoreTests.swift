@@ -28,6 +28,153 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertEqual(store.sessionSummaries.count, 2)
   }
 
+  func testSubagentsRemainChildActivityWithoutInflatingSessionCount() async {
+    let store = SessionStore(settings: makeTestSettings())
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "code-reviewer"))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-2", agentType: "worker"))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-2", agentType: "worker"))
+
+    XCTAssertEqual(store.activeSessionCount, 1)
+    XCTAssertEqual(store.activeSubagentCount, 2)
+    XCTAssertEqual(store.displaySession?.presentationStatus, .working(prompt: nil))
+    XCTAssertEqual(store.displaySession?.statusLabel, "Working · 2 agents")
+  }
+
+  func testSingleSubagentUsesAChildCountWithoutCreatingASecondSession() async {
+    let store = SessionStore(settings: makeTestSettings())
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "code-reviewer"))
+
+    XCTAssertEqual(store.activeSessionCount, 1)
+    XCTAssertEqual(store.displaySession?.statusLabel, "Working · 1 agent")
+  }
+
+  func testSubagentStopRequiresExactIDAndTurnAndPreservesParent() async {
+    let store = SessionStore(settings: makeTestSettings())
+    _ = await store.receive(
+      makeBridgeEvent(event: .working, sessionID: "parent", turnID: "turn-1"))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker"))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStopped, sessionID: "parent", turnID: "wrong-turn",
+        agentID: "agent-1", agentType: "worker"))
+
+    XCTAssertEqual(store.activeSubagentCount, 1)
+
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStopped, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker", result: "ignored child result"))
+
+    XCTAssertEqual(store.activeSubagentCount, 0)
+    XCTAssertEqual(store.sessions["parent"]?.status, .working(prompt: nil))
+    XCTAssertEqual(store.activeSessionCount, 1)
+  }
+
+  func testSubagentMetadataDoesNotReplaceParentProjectIdentity() async {
+    let store = SessionStore(settings: makeTestSettings())
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .working, sessionID: "parent", cwd: "/tmp/ParentProject",
+        deliverySequence: 1))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", cwd: "/tmp/ChildWorktree",
+        agentID: "agent-1", agentType: "worker", deliverySequence: 2))
+
+    XCTAssertEqual(store.sessions["parent"]?.projectName, "ParentProject")
+    XCTAssertEqual(store.sessions["parent"]?.workingDirectory, "/tmp/ParentProject")
+    XCTAssertEqual(store.activeSubagentCount, 1)
+  }
+
+  func testOutOfOrderSubagentStopTombstonesDelayedStart() async {
+    let store = SessionStore(settings: makeTestSettings())
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStopped, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker", deliverySequence: 2))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker", deliverySequence: 1))
+
+    XCTAssertEqual(store.activeSubagentCount, 0)
+    XCTAssertNil(store.sessions["parent"])
+  }
+
+  func testDelayedChildStartCannotReviveNewerRootCompletion() async {
+    let settings = makeTestSettings()
+    settings.completionVisibility = .eightSeconds
+    let store = SessionStore(settings: settings)
+    _ = await store.receive(
+      makeBridgeEvent(event: .completed, sessionID: "parent", deliverySequence: 3))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker", deliverySequence: 2))
+
+    XCTAssertEqual(store.activeSubagentCount, 0)
+    XCTAssertEqual(store.sessions["parent"]?.presentationStatus, .completed(message: nil))
+  }
+
+  func testOlderParentEventKeepsNewerChildWhileRestoringParentIdentity() async {
+    let store = SessionStore(settings: makeTestSettings())
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", cwd: "/tmp/ChildWorktree",
+        agentID: "agent-1", agentType: "worker", deliverySequence: 2))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .working, sessionID: "parent", cwd: "/tmp/ParentProject",
+        deliverySequence: 1))
+
+    XCTAssertEqual(store.sessions["parent"]?.projectName, "ParentProject")
+    XCTAssertEqual(store.activeSubagentCount, 1)
+    XCTAssertEqual(store.sessions["parent"]?.presentationStatus, .working(prompt: nil))
+  }
+
+  func testRootLifecycleClearsSubagentsButChildStopDoesNotSignalCompletion() async {
+    let settings = makeTestSettings()
+    settings.capsLockEnabled = true
+    let capsLock = RecordingCapsLockService()
+    let store = SessionStore(settings: settings, capsLockService: capsLock)
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker"))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStopped, sessionID: "parent", turnID: "turn-1",
+        agentID: "agent-1", agentType: "worker"))
+
+    let signalSnapshot = await capsLock.snapshot()
+    XCTAssertEqual(signalSnapshot.0, [])
+
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .subagentStarted, sessionID: "parent", turnID: "turn-2",
+        agentID: "agent-2", agentType: "worker"))
+    _ = await store.receive(
+      makeBridgeEvent(event: .completed, sessionID: "parent", turnID: "turn-2"))
+
+    XCTAssertEqual(store.activeSubagentCount, 0)
+    XCTAssertEqual(store.sessions["parent"]?.presentationStatus, .completed(message: nil))
+  }
+
   func testApprovalQueueOrderingAndExactRequestMatching() async {
     let settings = makeTestSettings()
     settings.approvalTimeout = 10

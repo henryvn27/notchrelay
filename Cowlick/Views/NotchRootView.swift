@@ -23,11 +23,12 @@ struct NotchRootView: View {
           CollapsedIslandView(
             session: session,
             activeCount: store.activeSessionCount,
+            activeSubagentCount: store.activeSubagentCount,
             notchGapWidth: presentation.isAttached ? presentation.notchGapWidth : nil,
             isAttached: presentation.isAttached,
             reducedAnimation: store.settings.reducedAnimation
           ) {
-            if case .completed = session.status {
+            if case .completed = session.presentationStatus {
               store.dismissCompletion(sessionID: session.id)
             } else {
               store.toggleExpanded()

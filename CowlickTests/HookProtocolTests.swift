@@ -32,7 +32,65 @@ final class HookProtocolTests: XCTestCase {
     let encoded = try JSONEncoder.bridge.encode(versioned)
     let decoded = try JSONDecoder.bridge.decode(BridgeEvent.self, from: encoded)
     XCTAssertEqual(decoded.version, BridgeEvent.currentVersion)
-    XCTAssertNotEqual(2, BridgeEvent.currentVersion)
+    XCTAssertEqual(2, BridgeEvent.currentVersion)
+    XCTAssertNotEqual(1, BridgeEvent.currentVersion)
+  }
+
+  func testDeliveryOrderingIsTransportOwnedAndNeverDecodedFromClientJSON() throws {
+    let requestID = UUID()
+    let data = Data(
+      #"{"version":2,"requestId":"\#(requestID.uuidString)","event":"working","timestamp":"2026-07-18T00:00:00Z","sessionId":"s","cwd":"/tmp","authToken":"x","deliverySequence":999}"#
+        .utf8)
+
+    var event = try JSONDecoder.bridge.decode(BridgeEvent.self, from: data)
+    XCTAssertNil(event.deliverySequence)
+    event.deliverySequence = 7
+    let encoded = try JSONEncoder.bridge.encode(event)
+    let root = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    XCTAssertNil(root["deliverySequence"])
+  }
+
+  func testDecodesCurrentSubagentLifecycleSchemas() throws {
+    let startData = Data(
+      #"{"agent_id":"agent-1","agent_type":"code-reviewer","cwd":"/tmp/Cowlick","hook_event_name":"SubagentStart","model":"gpt-5.6","permission_mode":"default","session_id":"parent-1","transcript_path":null,"turn_id":"turn-1"}"#
+        .utf8)
+    let stopData = Data(
+      #"{"agent_id":"agent-1","agent_transcript_path":null,"agent_type":"code-reviewer","cwd":"/tmp/Cowlick","hook_event_name":"SubagentStop","last_assistant_message":null,"model":"gpt-5.6","permission_mode":"default","session_id":"parent-1","stop_hook_active":false,"transcript_path":null,"turn_id":"turn-1"}"#
+        .utf8)
+
+    let start = try JSONDecoder().decode(HookInput.self, from: startData)
+    let stop = try JSONDecoder().decode(HookInput.self, from: stopData)
+    let startEvent = HookCommand.event(from: start)
+    let stopEvent = HookCommand.event(from: stop)
+
+    XCTAssertTrue(start.hasValidSubagentIdentity)
+    XCTAssertEqual(startEvent.event, .subagentStarted)
+    XCTAssertEqual(stopEvent.event, .subagentStopped)
+    XCTAssertEqual(startEvent.sessionId, "parent-1")
+    XCTAssertEqual(stopEvent.sessionId, "parent-1")
+    XCTAssertEqual(startEvent.agentId, "agent-1")
+    XCTAssertEqual(startEvent.agentType, "code-reviewer")
+    XCTAssertNil(stop.agentTranscriptPath)
+  }
+
+  func testRejectsMissingSubagentIdentityBeforeRouting() throws {
+    let data = Data(
+      #"{"session_id":"parent-1","cwd":"/tmp","hook_event_name":"SubagentStart","turn_id":"turn-1"}"#
+        .utf8)
+    let input = try JSONDecoder().decode(HookInput.self, from: data)
+    XCTAssertFalse(input.hasValidSubagentIdentity)
+  }
+
+  func testOptionalSubagentContextKeepsApprovalOnParentSession() throws {
+    let data = Data(
+      #"{"session_id":"parent-1","cwd":"/tmp","hook_event_name":"PermissionRequest","turn_id":"turn-1","agent_id":"agent-1","agent_type":"worker","tool_name":"Bash","tool_input":{"command":"swift test"}}"#
+        .utf8)
+    let input = try JSONDecoder().decode(HookInput.self, from: data)
+    let event = HookCommand.event(from: input)
+
+    XCTAssertEqual(event.event, .approvalRequested)
+    XCTAssertEqual(event.sessionId, "parent-1")
+    XCTAssertEqual(event.agentId, "agent-1")
   }
 
   func testPermissionOutputMatchesOfficialAllowShape() throws {

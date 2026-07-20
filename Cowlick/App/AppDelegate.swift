@@ -29,8 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard !isUITesting else { return }
     do {
       try services.hookInstaller.refreshInstalledHelperIfNeeded()
+      try services.hookInstaller.repairExistingIntegrationIfNeeded(
+        intentionallyRemoved: services.settings.integrationIntentionallyRemoved)
     } catch {
-      services.eventLogger.error("Helper refresh failed: \(error.localizedDescription)")
+      services.eventLogger.error("Integration refresh failed: \(error.localizedDescription)")
     }
 
     let timeoutDefaults = UserDefaults.standard
@@ -76,10 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   static func shouldOpenOnboarding(
     onboardingComplete: Bool,
-    integrationIntentionallyRemoved _: Bool,
+    integrationIntentionallyRemoved: Bool,
     integrationHealthy: Bool
   ) -> Bool {
-    !onboardingComplete || !integrationHealthy
+    !onboardingComplete || (!integrationIntentionallyRemoved && !integrationHealthy)
   }
 
   nonisolated static func shouldRefreshUsage(after event: BridgeEventName) -> Bool {

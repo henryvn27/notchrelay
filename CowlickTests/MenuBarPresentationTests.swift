@@ -82,6 +82,11 @@ final class MenuBarPresentationTests: XCTestCase {
       MenuBarContentView.activitySummary(activeSessionCount: 3, trustState: .incomplete),
       "3 active sessions"
     )
+    XCTAssertEqual(
+      MenuBarContentView.activitySummary(
+        activeSessionCount: 1, activeSubagentCount: 2, trustState: .needsReview),
+      "1 active session · 2 agents"
+    )
   }
 
   func testIdleStateRetainsIntegrationWarnings() {

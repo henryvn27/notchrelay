@@ -3,6 +3,7 @@ import SwiftUI
 struct CollapsedIslandView: View {
   let session: AgentSession
   let activeCount: Int
+  let activeSubagentCount: Int
   let notchGapWidth: CGFloat?
   let isAttached: Bool
   let reducedAnimation: Bool
@@ -30,8 +31,8 @@ struct CollapsedIslandView: View {
       motionReduced ? nil : .easeOut(duration: NotchTheme.hoverFeedbackDuration),
       value: isHovering
     )
-    .accessibilityLabel("\(session.projectName), \(session.status.shortLabel)")
-    .accessibilityHint(Self.accessibilityHint(for: session.status))
+    .accessibilityLabel("\(session.projectName), \(session.statusLabel)")
+    .accessibilityHint(Self.accessibilityHint(for: session.presentationStatus))
   }
 
   static func accessibilityHint(for status: AgentStatus) -> String {
@@ -45,7 +46,7 @@ struct CollapsedIslandView: View {
 
   private var floatingContent: some View {
     HStack(spacing: 9) {
-      statusSymbolContainer
+      statusGroup
       projectLabel
     }
     .padding(.horizontal, 13)
@@ -53,7 +54,7 @@ struct CollapsedIslandView: View {
 
   private func attachedContent(notchGapWidth: CGFloat) -> some View {
     HStack(spacing: 0) {
-      statusSymbolContainer
+      statusGroup
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.trailing, 12)
       Color.clear.frame(width: notchGapWidth)
@@ -74,6 +75,23 @@ struct CollapsedIslandView: View {
     .animation(statusAnimation, value: statusIdentity)
   }
 
+  private var statusGroup: some View {
+    HStack(spacing: 5) {
+      statusSymbolContainer
+      if activeSubagentCount > 0 {
+        HStack(spacing: 2) {
+          Image(systemName: "person.2.fill")
+          Text("\(activeSubagentCount)").monospacedDigit()
+        }
+        .font(.system(size: 9.5, weight: .semibold))
+        .foregroundStyle(secondaryTextColor)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+          "\(activeSubagentCount) active \(activeSubagentCount == 1 ? "agent" : "agents")")
+      }
+    }
+  }
+
   private var statusAnimation: Animation {
     motionReduced
       ? .easeOut(duration: NotchTheme.reducedMotionFadeDuration)
@@ -85,7 +103,7 @@ struct CollapsedIslandView: View {
   }
 
   private var statusIdentity: StatusIdentity {
-    switch session.status {
+    switch session.presentationStatus {
     case .idle: .idle
     case .working: .working
     case .awaitingApproval: .approval
@@ -111,7 +129,7 @@ struct CollapsedIslandView: View {
 
   @ViewBuilder
   private var statusSymbol: some View {
-    switch session.status {
+    switch session.presentationStatus {
     case .working:
       ProgressView()
         .controlSize(.small)

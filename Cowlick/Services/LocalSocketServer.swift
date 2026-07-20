@@ -51,6 +51,7 @@ final class LocalSocketServer: @unchecked Sendable {
 
   private var listeningFileDescriptor: Int32 = -1
   private var running = false
+  private var nextDeliverySequence: UInt64 = 0
   private(set) var authenticationToken = ""
 
   init(
@@ -119,6 +120,7 @@ final class LocalSocketServer: @unchecked Sendable {
     stateLock.withLock {
       listeningFileDescriptor = descriptor
       running = true
+      nextDeliverySequence = 0
     }
     try publishRuntimeMetadata()
     logger.info("Socket server started")
@@ -191,11 +193,17 @@ final class LocalSocketServer: @unchecked Sendable {
         if stateLock.withLock({ running }) { logger.error("Accept failed: \(errno)") }
         return
       }
-      clientQueue.async { [weak self] in self?.handle(client: client) }
+      let deliverySequence = stateLock.withLock { () -> UInt64 in
+        nextDeliverySequence &+= 1
+        return nextDeliverySequence
+      }
+      clientQueue.async { [weak self] in
+        self?.handle(client: client, deliverySequence: deliverySequence)
+      }
     }
   }
 
-  private func handle(client: Int32) {
+  private func handle(client: Int32, deliverySequence: UInt64) {
     var timeout = timeval(tv_sec: 5, tv_usec: 0)
     setsockopt(
       client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
@@ -213,7 +221,7 @@ final class LocalSocketServer: @unchecked Sendable {
       return
     }
 
-    let event: BridgeEvent
+    var event: BridgeEvent
     do {
       event = try JSONDecoder.bridge.decode(BridgeEvent.self, from: data)
     } catch {
@@ -245,6 +253,7 @@ final class LocalSocketServer: @unchecked Sendable {
       Darwin.close(client)
       return
     }
+    event.deliverySequence = deliverySequence
 
     Task { [eventHandler] in
       let decision = await eventHandler(event)

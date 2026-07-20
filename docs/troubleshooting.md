@@ -6,9 +6,9 @@ Use the menu-bar icon and choose Test State → Working. Enable “Show on displ
 
 ## Codex events do not arrive
 
-Read the Integration status before treating the socket as the problem. Cowlick installs its hook entries automatically during onboarding. If the status says review is required, start the Codex CLI, open `/hooks`, and trust the four Cowlick commands once. This is a Codex security review, not manual hook configuration, and Codex does not run newly installed commands before it. If the integration is incomplete, choose Settings → Integration → Install or Repair, then review it in the Codex CLI `/hooks`. Codex may need a restart after a new command hook is installed.
+Read the Integration status before treating the socket as the problem. Cowlick installs its hook entries automatically during onboarding. If the status says review is required, start the Codex CLI, open `/hooks`, and trust the Cowlick commands once. This is a Codex security review, not manual hook configuration, and Codex does not run newly installed commands before it. If the integration is incomplete, choose Settings → Integration → Install or Repair, then review it in the Codex CLI `/hooks`. Codex may need a restart after a new command hook is installed.
 
-Cowlick counts sessions from verified lifecycle hooks. Tasks that were already working before Cowlick's hooks were installed cannot be backfilled safely; they appear after their next submitted prompt or permission request. After a Cowlick restart, ledger entries are shown as “Unconfirmed after restart,” but do not count as active or reopen the passive island until a new hook confirms them. Their matching Stop hook removes them, and the 24-hour safety ceiling removes abandoned entries.
+Cowlick counts sessions from verified lifecycle hooks. Tasks that were already working before Cowlick's hooks were installed cannot be backfilled safely; they appear after their next submitted prompt, permission request, or subagent start. After a Cowlick restart, ledger entries are shown as “Unconfirmed after restart,” but do not count as active or reopen the passive island until a new hook confirms them. Their matching Stop hook removes them, and the 24-hour safety ceiling removes abandoned entries.
 
 ## Approval also appears in Codex
 

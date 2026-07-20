@@ -130,7 +130,7 @@ struct OnboardingView: View {
         icon: "point.3.connected.trianglepath.dotted",
         title: "Connect Cowlick to Codex.",
         detail:
-          "Cowlick safely merges four lifecycle hooks into your existing Codex configuration and preserves unrelated entries."
+          "Cowlick safely merges session, subagent, approval, and completion hooks into your existing Codex configuration while preserving unrelated entries."
       )
       Text(integrationStatus).font(.caption).foregroundStyle(.secondary)
       if integrationInstallState == .failed || integrationTrust.state == .incomplete {

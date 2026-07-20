@@ -14,6 +14,11 @@ struct IntegrationSelfTestLease: Equatable {
 @MainActor
 @Observable
 final class SessionStore {
+  private struct SubagentOrderingKey: Hashable {
+    let sessionID: String
+    let agentID: String
+  }
+
   private(set) var sessions: [String: AgentSession] = [:]
   private(set) var approvalQueue: [ApprovalRequest] = []
   private var seenApprovalRequestIDs: [UUID: Date] = [:]
@@ -23,6 +28,10 @@ final class SessionStore {
   private var ignoredIntegrationDemoSessionIDs: Set<String> = []
   private var integrationSelfTestLease: IntegrationSelfTestLease?
   private var integrationSelfTestCancelled = false
+  private var nextLocalDeliverySequence: UInt64 = 0
+  private var latestParentEventSequence: [String: UInt64] = [:]
+  private var latestSubagentBoundarySequence: [String: UInt64] = [:]
+  private var latestSubagentEventSequence: [SubagentOrderingKey: UInt64] = [:]
   var isExpanded = false
   var presentationDidChange: (() -> Void)?
 
@@ -51,11 +60,15 @@ final class SessionStore {
     sessions.values.filter(\.isActive).count
   }
 
+  var activeSubagentCount: Int {
+    sessions.values.filter { !$0.isRecovered }.reduce(0) { $0 + $1.subagents.count }
+  }
+
   var canPreviewTestStates: Bool {
     guard approvalQueue.allSatisfy({ localDemoApprovalIDs.contains($0.id) }) else { return false }
     return sessions.values.allSatisfy { session in
       guard !localDemoSessionIDs.contains(session.id) else { return true }
-      return switch session.status {
+      return switch session.presentationStatus {
       case .working, .awaitingApproval, .failed: false
       case .idle, .completed: true
       }
@@ -66,10 +79,10 @@ final class SessionStore {
     sessions.values
       .filter { session in
         if session.isRecovered { return false }
-        if case .completed = session.status {
+        if case .completed = session.presentationStatus {
           return (session.completionVisibleUntil ?? .distantPast) > Date()
         }
-        if case .idle = session.status { return false }
+        if case .idle = session.presentationStatus { return false }
         return true
       }
       .sorted(by: sessionSort)
@@ -82,7 +95,7 @@ final class SessionStore {
     let recoveredCutoff = now.addingTimeInterval(-LifecycleLedger.staleInterval)
     return sessions.values
       .filter { session in
-        if case .idle = session.status { return false }
+        if case .idle = session.presentationStatus { return false }
         if session.isRecovered { return session.updatedAt >= recoveredCutoff }
         return session.updatedAt >= cutoff
       }
@@ -97,6 +110,7 @@ final class SessionStore {
   }
 
   func receive(_ event: BridgeEvent) async -> ApprovalDecision? {
+    let deliverySequence = registerDeliverySequence(event.deliverySequence)
     let projectName = await Task.detached(priority: .utility) {
       ProjectNameResolver.resolve(workingDirectory: event.cwd)
     }.value
@@ -111,6 +125,10 @@ final class SessionStore {
       notifyPresentationChanged()
       return nil
     case .sessionStart:
+      guard acceptParentEvent(event, deliverySequence: deliverySequence) else {
+        recordIgnored(event, projectName: projectName)
+        return nil
+      }
       upsertSession(
         id: event.sessionId,
         turnID: event.turnId,
@@ -120,24 +138,66 @@ final class SessionStore {
         status: .idle,
         timestamp: event.timestamp
       )
+      clearSubagents(
+        in: event.sessionId, throughDeliverySequence: deliverySequence)
     case .working:
-      upsertSession(
-        id: event.sessionId,
-        turnID: event.turnId,
-        projectName: projectName,
-        cwd: event.cwd,
-        model: event.model,
-        status: .working(prompt: event.prompt),
-        timestamp: event.timestamp
-      )
+      if event.agentId != nil {
+        guard
+          upsertSubagent(
+            event, projectName: projectName, deliverySequence: deliverySequence)
+        else {
+          recordIgnored(event, projectName: projectName)
+          return nil
+        }
+      } else {
+        guard acceptParentEvent(event, deliverySequence: deliverySequence) else {
+          recordIgnored(event, projectName: projectName)
+          return nil
+        }
+        upsertSession(
+          id: event.sessionId,
+          turnID: event.turnId,
+          projectName: projectName,
+          cwd: event.cwd,
+          model: event.model,
+          status: .working(prompt: event.prompt),
+          timestamp: event.timestamp
+        )
+        clearSubagents(
+          in: event.sessionId, throughDeliverySequence: deliverySequence)
+      }
       isExpanded = false
     case .approvalRequested:
+      guard acceptParentEvent(event, deliverySequence: deliverySequence) else {
+        recordIgnored(event, projectName: projectName)
+        return .deferDecision
+      }
       return await handleApproval(event, projectName: projectName)
+    case .subagentStarted:
+      guard
+        upsertSubagent(event, projectName: projectName, deliverySequence: deliverySequence)
+      else {
+        recordIgnored(event, projectName: projectName)
+        return nil
+      }
+    case .subagentStopped:
+      guard stopSubagent(event, deliverySequence: deliverySequence) else {
+        recordIgnored(event, projectName: projectName)
+        return nil
+      }
     case .completed:
-      complete(event, projectName: projectName)
+      guard acceptParentEvent(event, deliverySequence: deliverySequence) else {
+        recordIgnored(event, projectName: projectName)
+        return nil
+      }
+      complete(event, projectName: projectName, deliverySequence: deliverySequence)
       if isIntegrationDemo { integrationDemoSessionIDs.remove(event.sessionId) }
     case .failed:
-      fail(event, projectName: projectName)
+      guard acceptParentEvent(event, deliverySequence: deliverySequence) else {
+        recordIgnored(event, projectName: projectName)
+        return nil
+      }
+      fail(event, projectName: projectName, deliverySequence: deliverySequence)
     }
 
     eventLogger.record(event: event.event, project: projectName)
@@ -201,6 +261,9 @@ final class SessionStore {
     integrationDemoSessionIDs.removeAll()
     integrationSelfTestCancelled = integrationSelfTestLease != nil
     sessions.removeAll()
+    latestParentEventSequence.removeAll()
+    latestSubagentBoundarySequence.removeAll()
+    latestSubagentEventSequence.removeAll()
     isExpanded = false
     eventLogger.reset()
     Task.detached(priority: .utility) { LifecycleLedger.clear() }
@@ -258,7 +321,7 @@ final class SessionStore {
         id: id, turnID: "demo-turn", projectName: "Scoutly", cwd: "/Demo/Scoutly", model: nil,
         status: .failed(message: "Bridge self-test failed"), timestamp: now)
       isExpanded = false
-    case .sessionStart, .ping:
+    case .sessionStart, .subagentStarted, .subagentStopped, .ping:
       break
     }
     notifyPresentationChanged()
@@ -467,7 +530,11 @@ final class SessionStore {
     return decision
   }
 
-  private func complete(_ event: BridgeEvent, projectName: String) {
+  private func complete(
+    _ event: BridgeEvent,
+    projectName: String,
+    deliverySequence: UInt64
+  ) {
     deferApprovals(for: event.sessionId)
     let message = settings.showResultPreviews ? event.lastAssistantMessage : nil
     upsertSession(
@@ -479,6 +546,8 @@ final class SessionStore {
       status: .completed(message: message),
       timestamp: event.timestamp
     )
+    clearSubagents(
+      in: event.sessionId, throughDeliverySequence: deliverySequence)
     let visibility = settings.completionVisibility.seconds
     var session = sessions[event.sessionId]!
     let visibleUntil = visibility.map { Date().addingTimeInterval($0) } ?? .distantFuture
@@ -500,10 +569,14 @@ final class SessionStore {
         self.notifyPresentationChanged()
       }
     }
-    scheduleStaleRemoval(sessionID: event.sessionId, updatedAt: event.timestamp)
+    scheduleStaleRemoval(sessionID: event.sessionId, updatedAt: session.updatedAt)
   }
 
-  private func fail(_ event: BridgeEvent, projectName: String) {
+  private func fail(
+    _ event: BridgeEvent,
+    projectName: String,
+    deliverySequence: UInt64
+  ) {
     deferApprovals(for: event.sessionId)
     upsertSession(
       id: event.sessionId,
@@ -514,8 +587,12 @@ final class SessionStore {
       status: .failed(message: event.errorMessage),
       timestamp: event.timestamp
     )
+    clearSubagents(
+      in: event.sessionId, throughDeliverySequence: deliverySequence)
     if settings.capsLockEnabled { Task { await capsLockService.start(.failure) } }
-    scheduleStaleRemoval(sessionID: event.sessionId, updatedAt: event.timestamp)
+    scheduleStaleRemoval(
+      sessionID: event.sessionId,
+      updatedAt: sessions[event.sessionId]?.updatedAt ?? event.timestamp)
   }
 
   private func upsertSession(
@@ -526,7 +603,8 @@ final class SessionStore {
     model: String?,
     status: AgentStatus,
     timestamp: Date,
-    isRecovered: Bool = false
+    isRecovered: Bool = false,
+    preserveSubagents: Bool = true
   ) {
     let existing = sessions[id]
     sessions[id] = AgentSession(
@@ -535,11 +613,116 @@ final class SessionStore {
       projectName: projectName,
       workingDirectory: cwd,
       model: model ?? existing?.model,
+      subagents: preserveSubagents ? existing?.subagents ?? [:] : [:],
       status: status,
-      updatedAt: timestamp,
+      updatedAt: max(timestamp, existing?.updatedAt ?? .distantPast),
       completionVisibleUntil: existing?.completionVisibleUntil,
       isRecovered: isRecovered
     )
+  }
+
+  @discardableResult
+  private func upsertSubagent(
+    _ event: BridgeEvent,
+    projectName: String,
+    deliverySequence: UInt64
+  ) -> Bool {
+    guard let agentID = event.agentId, !agentID.isEmpty,
+      let agentType = event.agentType, !agentType.isEmpty,
+      let turnID = event.turnId, !turnID.isEmpty
+    else { return false }
+
+    let orderingKey = SubagentOrderingKey(sessionID: event.sessionId, agentID: agentID)
+    guard deliverySequence > latestSubagentBoundarySequence[event.sessionId, default: 0],
+      deliverySequence > latestSubagentEventSequence[orderingKey, default: 0]
+    else { return false }
+    latestSubagentEventSequence[orderingKey] = deliverySequence
+
+    if sessions[event.sessionId] == nil {
+      upsertSession(
+        id: event.sessionId,
+        turnID: turnID,
+        projectName: projectName,
+        cwd: event.cwd,
+        model: event.model,
+        status: .idle,
+        timestamp: event.timestamp
+      )
+    }
+    guard var session = sessions[event.sessionId] else { return false }
+    session.subagents[agentID] = SubagentActivity(
+      id: agentID, turnID: turnID, deliverySequence: deliverySequence, updatedAt: event.timestamp)
+    session.updatedAt = max(session.updatedAt, event.timestamp)
+    session.isRecovered = false
+    sessions[event.sessionId] = session
+    return true
+  }
+
+  @discardableResult
+  private func stopSubagent(_ event: BridgeEvent, deliverySequence: UInt64) -> Bool {
+    guard let agentID = event.agentId,
+      let turnID = event.turnId
+    else { return false }
+    let orderingKey = SubagentOrderingKey(sessionID: event.sessionId, agentID: agentID)
+    guard deliverySequence > latestSubagentBoundarySequence[event.sessionId, default: 0],
+      deliverySequence > latestSubagentEventSequence[orderingKey, default: 0]
+    else { return false }
+    latestSubagentEventSequence[orderingKey] = deliverySequence
+    guard
+      var session = sessions[event.sessionId],
+      session.subagents[agentID]?.turnID == turnID
+    else { return false }
+    session.subagents.removeValue(forKey: agentID)
+    session.updatedAt = max(session.updatedAt, event.timestamp)
+    sessions[event.sessionId] = session
+    if session.subagents.isEmpty {
+      switch session.status {
+      case .idle, .completed, .failed:
+        scheduleStaleRemoval(sessionID: event.sessionId, updatedAt: session.updatedAt)
+      case .working, .awaitingApproval:
+        break
+      }
+    }
+    return true
+  }
+
+  private func registerDeliverySequence(_ acceptedSequence: UInt64?) -> UInt64 {
+    if let acceptedSequence {
+      nextLocalDeliverySequence = max(nextLocalDeliverySequence, acceptedSequence)
+      return acceptedSequence
+    }
+    nextLocalDeliverySequence &+= 1
+    return nextLocalDeliverySequence
+  }
+
+  private func acceptParentEvent(_ event: BridgeEvent, deliverySequence: UInt64) -> Bool {
+    guard deliverySequence > latestParentEventSequence[event.sessionId, default: 0] else {
+      return false
+    }
+    latestParentEventSequence[event.sessionId] = deliverySequence
+    return true
+  }
+
+  private func clearSubagents(in sessionID: String, throughDeliverySequence: UInt64) {
+    latestSubagentBoundarySequence[sessionID] = max(
+      latestSubagentBoundarySequence[sessionID, default: 0], throughDeliverySequence)
+    guard var session = sessions[sessionID] else { return }
+    let removedAgentIDs = session.subagents.values
+      .filter { $0.deliverySequence <= throughDeliverySequence }
+      .map(\.id)
+    guard !removedAgentIDs.isEmpty else { return }
+    for agentID in removedAgentIDs {
+      session.subagents.removeValue(forKey: agentID)
+      let key = SubagentOrderingKey(sessionID: sessionID, agentID: agentID)
+      if latestSubagentEventSequence[key, default: 0] <= throughDeliverySequence {
+        latestSubagentEventSequence.removeValue(forKey: key)
+      }
+    }
+    sessions[sessionID] = session
+  }
+
+  private func recordIgnored(_ event: BridgeEvent, projectName: String) {
+    eventLogger.record(event: event.event, project: projectName, outcome: "ignored")
   }
 
   private func deferApprovals(for sessionID: String) {
@@ -555,6 +738,11 @@ final class SessionStore {
       try? await Task.sleep(for: .seconds(15 * 60))
       guard let self, self.sessions[sessionID]?.updatedAt == updatedAt else { return }
       self.sessions.removeValue(forKey: sessionID)
+      self.latestParentEventSequence.removeValue(forKey: sessionID)
+      self.latestSubagentBoundarySequence.removeValue(forKey: sessionID)
+      self.latestSubagentEventSequence = self.latestSubagentEventSequence.filter {
+        $0.key.sessionID != sessionID
+      }
       self.notifyPresentationChanged()
     }
   }
@@ -566,8 +754,8 @@ final class SessionStore {
   }
 
   private func sessionSort(_ lhs: AgentSession, _ rhs: AgentSession) -> Bool {
-    if lhs.status.priority != rhs.status.priority {
-      return lhs.status.priority > rhs.status.priority
+    if lhs.presentationStatus.priority != rhs.presentationStatus.priority {
+      return lhs.presentationStatus.priority > rhs.presentationStatus.priority
     }
     return lhs.updatedAt > rhs.updatedAt
   }
