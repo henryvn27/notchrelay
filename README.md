@@ -9,7 +9,7 @@
 
 ![Cowlick showing a request-matched approval and multiple sessions on a non-notch display](Assets/Screenshots/hero.png)
 
-[Watch the 8-second product demo](Assets/Demo/cowlick-demo.mp4) · [Open the press kit](Assets/PressKit/README.md)
+[Watch the 10-second product demo](Assets/Demo/cowlick-demo.mp4) · [Open the press kit](Assets/PressKit/README.md)
 
 > Cowlick does not publish unsigned or development-signed downloads. The [GitHub Releases page](https://github.com/henryvn27/cowlick/releases) is the source of truth: if it lists no release, use the contributor install rather than an unverified build artifact.
 
@@ -29,6 +29,12 @@ Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidd
 - Can optionally display an attributed, unofficial reset forecast from [Will Codex Reset?](https://www.willcodexquotareset.com/); it is off by default and never presented as Cowlick data.
 - On supported hardware, optionally pulses the Caps Lock LED while preserving its original state; the feature stays disabled when its in-app signal test cannot verify native control.
 - Keeps prompt and result previews off by default.
+
+### Plan usage before reset
+
+![Cowlick showing remaining quota, predicted time to empty, API-price equivalent, and an attributed third-party reset forecast](Assets/Screenshots/usage.png)
+
+The pace marker compares current use with an even spend through reset. Cowlick reports time to empty when the current burn rate would exhaust quota early, while API-price equivalent and third-party forecast data remain visibly separate from subscription usage.
 
 ## Install
 
