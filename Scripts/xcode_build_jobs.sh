@@ -8,3 +8,16 @@ cowlick_xcode_build_jobs() {
   fi
   print -r -- "$jobs"
 }
+
+cowlick_host_architecture() {
+  local architecture
+  if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null || true)" == "1" ]]; then
+    architecture="arm64"
+  else
+    architecture="$(uname -m)"
+  fi
+  case "$architecture" in
+    arm64 | x86_64) print -r -- "$architecture" ;;
+    *) print -u2 -- "Unsupported Mac architecture: $architecture"; return 2 ;;
+  esac
+}

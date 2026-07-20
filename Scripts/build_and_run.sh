@@ -10,6 +10,7 @@ run_verify=false
 show_logs=false
 local_telemetry=false
 xcode_jobs="$(cowlick_xcode_build_jobs)"
+cowlick_build_architecture="$(cowlick_host_architecture)"
 
 for argument in "$@"; do
   case "$argument" in
@@ -48,7 +49,7 @@ xcodebuild \
   -scheme Cowlick \
   -configuration "$configuration" \
   -derivedDataPath "$derived_data" \
-  -destination 'platform=macOS,arch=arm64' \
+  -destination "platform=macOS,arch=$cowlick_build_architecture" \
   -jobs "$xcode_jobs" \
   build
 

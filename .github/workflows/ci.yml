@@ -63,6 +63,17 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
+      - name: Verify website
+        run: ./Scripts/verify_website.sh
+      - name: Install website test tools
+        working-directory: Website
+        run: npm ci --ignore-scripts
+      - name: Install pinned website browser
+        working-directory: Website
+        run: npx playwright install --with-deps chromium
+      - name: Smoke-test website in Chromium
+        working-directory: Website
+        run: npm test
       - name: Verify portable release provenance
         run: |
           bash -n Scripts/verify_release_provenance.sh

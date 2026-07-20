@@ -1,64 +1,43 @@
 <p align="center"><img src="Assets/AppIcon/cowlick-icon.svg" width="112" alt="Cowlick icon"></p>
 <h1 align="center">Cowlick</h1>
-<p align="center"><strong>Codex status and safe approval actions, right at the MacBook notch.</strong></p>
-<p align="center"><a href="#install">Install</a> · <a href="docs/security.md">Security</a> · <a href="docs/privacy.md">Privacy</a> · <a href="docs/troubleshooting.md">Troubleshooting</a></p>
+<p align="center"><strong>Live Codex status, safe approvals, and quota pace at the MacBook notch.</strong></p>
+<p align="center"><a href="https://henryvn27.github.io/cowlick/">Website</a> · <a href="#install-from-source">Install from source</a> · <a href="docs/security.md">Safety</a> · <a href="docs/privacy.md">Privacy</a></p>
 <p align="center">
-  <a href="https://github.com/henryvn27/cowlick/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/henryvn27/cowlick?display_name=tag&sort=semver"></a>
   <a href="https://github.com/henryvn27/cowlick/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/henryvn27/cowlick/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 </p>
 
-![Cowlick showing a request-matched approval and multiple sessions on a non-notch display](Assets/Screenshots/hero.png)
+![Cowlick emerging from the top edge with a request-matched approval](Assets/Screenshots/hero.png)
 
 [Watch the 10-second product demo](Assets/Demo/cowlick-demo.mp4) · [Open the press kit](Assets/PressKit/README.md)
 
-> Cowlick does not publish unsigned or development-signed downloads. The [GitHub Releases page](https://github.com/henryvn27/cowlick/releases) is the source of truth: if it lists no release, use the contributor install rather than an unverified build artifact.
+> **Release status:** source install only. Cowlick will not publish an unsigned or development-signed download. A public DMG and Homebrew cask will appear after Developer ID signing, notarization, and clean-install verification pass.
 
-Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidden while idle, shows active projects and completion near the notch, and lets you allow once or deny supported Codex permission requests without becoming a second Codex client.
+Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays out of the way while idle, surfaces active projects and completion near the notch, and lets you allow once or deny supported permission requests without becoming another Codex client.
 
-## What it does
+## Status that fits the moment
 
-- Shows working, approval, completed, and multi-session Codex lifecycle states. Cowlick's failure presentation is reserved for its own bridge and self-test diagnostics; the available Codex hooks do not provide authoritative task-failure state.
-- Uses official Codex lifecycle hooks for state; it never parses prompt or transcript content.
-- Matches approval decisions to a unique pending request and never defaults to Allow.
-- Falls back to Codex's normal approval UI if the app is unavailable, disconnected, malformed, or timed out.
-- Uses the built-in display's real safe-area geometry; non-notch Macs get a compact top-center island.
-- Shows current Codex quota from the single local Codex identity, with no account-file access or usage history.
-- Estimates whether the current burn rate should last through reset or approximately how long remains before quota exhaustion; it does not present an “expected percent” as the forecast.
-- Optionally prices this Mac's month-to-date local Codex token counters at published OpenAI Standard API rates. It is labeled as a partial API-price equivalent, never as a subscription charge or actual bill.
-- Keeps multiple labeled OpenAI API and Anthropic API organization-billing accounts separate, with an account switcher in the menu, aliases in owner-only metadata, and Admin API keys in macOS Keychain.
-- Can optionally display an attributed, unofficial reset forecast from [Will Codex Reset?](https://www.willcodexquotareset.com/); it is off by default and never presented as Cowlick data.
-- On supported hardware, optionally pulses the Caps Lock LED while preserving its original state; the feature stays disabled when its in-app signal test cannot verify native control.
-- Keeps prompt and result previews off by default.
+- **Working stays compact.** Project, task state, and active-session count sit close to the notch.
+- **Approvals open only when needed.** Project, tool, operation, and explicit actions stay together.
+- **Completion leaves cleanly.** A brief confirmation appears, then the overlay hides again.
+- **Sessions stay separate.** Each Codex session and pending request keeps its own identity.
 
-### Plan usage before reset
+On a Mac without a notch, Cowlick uses a compact top-center island below the menu bar instead of drawing a fake notch.
+
+## Approval safety
+
+Allow is never the default action. Every decision is matched to the exact pending request UUID. If Cowlick is unavailable, disconnected, timed out, or receives malformed data, it returns no decision and Codex keeps its normal approval UI.
+
+[Read the threat model](docs/security.md)
+
+## Plan usage before reset
 
 ![Cowlick showing remaining quota, predicted time to empty, API-price equivalent, and an attributed third-party reset forecast](Assets/Screenshots/usage.png)
 
-The pace marker compares current use with an even spend through reset. Cowlick reports time to empty when the current burn rate would exhaust quota early, while API-price equivalent and third-party forecast data remain visibly separate from subscription usage.
+The pace marker compares current use with an even spend through reset. Cowlick shows time to empty when the observed pace would exhaust quota early. API-price equivalents, organization billing, and third-party reset forecasts remain clearly labeled and separate from subscription usage.
 
-## Install
+## Install from source
 
-### Homebrew
-
-When the [release badge](https://github.com/henryvn27/cowlick/releases) shows a version and the public tap contains the matching cask, install the signed and notarized app with:
-
-```sh
-brew install --cask henryvn27/cowlick/cowlick
-```
-
-If Homebrew reports that the cask is unavailable, no verified public cask has been published yet. Do not substitute a development build.
-
-### Direct download
-
-Every public version is listed on [GitHub Releases](https://github.com/henryvn27/cowlick/releases) with its signed, notarized DMG, update ZIP, checksums, release notes, supported architectures, and minimum macOS version. A Releases page with no version means there is no public binary to download. Normal release installation requires no Xcode, Swift, Python, Node, npm, Cowlick account, or cloud service.
-
-After Cowlick installs its lifecycle hooks, Codex may require one security review: open the Codex CLI, run `/hooks`, and trust the Cowlick commands. This is a trust confirmation, not a manual hook-installation step.
-
-To uninstall a public build, first choose Settings → Integration → Remove Integration so Cowlick removes only its hooks and installed helper. Then remove the app with `brew uninstall --cask cowlick` or delete the direct-download app. Before `brew uninstall --zap`, also remove every saved billing account in Settings → Accounts because Homebrew cannot remove its Keychain credential.
-
-### Contributor install
-
-Requirements: macOS 14+, Xcode 16 or newer, and XcodeGen.
+The current install requires macOS 14 or newer, Xcode 16 or newer, Homebrew, and XcodeGen.
 
 ```sh
 git clone https://github.com/henryvn27/cowlick.git cowlick
@@ -67,13 +46,13 @@ brew install xcodegen
 ./Scripts/install_local.sh
 ```
 
-The contributor installer builds Cowlick, installs it in `~/Applications`, installs and merges the local Codex hooks, launches the app, and runs bridge diagnostics. Use `./Scripts/build_and_run.sh --verify` when developing without installing. Contributor builds are not public release artifacts and should not be redistributed as such.
+The installer builds Cowlick, places it in `~/Applications`, safely merges the bundled Codex hooks, launches the app, and runs bridge diagnostics. Normal users will not need Xcode once the signed public release exists.
 
-Contributor uninstall preserves preferences, provider accounts, and their Keychain credentials by default. `./Scripts/uninstall_local.sh --purge` first deletes and verifies every referenced provider credential, then removes local data; it stops without deleting account metadata if Keychain cleanup cannot be verified.
+To develop without installing, run `./Scripts/build_and_run.sh --verify`. To remove a source install, run `./Scripts/uninstall_local.sh`; add `--purge` only when you also want to remove local preferences and provider credentials.
 
-## Approval safety
+## Public download
 
-Cowlick's Allow button is never the default action. Every response contains the exact request UUID received from the helper. A timeout, invalid token, stale event, malformed response, mismatched UUID, unavailable app, or broken socket returns no decision, so Codex continues with its own normal approval prompt. Tool input is display-only and is never executed by Cowlick.
+There is no verified public binary yet. The [Releases page](https://github.com/henryvn27/cowlick/releases) is the source of truth. Cowlick will publish a signed and notarized DMG, update ZIP, checksums, and Homebrew cask only after the release pipeline and clean-install checks pass.
 
 ## Supported systems
 

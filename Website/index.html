@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'none'; object-src 'none'; connect-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; form-action 'self'"
+    >
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#11110f">
+    <meta
+      name="description"
+      content="Cowlick keeps Codex work, approvals, completion, and usage planning close at the MacBook notch. Native, local-first, and open source."
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Cowlick - Codex at the MacBook notch">
+    <meta
+      property="og:description"
+      content="A native, local-first macOS companion for Codex status, safe approvals, and usage planning."
+    >
+    <meta
+      property="og:image"
+      content="https://henryvn27.github.io/cowlick/assets/github-social-preview.png"
+    >
+    <meta property="og:image:width" content="1280">
+    <meta property="og:image:height" content="640">
+    <meta
+      property="og:image:alt"
+      content="Cowlick emerging from the top edge with a request-matched Codex approval"
+    >
+    <meta property="og:url" content="https://henryvn27.github.io/cowlick/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Cowlick - Codex at the MacBook notch">
+    <meta
+      name="twitter:description"
+      content="A native, local-first macOS companion for Codex status, safe approvals, and usage planning."
+    >
+    <meta
+      name="twitter:image"
+      content="https://henryvn27.github.io/cowlick/assets/github-social-preview.png"
+    >
+    <link rel="canonical" href="https://henryvn27.github.io/cowlick/">
+    <link rel="icon" href="./assets/cowlick-icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./assets/cowlick-icon-1024.png">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./site.js" defer></script>
+    <title>Cowlick - Codex at the MacBook notch</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="Cowlick home">
+          <img src="./assets/cowlick-icon.svg" alt="" width="38" height="38">
+          <span>Cowlick</span>
+        </a>
+        <div class="nav-links">
+          <a href="#product">Product</a>
+          <a href="#usage">Usage</a>
+          <a href="#safety">Safety</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/henryvn27/cowlick">GitHub <span aria-hidden="true">↗</span></a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hardware-edge" aria-hidden="true"></div>
+
+        <div class="island-stage" data-mode="working">
+          <figure class="island-frame">
+            <img
+              id="island-preview"
+              src="./assets/working.png"
+              width="340"
+              height="68"
+              alt="Cowlick showing the ActivityPilot project in its working state"
+            >
+            <figcaption id="island-caption">Working. Quietly present.</figcaption>
+          </figure>
+
+          <div class="state-switcher" role="group" aria-label="Preview a Cowlick state" hidden>
+            <button type="button" data-preview="working" aria-pressed="true">Working</button>
+            <button type="button" data-preview="approval" aria-pressed="false">Approval</button>
+            <button type="button" data-preview="completed" aria-pressed="false">Completed</button>
+          </div>
+        </div>
+
+        <div class="hero-copy">
+          <h1 id="hero-title">Codex lives at the notch.</h1>
+          <div class="hero-support">
+            <p>
+              Live Codex status, safe approvals, and quota pace at the MacBook notch.
+              Native on macOS. Local by default.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-action" href="#install">Build from source</a>
+            </div>
+          </div>
+        </div>
+
+        <p class="release-truth">
+          No public binary yet. Cowlick will only publish a signed, notarized build.
+        </p>
+      </section>
+
+      <section class="states-section" id="product" aria-labelledby="states-title">
+        <div class="section-intro">
+          <h2 id="states-title">The right interruption at the right size.</h2>
+          <p>
+            Passive work stays compact. Permission requests open just enough to be understood and
+            answered. Multiple sessions remain separate.
+          </p>
+        </div>
+
+        <div class="state-proof">
+          <figure class="proof-approval">
+            <img
+              src="./assets/approval.png"
+              width="760"
+              height="282"
+              loading="lazy"
+              alt="Cowlick approval view for a Bash command, with Deny, Open Codex, Copy, and Allow once actions"
+            >
+            <figcaption>
+              <strong>Approval asks plainly.</strong>
+              Project, tool, operation, and explicit actions stay together.
+            </figcaption>
+          </figure>
+
+          <figure class="proof-sessions">
+            <img
+              src="./assets/multi-session.png"
+              width="720"
+              height="280"
+              loading="lazy"
+              alt="Cowlick session list showing ActivityPilot and Scoutly working independently"
+            >
+            <figcaption>
+              <strong>Sessions do not blur together.</strong>
+              Each project keeps its own lifecycle and request identity.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <div class="usage-band">
+        <section class="usage-section" id="usage" aria-labelledby="usage-title">
+          <div class="usage-copy">
+            <h2 id="usage-title">Make quota last until reset.</h2>
+            <p>
+              Cowlick compares your current pace with the reset window, estimates time to empty, and
+              keeps API-price equivalents visibly separate from real organization billing.
+            </p>
+            <dl class="usage-points">
+              <div>
+                <dt>Quota pace</dt>
+                <dd>Used or remaining, plus a marker for even spend through reset.</dd>
+              </div>
+              <div>
+                <dt>Time to empty</dt>
+                <dd>A direct warning when the observed pace would run out early.</dd>
+              </div>
+              <div>
+              <dt>Billing accounts</dt>
+              <dd>
+                Codex quota uses one local identity. OpenAI and Anthropic organization billing
+                accounts stay labeled and uncombined.
+              </dd>
+              </div>
+            </dl>
+          </div>
+
+          <figure class="usage-capture">
+            <img
+              src="./assets/usage.png"
+              width="800"
+              height="1040"
+              loading="lazy"
+              alt="Cowlick quota panel showing remaining usage, time to empty, partial API-price equivalent, and an attributed third-party forecast"
+            >
+            <figcaption>Real Cowlick capture with non-sensitive demo data.</figcaption>
+          </figure>
+        </section>
+      </div>
+
+      <section class="safety-section" id="safety" aria-labelledby="safety-title">
+        <div class="safety-surface">
+          <div class="safety-copy">
+            <h2 id="safety-title">Allow once means this request. Nothing else.</h2>
+            <p>
+              Every approval is matched to one pending UUID. Cowlick never makes Allow the default
+              and never turns a timeout, malformed response, or disconnected app into permission.
+            </p>
+          </div>
+
+          <ol class="decision-path" aria-label="Cowlick approval decision path">
+            <li>
+              <span class="path-number">1</span>
+              <div><strong>Codex asks</strong><span>A current request arrives over private IPC.</span></div>
+            </li>
+            <li>
+              <span class="path-number">2</span>
+              <div><strong>You decide</strong><span>Allow once or Deny is explicit.</span></div>
+            </li>
+            <li>
+              <span class="path-number">3</span>
+              <div><strong>Failure defers</strong><span>Codex keeps its normal approval UI.</span></div>
+            </li>
+          </ol>
+
+          <a class="safety-link" href="https://github.com/henryvn27/cowlick/blob/main/docs/security.md">
+            Read the threat model <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="privacy-section" aria-labelledby="privacy-title">
+        <h2 id="privacy-title">Prompts stay private.</h2>
+        <p class="privacy-lead">
+          Prompt previews are off by default. Cowlick has no analytics, Cowlick account, cloud
+          backend, ads, or third-party crash reporter.
+        </p>
+        <div class="privacy-facts">
+          <p><strong>No transcript-derived state.</strong> Lifecycle state comes from official Codex hooks.</p>
+          <p><strong>No prompt history.</strong> Full prompts and approval operations are not persisted.</p>
+          <p><strong>No hidden aggregation.</strong> Provider accounts and cost coverage remain separate.</p>
+        </div>
+        <a class="quiet-action" href="https://github.com/henryvn27/cowlick/blob/main/PRIVACY.md">
+          Every stored file and network path <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+
+      <section class="install-section" id="install" aria-labelledby="install-title">
+        <div class="install-heading">
+          <h2 id="install-title">Build from source today.</h2>
+          <p>
+            The source is public today. A one-click binary and Homebrew cask will appear only after
+            Developer ID signing, notarization, and clean-install verification pass.
+          </p>
+        </div>
+
+        <div class="install-options">
+          <article class="source-install">
+            <h3>Contributor install</h3>
+            <p>macOS 14+, Xcode 16 or newer, Homebrew, and XcodeGen.</p>
+            <pre><code id="install-command">git clone https://github.com/henryvn27/cowlick.git
+cd cowlick
+brew install xcodegen
+./Scripts/install_local.sh</code></pre>
+            <button class="copy-command" type="button" data-copy-target="install-command" hidden>
+              Copy commands
+            </button>
+            <p class="copy-feedback" role="status" aria-live="polite"></p>
+          </article>
+
+          <aside class="binary-status" aria-label="Public binary status">
+            <h3>Public binary</h3>
+            <p class="status-value">Not published</p>
+            <p>
+              There is no verified DMG or Homebrew cask yet. Cowlick will not point you at an
+              unsigned substitute.
+            </p>
+            <a href="https://github.com/henryvn27/cowlick/releases">Check GitHub Releases <span aria-hidden="true">↗</span></a>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-mark" aria-hidden="true">Cowlick</div>
+      <div class="footer-content">
+        <p>Native macOS. Local-first. Open source.</p>
+        <nav aria-label="Footer navigation">
+          <a href="https://github.com/henryvn27/cowlick">Source</a>
+          <a href="https://github.com/henryvn27/cowlick/blob/main/docs/privacy.md">Privacy</a>
+          <a href="https://github.com/henryvn27/cowlick/blob/main/docs/security.md">Security</a>
+          <a href="https://github.com/henryvn27/cowlick/blob/main/CONTRIBUTING.md">Contribute</a>
+        </nav>
+        <p class="disclaimer">
+          Cowlick is an unofficial community project. It is not affiliated with, endorsed by, or
+          sponsored by OpenAI.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -15,6 +15,9 @@ private struct LaunchAssetGenerator {
   private let background = NSColor(red: 0.075, green: 0.073, blue: 0.068, alpha: 1)
   private let foreground = NSColor(red: 0.93, green: 0.92, blue: 0.88, alpha: 1)
   private let accent = NSColor(red: 0.88, green: 0.68, blue: 0.38, alpha: 1)
+  private let paper = NSColor(red: 0.914, green: 0.902, blue: 0.871, alpha: 1)
+  private let paperInk = NSColor(red: 0.067, green: 0.067, blue: 0.059, alpha: 1)
+  private let paperMuted = NSColor(red: 0.408, green: 0.400, blue: 0.373, alpha: 1)
 
   init() throws {
     let script = URL(fileURLWithPath: #filePath)
@@ -40,48 +43,47 @@ private struct LaunchAssetGenerator {
 
   private func drawHero(size: CGSize, destination: URL) throws {
     let approval = try loadScreenshot("approval.png")
-    let sessions = try loadScreenshot("multi-session.png")
     let bitmap = try makeCanvas(size: size) {
-      fillBackground(size)
-      icon.draw(in: CGRect(x: 84, y: 710, width: 84, height: 84))
-      drawText(
-        "Cowlick", in: CGRect(x: 194, y: 724, width: 460, height: 76),
-        font: .systemFont(ofSize: 62, weight: .semibold), color: foreground)
-      drawText(
-        "Codex status and safe approvals,\nkept close—without becoming\nanother client.",
-        in: CGRect(x: 88, y: 500, width: 550, height: 150),
-        font: .systemFont(ofSize: 32, weight: .regular),
-        color: foreground.withAlphaComponent(0.78), lineHeight: 1.16)
-      drawText(
-        "NATIVE macOS", in: CGRect(x: 90, y: 432, width: 200, height: 24),
-        font: .monospacedSystemFont(ofSize: 15, weight: .semibold), color: accent)
-      drawText(
-        "Open source. Local-first. No analytics.",
-        in: CGRect(x: 90, y: 388, width: 480, height: 30),
-        font: .systemFont(ofSize: 19, weight: .medium),
-        color: foreground.withAlphaComponent(0.52))
-      drawText(
-        "github.com/henryvn27/cowlick", in: CGRect(x: 90, y: 98, width: 490, height: 32),
-        font: .monospacedSystemFont(ofSize: 18, weight: .regular),
-        color: foreground.withAlphaComponent(0.74))
+      paper.setFill()
+      NSBezierPath(rect: CGRect(origin: .zero, size: size)).fill()
+      background.setFill()
+      NSBezierPath(rect: CGRect(x: 0, y: 724, width: size.width, height: 176)).fill()
+      NSBezierPath(
+        roundedRect: CGRect(x: 420, y: 548, width: 760, height: 470),
+        xRadius: 38,
+        yRadius: 38
+      ).fill()
 
+      icon.draw(in: CGRect(x: 84, y: 782, width: 58, height: 58))
+      drawText(
+        "Cowlick", in: CGRect(x: 162, y: 789, width: 350, height: 52),
+        font: .systemFont(ofSize: 38, weight: .semibold), color: foreground)
       drawImage(
-        approval, anchoredAt: CGPoint(x: 760, y: 492), maximumSize: CGSize(width: 760, height: 312))
+        approval, anchoredAt: CGPoint(x: 474, y: 650),
+        maximumSize: CGSize(width: 652, height: 242))
       drawText(
-        "Request-matched approval", in: CGRect(x: 772, y: 452, width: 400, height: 24),
-        font: .systemFont(ofSize: 15, weight: .semibold),
-        color: foreground.withAlphaComponent(0.66))
-      drawImage(
-        sessions, anchoredAt: CGPoint(x: 800, y: 102), maximumSize: CGSize(width: 720, height: 320))
+        "Approval. Enough context to decide.",
+        in: CGRect(x: 560, y: 602, width: 480, height: 26),
+        font: .systemFont(ofSize: 15, weight: .medium),
+        color: foreground.withAlphaComponent(0.54), alignment: .center)
       drawText(
-        "Independent sessions", in: CGRect(x: 812, y: 62, width: 300, height: 24),
-        font: .systemFont(ofSize: 15, weight: .semibold),
-        color: foreground.withAlphaComponent(0.66))
+        "Codex lives\nat the notch.",
+        in: CGRect(x: 84, y: 222, width: 820, height: 230),
+        font: .systemFont(ofSize: 92, weight: .bold), color: paperInk, lineHeight: 0.88)
       drawText(
-        "Current app · non-notch display capture",
-        in: CGRect(x: 1_125, y: 62, width: 395, height: 24),
+        "Live Codex status, safe approvals,\nand quota pace. Native on macOS.\nLocal by default.",
+        in: CGRect(x: 1_050, y: 262, width: 440, height: 126),
+        font: .systemFont(ofSize: 25, weight: .regular),
+        color: paperMuted, lineHeight: 1.28)
+      drawText(
+        "github.com/henryvn27/cowlick", in: CGRect(x: 88, y: 76, width: 490, height: 32),
+        font: .monospacedSystemFont(ofSize: 18, weight: .regular),
+        color: paperMuted)
+      drawText(
+        "Current app · non-sensitive demo data",
+        in: CGRect(x: 1_100, y: 78, width: 390, height: 24),
         font: .systemFont(ofSize: 14, weight: .medium),
-        color: foreground.withAlphaComponent(0.38), alignment: .right)
+        color: paperMuted.withAlphaComponent(0.74), alignment: .right)
     }
     try writePNG(bitmap, to: destination)
   }
@@ -90,32 +92,40 @@ private struct LaunchAssetGenerator {
     let size = CGSize(width: 1_280, height: 640)
     let approval = try loadScreenshot("approval.png")
     let bitmap = try makeCanvas(size: size) {
-      fillBackground(size)
-      icon.draw(in: CGRect(x: 62, y: 500, width: 70, height: 70))
+      paper.setFill()
+      NSBezierPath(rect: CGRect(origin: .zero, size: size)).fill()
+      background.setFill()
+      NSBezierPath(rect: CGRect(x: 0, y: 516, width: size.width, height: 124)).fill()
+      NSBezierPath(
+        roundedRect: CGRect(x: 360, y: 366, width: 560, height: 390),
+        xRadius: 30,
+        yRadius: 30
+      ).fill()
+
+      icon.draw(in: CGRect(x: 52, y: 552, width: 48, height: 48))
       drawText(
-        "Cowlick", in: CGRect(x: 154, y: 508, width: 330, height: 62),
-        font: .systemFont(ofSize: 49, weight: .semibold), color: foreground)
-      drawText(
-        "Codex status and\nsafe approvals, at a glance.",
-        in: CGRect(x: 66, y: 302, width: 425, height: 116),
-        font: .systemFont(ofSize: 29, weight: .regular),
-        color: foreground.withAlphaComponent(0.78), lineHeight: 1.14)
-      drawText(
-        "Local-first · open source", in: CGRect(x: 68, y: 245, width: 370, height: 30),
-        font: .systemFont(ofSize: 17, weight: .medium),
-        color: foreground.withAlphaComponent(0.5))
-      drawText(
-        "github.com/henryvn27/cowlick", in: CGRect(x: 68, y: 68, width: 420, height: 28),
-        font: .monospacedSystemFont(ofSize: 16, weight: .regular),
-        color: foreground.withAlphaComponent(0.72))
+        "Cowlick", in: CGRect(x: 116, y: 555, width: 250, height: 46),
+        font: .systemFont(ofSize: 34, weight: .semibold), color: foreground)
       drawImage(
-        approval, anchoredAt: CGPoint(x: 518, y: 205),
-        maximumSize: CGSize(width: 700, height: 288))
+        approval, anchoredAt: CGPoint(x: 404, y: 448),
+        maximumSize: CGSize(width: 472, height: 194))
       drawText(
-        "Current app · non-notch display capture",
-        in: CGRect(x: 780, y: 158, width: 438, height: 24),
+        "Approval. Enough context to decide.",
+        in: CGRect(x: 430, y: 405, width: 420, height: 22),
         font: .systemFont(ofSize: 13, weight: .medium),
-        color: foreground.withAlphaComponent(0.38), alignment: .right)
+        color: foreground.withAlphaComponent(0.54), alignment: .center)
+      drawText(
+        "Codex lives\nat the notch.",
+        in: CGRect(x: 52, y: 120, width: 680, height: 184),
+        font: .systemFont(ofSize: 76, weight: .bold), color: paperInk, lineHeight: 0.88)
+      drawText(
+        "Live Codex status, safe approvals,\nand quota pace. Native on macOS.\nLocal by default.",
+        in: CGRect(x: 842, y: 158, width: 368, height: 108),
+        font: .systemFont(ofSize: 21, weight: .regular),
+        color: paperMuted, lineHeight: 1.28)
+      drawText(
+        "github.com/henryvn27/cowlick", in: CGRect(x: 54, y: 52, width: 420, height: 28),
+        font: .monospacedSystemFont(ofSize: 15, weight: .regular), color: paperMuted)
     }
     try writePNG(bitmap, to: destination)
   }

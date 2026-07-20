@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://henryvn27.github.io/cowlick/sitemap.xml

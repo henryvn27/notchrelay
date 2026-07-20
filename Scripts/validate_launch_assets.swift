@@ -177,10 +177,11 @@ private func validateImages() {
       minimumSize: nil, requiredText: ["Cowlick app icon", "16 px", "32 px", "512 px"]),
     ImageExpectation(
       path: "Assets/Screenshots/hero.png", exactSize: CGSize(width: 1_600, height: 900),
-      minimumSize: nil, requiredText: ["Cowlick", "Local-first", "non-notch display capture"]),
+      minimumSize: nil,
+      requiredText: ["Cowlick", "Codex lives", "Local by default", "non-sensitive demo data"]),
     ImageExpectation(
       path: "Assets/Social/github-social-preview.png", exactSize: CGSize(width: 1_280, height: 640),
-      minimumSize: nil, requiredText: ["Cowlick", "Local-first", "non-notch display capture"]),
+      minimumSize: nil, requiredText: ["Cowlick", "Codex lives", "Local by default"]),
     ImageExpectation(
       path: "Assets/Social/x-launch.png", exactSize: CGSize(width: 1_600, height: 900),
       minimumSize: nil, requiredText: ["Cowlick", "Working", "Approval", "Done"]),

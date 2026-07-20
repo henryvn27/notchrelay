@@ -9,3 +9,5 @@ Keep changes inside Cowlick's local Codex companion scope and preserve fail-safe
 5. Open a pull request using the template.
 
 Do not include real prompts, commands, tokens, private paths, certificates, update keys, or Apple credentials in source, fixtures, screenshots, or logs. See [docs/contributing.md](docs/contributing.md) for setup, style, and testing details.
+
+Website changes also require Node.js 20 or newer. Run `./Scripts/verify_website.sh`, then `npm ci`, `npx playwright install chromium`, and `npm test` from the `Website` directory. The browser install is a test-only dependency and is not included in Cowlick.

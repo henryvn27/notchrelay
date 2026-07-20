@@ -163,13 +163,14 @@ trap 'exit_code=$?; rollback_install $exit_code; cleanup_installer; exit $exit_c
 
 cd "$project_root"
 command -v xcodegen >/dev/null 2>&1 || { print -u2 "Install XcodeGen first: brew install xcodegen"; exit 1; }
+cowlick_build_architecture="$(cowlick_host_architecture)"
 xcodegen generate
 xcodebuild \
   -project Cowlick.xcodeproj \
   -scheme Cowlick \
   -configuration Release \
   -derivedDataPath "$derived_data" \
-  -destination 'platform=macOS,arch=arm64' \
+  -destination "platform=macOS,arch=$cowlick_build_architecture" \
   -jobs "$xcode_jobs" \
   ENABLE_HARDENED_RUNTIME=NO \
   build

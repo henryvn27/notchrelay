@@ -10,7 +10,7 @@ The images intentionally omit an installation command until the signed v1.0 rele
 
 **One-line description:** Cowlick shows local Codex activity, safe approval actions, and quota pace around the MacBook notch.
 
-**Boilerplate:** Cowlick is a native, local-first macOS companion for OpenAI Codex. It shows working, approval, completion, multi-session state, and Codex quota pace, with a compact top-center presentation on Macs without a notch. Approval decisions are matched to the exact request and safely fall back to Codex when Cowlick cannot respond. Optional OpenAI and Anthropic organization-billing accounts remain separately labeled and local. Cowlick's Failed presentation is limited to bridge and self-test diagnostics; the four current Codex hooks do not provide authoritative task-failure events.
+**Boilerplate:** Cowlick is a native, local-first macOS companion for OpenAI Codex. It shows working, approval, completion, multi-session state, and Codex quota pace, with a compact top-center presentation on Macs without a notch. Approval decisions are matched to the exact request and safely fall back to Codex when Cowlick cannot respond. Optional OpenAI and Anthropic organization-billing accounts remain separately labeled and local. Cowlick's Failed presentation is limited to bridge and self-test diagnostics; the six current Codex lifecycle hook events do not provide authoritative task-failure events.
 
 ## Assets
 
