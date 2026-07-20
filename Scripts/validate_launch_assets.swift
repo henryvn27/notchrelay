@@ -26,6 +26,8 @@ private struct ImageExpectation {
 private struct CaptureProvenance: Decodable {
   let schemaVersion: Int
   let sourceCommit: String
+  let productSourceAlgorithm: String
+  let productSourceSHA256: String
   let bundleIdentifier: String
   let marketingVersion: String
   let buildVersion: String
@@ -283,8 +285,9 @@ private func validateImages() {
 private func provenanceIssues(data: Data?) -> [String] {
   guard let data else { return ["Missing Assets/capture-provenance.json"] }
   let expectedKeys: Set<String> = [
-    "schemaVersion", "sourceCommit", "bundleIdentifier", "marketingVersion", "buildVersion",
-    "appExecutableSHA256", "helperExecutableSHA256",
+    "schemaVersion", "sourceCommit", "productSourceAlgorithm", "productSourceSHA256",
+    "bundleIdentifier", "marketingVersion", "buildVersion", "appExecutableSHA256",
+    "helperExecutableSHA256",
   ]
   guard
     let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -295,11 +298,19 @@ private func provenanceIssues(data: Data?) -> [String] {
   }
 
   var issues: [String] = []
-  if provenance.schemaVersion != 1 {
+  if provenance.schemaVersion != 2 {
     issues.append("Assets/capture-provenance.json has an unsupported schema version.")
   }
   if provenance.sourceCommit.range(of: "^[0-9a-f]{40}$", options: .regularExpression) == nil {
     issues.append("Assets/capture-provenance.json does not contain a full source commit SHA.")
+  }
+  if provenance.productSourceSHA256.range(
+    of: "^[0-9a-f]{64}$", options: .regularExpression) == nil
+  {
+    issues.append("Assets/capture-provenance.json has an invalid product source SHA-256.")
+  }
+  if provenance.productSourceAlgorithm != "sha256(git-ls-tree-r-z-full-tree-v1)" {
+    issues.append("Assets/capture-provenance.json has an unsupported product source algorithm.")
   }
   if provenance.bundleIdentifier != "com.henryvn27.Cowlick" {
     issues.append("Assets/capture-provenance.json has the wrong bundle identifier.")
@@ -319,20 +330,18 @@ private func provenanceIssues(data: Data?) -> [String] {
 }
 
 private func sourceBindingIssues(
-  provenanceSource: String,
   expectedSource: String,
   checkoutHead: String,
-  isAncestor: Bool,
-  productTreeMatches: Bool
+  provenanceProductSourceSHA256: String,
+  currentProductSourceSHA256: String?
 ) -> [String] {
   var issues: [String] = []
   if expectedSource != checkoutHead {
     issues.append("The requested source commit is not the current checkout HEAD.")
   }
-  if !isAncestor {
-    issues.append("Launch-asset provenance is not an ancestor of the requested source commit.")
-  }
-  if !productTreeMatches {
+  if currentProductSourceSHA256 == nil {
+    issues.append("Cowlick product sources could not be read from the requested source commit.")
+  } else if provenanceProductSourceSHA256 != currentProductSourceSHA256 {
     issues.append("Cowlick product sources changed after the captured app was built.")
   }
   return issues
@@ -356,6 +365,25 @@ private func gitOutput(_ arguments: [String]) -> (status: Int32, output: String)
   return (process.terminationStatus, String(decoding: data, as: UTF8.self))
 }
 
+private func productSourceDigest(_ sourceCommit: String) -> String? {
+  let process = Process()
+  process.executableURL = absolute("Scripts/product_source_digest.sh")
+  process.arguments = ["--require-clean", sourceCommit]
+  process.currentDirectoryURL = root
+  let output = Pipe()
+  process.standardOutput = output
+  process.standardError = FileHandle.nullDevice
+  do {
+    try process.run()
+    process.waitUntilExit()
+  } catch {
+    return nil
+  }
+  guard process.terminationStatus == 0 else { return nil }
+  return String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 private func validateProvenance(expectedSourceCommit: String) {
   let data = try? Data(contentsOf: absolute("Assets/capture-provenance.json"))
   for issue in provenanceIssues(data: data) { fail(issue) }
@@ -365,19 +393,11 @@ private func validateProvenance(expectedSourceCommit: String) {
 
   let headResult = gitOutput(["rev-parse", "HEAD"])
   let checkoutHead = headResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
-  let ancestorResult = gitOutput([
-    "merge-base", "--is-ancestor", provenance.sourceCommit, expectedSourceCommit,
-  ])
-  let productDiffResult = gitOutput([
-    "diff", "--quiet", provenance.sourceCommit, expectedSourceCommit, "--", "Cowlick",
-    "CowlickHook", "Config", "project.yml", "Package.resolved", "Cowlick.xcodeproj",
-  ])
   for issue in sourceBindingIssues(
-    provenanceSource: provenance.sourceCommit,
     expectedSource: expectedSourceCommit,
     checkoutHead: checkoutHead,
-    isAncestor: headResult.status == 0 && ancestorResult.status == 0,
-    productTreeMatches: productDiffResult.status == 0
+    provenanceProductSourceSHA256: provenance.productSourceSHA256,
+    currentProductSourceSHA256: productSourceDigest(expectedSourceCommit)
   ) {
     fail("Assets/capture-provenance.json: \(issue)")
   }
@@ -644,8 +664,10 @@ private func runPressKitSelfCheck() throws {
   let validProvenance = Data(
     """
     {
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "sourceCommit": "0123456789abcdef0123456789abcdef01234567",
+      "productSourceAlgorithm": "sha256(git-ls-tree-r-z-full-tree-v1)",
+      "productSourceSHA256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "bundleIdentifier": "com.henryvn27.Cowlick",
       "marketingVersion": "1.0.0",
       "buildVersion": "1",
@@ -659,28 +681,70 @@ private func runPressKitSelfCheck() throws {
   guard !provenanceIssues(data: nil).isEmpty else {
     throw ValidationError.selfCheck("missing capture provenance was accepted")
   }
+  func mutatedProvenance(_ mutation: (inout [String: Any]) -> Void) throws -> Data {
+    guard
+      var object = try JSONSerialization.jsonObject(with: validProvenance) as? [String: Any]
+    else {
+      throw ValidationError.selfCheck("valid capture provenance could not be mutated")
+    }
+    mutation(&object)
+    return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+  }
+  for (label, invalidProvenance) in [
+    ("schema 1", try mutatedProvenance { $0["schemaVersion"] = 1 }),
+    ("unknown algorithm", try mutatedProvenance { $0["productSourceAlgorithm"] = "unknown" }),
+    ("malformed digest", try mutatedProvenance { $0["productSourceSHA256"] = "invalid" }),
+    ("unknown key", try mutatedProvenance { $0["unexpected"] = true }),
+  ] where provenanceIssues(data: invalidProvenance).isEmpty {
+    throw ValidationError.selfCheck("\(label) capture provenance was accepted")
+  }
   let validSource = "0123456789abcdef0123456789abcdef01234567"
   guard
     sourceBindingIssues(
-      provenanceSource: validSource,
       expectedSource: validSource,
       checkoutHead: validSource,
-      isAncestor: true,
-      productTreeMatches: true
+      provenanceProductSourceSHA256:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      currentProductSourceSHA256:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     ).isEmpty
   else {
     throw ValidationError.selfCheck("an exact captured source binding was rejected")
   }
   guard
-    !sourceBindingIssues(
-      provenanceSource: validSource,
+    sourceBindingIssues(
       expectedSource: "fedcba9876543210fedcba9876543210fedcba98",
       checkoutHead: "fedcba9876543210fedcba9876543210fedcba98",
-      isAncestor: true,
-      productTreeMatches: false
+      provenanceProductSourceSHA256:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      currentProductSourceSHA256:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ).isEmpty
+  else {
+    throw ValidationError.selfCheck("a byte-identical rebased source binding was rejected")
+  }
+  guard
+    !sourceBindingIssues(
+      expectedSource: "fedcba9876543210fedcba9876543210fedcba98",
+      checkoutHead: "fedcba9876543210fedcba9876543210fedcba98",
+      provenanceProductSourceSHA256:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      currentProductSourceSHA256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     ).isEmpty
   else {
     throw ValidationError.selfCheck("changed product sources after capture were accepted")
+  }
+  guard
+    !sourceBindingIssues(
+      expectedSource: validSource,
+      checkoutHead: validSource,
+      provenanceProductSourceSHA256:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      currentProductSourceSHA256: nil
+    ).isEmpty
+  else {
+    throw ValidationError.selfCheck("an unreadable product source tree was accepted")
   }
   guard failureCopyIssues(in: "Bridge self-test failed").isEmpty else {
     throw ValidationError.selfCheck("current failure copy was rejected")

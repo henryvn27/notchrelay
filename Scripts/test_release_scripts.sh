@@ -1043,10 +1043,10 @@ grep -Fq 'workflow_call:' "$ci_workflow"
 awk '
   /^  build-test:/ { in_build_test = 1; next }
   /^  secret-scan:/ { in_build_test = 0 }
-  in_build_test && /fetch-depth: 0/ { found = 1 }
+  in_build_test && /fetch-depth: 1/ { found = 1 }
   END { exit found ? 0 : 1 }
 ' "$ci_workflow" \
-  || { print -u2 -- "build-test must fetch full history for asset provenance"; exit 1; }
+  || { print -u2 -- "build-test must prove asset provenance from a shallow checkout"; exit 1; }
 if grep -Fq "tags: ['v*']" "$release_workflow"; then
   print -u2 -- "release workflow still trusts a tag-supplied workflow definition"
   exit 1
