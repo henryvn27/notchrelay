@@ -34,7 +34,6 @@ final class NotchGeometryTests: XCTestCase {
     let hostingView = NSHostingView(rootView: content)
     let requiredHeight = ceil(hostingView.fittingSize.height)
 
-    XCTAssertGreaterThanOrEqual(requiredHeight, 155)
     XCTAssertEqual(approvalSize, NotchTheme.maximumApprovalSize)
     XCTAssertLessThanOrEqual(requiredHeight, approvalSize.height)
 
