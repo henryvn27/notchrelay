@@ -35,6 +35,8 @@ jobs:
         run: |
           zsh -n Scripts/*.sh
           ./Scripts/test_release_scripts.sh
+          ./Scripts/test_launch_asset_tools.sh
+          xcrun swift Scripts/validate_launch_assets.swift --source-ref "$(git rev-parse HEAD)"
       - name: Build release candidate
         run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Release -derivedDataPath DerivedData -destination 'generic/platform=macOS' CODE_SIGN_IDENTITY=- build
       - name: Verify Sparkle signing pipeline

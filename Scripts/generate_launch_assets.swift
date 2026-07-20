@@ -272,7 +272,7 @@ private struct LaunchAssetGenerator {
 
     let screenshotNames = [
       "working.png", "approval.png", "completed.png", "failed.png", "failed-expanded.png",
-      "multi-session.png", "settings.png", "onboarding.png", "diagnostics.png",
+      "multi-session.png", "settings.png", "onboarding.png", "diagnostics.png", "usage.png",
     ]
     for name in screenshotNames {
       try replaceCopy(

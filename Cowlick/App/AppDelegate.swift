@@ -108,6 +108,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func configureUITestingIfNeeded(_ services: AppServices) {
     guard CommandLine.arguments.contains("--ui-testing") else { return }
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
+    if CommandLine.arguments.contains("--usage-demo") {
+      services.settings.showCodexUsage = true
+      services.settings.showAPICostEstimate = true
+      services.settings.showResetForecast = true
+      services.settings.usageMetricPreference = .remaining
+    }
     let stateName = CommandLine.arguments.first(where: { $0.hasPrefix("--state=") })
       .map { String($0.dropFirst("--state=".count)) }
     Task { @MainActor in
@@ -138,6 +144,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       if CommandLine.arguments.contains("--open-diagnostics") {
         WindowCoordinator.shared.openDiagnostics()
+      }
+      if CommandLine.arguments.contains("--open-usage-demo") {
+        services.usageStore.refreshIfNeeded(force: true)
+        WindowCoordinator.shared.openUsageForTesting()
       }
       if CommandLine.arguments.contains("--open-onboarding") {
         WindowCoordinator.shared.openOnboarding()

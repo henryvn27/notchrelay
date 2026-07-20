@@ -51,6 +51,7 @@ private let synchronizedCopies = [
   ("Assets/Screenshots/settings.png", "Assets/PressKit/Screenshots/settings.png"),
   ("Assets/Screenshots/onboarding.png", "Assets/PressKit/Screenshots/onboarding.png"),
   ("Assets/Screenshots/diagnostics.png", "Assets/PressKit/Screenshots/diagnostics.png"),
+  ("Assets/Screenshots/usage.png", "Assets/PressKit/Screenshots/usage.png"),
   ("Assets/Social/github-social-preview.png", "Assets/PressKit/Social/github-social-preview.png"),
   ("Assets/Social/x-launch.png", "Assets/PressKit/Social/x-launch.png"),
   ("Assets/Social/launch-copy.md", "Assets/PressKit/Social/launch-copy.md"),
@@ -74,6 +75,7 @@ private let pressKitAllowlist: Set<String> = [
   "Screenshots/settings.png",
   "Screenshots/onboarding.png",
   "Screenshots/diagnostics.png",
+  "Screenshots/usage.png",
   "Social/github-social-preview.png",
   "Social/x-launch.png",
   "Social/launch-copy.md",
@@ -146,7 +148,7 @@ private func diagnosticsCopyIssues(in recognizedText: String) -> [String] {
       "Assets/Screenshots/diagnostics.png contains unhealthy hook trust “\(unhealthyTrust)”.")
   }
   if text.range(
-    of: #"(^|\s)macos:\s*(version\s*)?[0-9]"#, options: .regularExpression) != nil
+    of: #"(^|\s)macos:\s*version\s*[0-9]"#, options: .regularExpression) != nil
   {
     issues.append("Assets/Screenshots/diagnostics.png exposes a capture-machine macOS version.")
   }
@@ -185,7 +187,7 @@ private func validateImages() {
       minimumSize: CGSize(width: 300, height: 60), requiredText: ["Scoutly"]),
     ImageExpectation(
       path: "Assets/Screenshots/approval.png", exactSize: nil,
-      minimumSize: CGSize(width: 740, height: 300),
+      minimumSize: CGSize(width: 740, height: 260),
       requiredText: ["ActivityPilot", "Deny", "Open Codex", "Allow once"]),
     ImageExpectation(
       path: "Assets/Screenshots/completed.png", exactSize: nil,
@@ -212,6 +214,13 @@ private func validateImages() {
       requiredText: [
         "Codex hook trust", "Codex quota", "API-price equivalent",
         "Third-party reset forecast",
+      ]),
+    ImageExpectation(
+      path: "Assets/Screenshots/usage.png", exactSize: nil,
+      minimumSize: CGSize(width: 760, height: 1_000),
+      requiredText: [
+        "Codex quota", "Runs out in", "API-price equivalent", "Will Codex Reset?",
+        "not your subscription charge",
       ]),
   ]
 
@@ -309,9 +318,69 @@ private func provenanceIssues(data: Data?) -> [String] {
   return issues
 }
 
-private func validateProvenance() {
+private func sourceBindingIssues(
+  provenanceSource: String,
+  expectedSource: String,
+  checkoutHead: String,
+  isAncestor: Bool,
+  productTreeMatches: Bool
+) -> [String] {
+  var issues: [String] = []
+  if expectedSource != checkoutHead {
+    issues.append("The requested source commit is not the current checkout HEAD.")
+  }
+  if !isAncestor {
+    issues.append("Launch-asset provenance is not an ancestor of the requested source commit.")
+  }
+  if !productTreeMatches {
+    issues.append("Cowlick product sources changed after the captured app was built.")
+  }
+  return issues
+}
+
+private func gitOutput(_ arguments: [String]) -> (status: Int32, output: String) {
+  let process = Process()
+  process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+  process.arguments = arguments
+  process.currentDirectoryURL = root
+  let output = Pipe()
+  process.standardOutput = output
+  process.standardError = FileHandle.nullDevice
+  do {
+    try process.run()
+    process.waitUntilExit()
+  } catch {
+    return (127, "")
+  }
+  let data = output.fileHandleForReading.readDataToEndOfFile()
+  return (process.terminationStatus, String(decoding: data, as: UTF8.self))
+}
+
+private func validateProvenance(expectedSourceCommit: String) {
   let data = try? Data(contentsOf: absolute("Assets/capture-provenance.json"))
   for issue in provenanceIssues(data: data) { fail(issue) }
+  guard let data,
+    let provenance = try? JSONDecoder().decode(CaptureProvenance.self, from: data)
+  else { return }
+
+  let headResult = gitOutput(["rev-parse", "HEAD"])
+  let checkoutHead = headResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+  let ancestorResult = gitOutput([
+    "merge-base", "--is-ancestor", provenance.sourceCommit, expectedSourceCommit,
+  ])
+  let productDiffResult = gitOutput([
+    "diff", "--quiet", provenance.sourceCommit, expectedSourceCommit, "--", "Cowlick",
+    "CowlickHook", "Config", "project.yml", "Package.resolved", "Cowlick.xcodeproj",
+  ])
+  for issue in sourceBindingIssues(
+    provenanceSource: provenance.sourceCommit,
+    expectedSource: expectedSourceCommit,
+    checkoutHead: checkoutHead,
+    isAncestor: headResult.status == 0 && ancestorResult.status == 0,
+    productTreeMatches: productDiffResult.status == 0
+  ) {
+    fail("Assets/capture-provenance.json: \(issue)")
+  }
 }
 
 private let launchDraftHeadings = [
@@ -590,6 +659,29 @@ private func runPressKitSelfCheck() throws {
   guard !provenanceIssues(data: nil).isEmpty else {
     throw ValidationError.selfCheck("missing capture provenance was accepted")
   }
+  let validSource = "0123456789abcdef0123456789abcdef01234567"
+  guard
+    sourceBindingIssues(
+      provenanceSource: validSource,
+      expectedSource: validSource,
+      checkoutHead: validSource,
+      isAncestor: true,
+      productTreeMatches: true
+    ).isEmpty
+  else {
+    throw ValidationError.selfCheck("an exact captured source binding was rejected")
+  }
+  guard
+    !sourceBindingIssues(
+      provenanceSource: validSource,
+      expectedSource: "fedcba9876543210fedcba9876543210fedcba98",
+      checkoutHead: "fedcba9876543210fedcba9876543210fedcba98",
+      isAncestor: true,
+      productTreeMatches: false
+    ).isEmpty
+  else {
+    throw ValidationError.selfCheck("changed product sources after capture were accepted")
+  }
   guard failureCopyIssues(in: "Bridge self-test failed").isEmpty else {
     throw ValidationError.selfCheck("current failure copy was rejected")
   }
@@ -599,7 +691,7 @@ private func runPressKitSelfCheck() throws {
   let healthyDiagnostics =
     "Launch-asset demo snapshot not live device data Hook status: Installed "
     + "Codex hook trust: Trusted (demo) "
-    + "Helper installed: true Socket status: listening"
+    + "Helper installed: true Socket status: listening Supported macOS: 14 or newer"
   guard diagnosticsCopyIssues(in: healthyDiagnostics).isEmpty else {
     throw ValidationError.selfCheck("healthy launch-asset diagnostics copy was rejected")
   }
@@ -637,10 +729,25 @@ if CommandLine.arguments.contains("--self-check") {
   }
 }
 
+private func argumentValue(_ name: String) -> String? {
+  guard let index = CommandLine.arguments.firstIndex(of: name),
+    CommandLine.arguments.indices.contains(index + 1)
+  else { return nil }
+  return CommandLine.arguments[index + 1]
+}
+
+guard let expectedSourceCommit = argumentValue("--source-ref"),
+  expectedSourceCommit.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil
+else {
+  FileHandle.standardError.write(
+    Data("Launch-asset validation requires --source-ref with the full checkout HEAD SHA.\n".utf8))
+  exit(2)
+}
+
 Task {
   validateImages()
   await validateVideo()
-  validateProvenance()
+  validateProvenance(expectedSourceCommit: expectedSourceCommit)
   validatePressKit()
   validateTextAssets()
 

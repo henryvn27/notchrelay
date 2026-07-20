@@ -542,6 +542,7 @@
 				9798BF4BCD3C766967A5D0F3 /* Sources */,
 				BF16D8C51426C6C968883BFF /* Resources */,
 				6607DB03EB35A29581296333 /* Frameworks */,
+				E5AE3C192E5339BCD63323E3 /* Record Source Commit */,
 				BD350C86D33905F7F23B102F /* Embed Cowlick Hook */,
 			);
 			buildRules = (
@@ -668,6 +669,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -euo pipefail\nhelper_dir=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers\"\nmkdir -p \"$helper_dir\"\ncp \"$BUILT_PRODUCTS_DIR/cowlick-hook\" \"$helper_dir/cowlick-hook\"\nchmod 755 \"$helper_dir/cowlick-hook\"\n";
+		};
+		E5AE3C192E5339BCD63323E3 /* Record Source Commit */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Record Source Commit";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/cowlick-source-commit.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nsource_commit=\"$(git -C \"$SRCROOT\" rev-parse HEAD)\"\nresource_dir=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nmkdir -p \"$resource_dir\"\nprintf '%s\\n' \"$source_commit\" > \"$resource_dir/cowlick-source-commit.txt\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

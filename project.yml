@@ -33,6 +33,16 @@ targets:
         embed: false
         link: false
     postBuildScripts:
+      - name: Record Source Commit
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          source_commit="$(git -C "$SRCROOT" rev-parse HEAD)"
+          resource_dir="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+          mkdir -p "$resource_dir"
+          printf '%s\n' "$source_commit" > "$resource_dir/cowlick-source-commit.txt"
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/cowlick-source-commit.txt
       - name: Embed Cowlick Hook
         basedOnDependencyAnalysis: false
         script: |
