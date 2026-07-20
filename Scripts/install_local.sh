@@ -3,6 +3,8 @@ set -euo pipefail
 
 script_dir="${0:A:h}"
 project_root="${script_dir:h}"
+source "$script_dir/xcode_build_jobs.sh"
+xcode_jobs="$(cowlick_xcode_build_jobs)"
 
 usage() {
   print "usage: $0"
@@ -168,6 +170,7 @@ xcodebuild \
   -configuration Release \
   -derivedDataPath "$derived_data" \
   -destination 'platform=macOS,arch=arm64' \
+  -jobs "$xcode_jobs" \
   ENABLE_HARDENED_RUNTIME=NO \
   build
 

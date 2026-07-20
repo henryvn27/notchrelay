@@ -19,3 +19,4 @@ This section is the 1.0.0 candidate release note until the matching tag appears 
 - Multiple separately labeled OpenAI API and Anthropic API organization-billing accounts with Keychain credentials and month-to-date actual costs.
 - Optional native Caps Lock signaling on supported hardware, with capability testing and original-state restoration.
 - Menu bar, Settings, onboarding, diagnostics, launch-at-login, Sparkle integration, universal packaging workflows, CI, and public documentation.
+- Memory-bounded contributor, CI, local-install, and universal-release builds with an explicit concurrency override for higher-capacity hosts.
