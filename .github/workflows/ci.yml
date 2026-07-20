@@ -43,12 +43,15 @@ jobs:
         run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Release -derivedDataPath DerivedData -destination 'generic/platform=macOS' CODE_SIGN_IDENTITY=- build
       - name: Verify Sparkle signing pipeline
         run: ./Scripts/verify_update_signing.sh
+      - name: Package app for inspection
+        if: github.ref == 'refs/heads/main'
+        run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Release/Cowlick.app "$RUNNER_TEMP/Cowlick-unsigned-inspection.zip"
       - name: Upload app for main
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: Cowlick-unsigned-inspection
-          path: DerivedData/Build/Products/Release/Cowlick.app
+          path: ${{ runner.temp }}/Cowlick-unsigned-inspection.zip
           if-no-files-found: error
           retention-days: 7
 

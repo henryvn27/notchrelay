@@ -1047,6 +1047,9 @@ awk '
   END { exit found ? 0 : 1 }
 ' "$ci_workflow" \
   || { print -u2 -- "build-test must prove asset provenance from a shallow checkout"; exit 1; }
+grep -Fq 'ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Release/Cowlick.app' \
+  "$ci_workflow"
+grep -Fq 'path: ${{ runner.temp }}/Cowlick-unsigned-inspection.zip' "$ci_workflow"
 if grep -Fq "tags: ['v*']" "$release_workflow"; then
   print -u2 -- "release workflow still trusts a tag-supplied workflow definition"
   exit 1
