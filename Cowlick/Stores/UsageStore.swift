@@ -172,11 +172,15 @@ final class UsageStore {
     }
   }
 
-  func refreshAfterActivity(now: Date = Date()) {
-    guard isStale(lastOfficialRefresh, interval: Self.activityRefreshInterval, now: now) else {
-      return
+  @discardableResult
+  func refreshAfterActivity(now: Date = Date()) -> Task<Void, Never>? {
+    clearDisabledSources()
+    guard settings.showCodexUsage,
+      isStale(lastOfficialRefresh, interval: Self.activityRefreshInterval, now: now)
+    else {
+      return nil
     }
-    refreshIfNeeded(force: false, now: now)
+    return startRefresh(official: true, forecast: false)
   }
 
   @discardableResult

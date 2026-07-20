@@ -554,4 +554,52 @@ final class UsageStoreTests: XCTestCase {
     XCTAssertTrue(refreshed)
     XCTAssertEqual(callsAfterThreshold, 2)
   }
+
+  func testActivityRefreshesOfficialAfterOneMinuteWithoutRefreshingForecast() async {
+    let settings = makeTestSettings()
+    settings.showCodexUsage = true
+    settings.showResetForecast = true
+    let usage = UsageFetchRecorder()
+    let forecast = ForecastFetchRecorder()
+    let store = UsageStore(settings: settings, usageService: usage, forecastService: forecast)
+
+    let initialRefresh = store.refreshIfNeeded(force: true)
+    await initialRefresh?.value
+    guard let firstOfficialRefresh = store.lastOfficialRefresh else {
+      return XCTFail("Expected official usage refresh time")
+    }
+
+    let activityRefresh = store.refreshAfterActivity(
+      now: firstOfficialRefresh.addingTimeInterval(UsageStore.activityRefreshInterval + 1))
+    await activityRefresh?.value
+    let usageCalls = await usage.callCount()
+    let forecastCalls = await forecast.callCount()
+
+    XCTAssertEqual(usageCalls, 2)
+    XCTAssertEqual(forecastCalls, 1)
+  }
+
+  func testActivityRefreshIsThrottledWithinOneMinute() async {
+    let settings = makeTestSettings()
+    settings.showCodexUsage = true
+    settings.showResetForecast = true
+    let usage = UsageFetchRecorder()
+    let forecast = ForecastFetchRecorder()
+    let store = UsageStore(settings: settings, usageService: usage, forecastService: forecast)
+
+    let initialRefresh = store.refreshIfNeeded(force: true)
+    await initialRefresh?.value
+    guard let firstOfficialRefresh = store.lastOfficialRefresh else {
+      return XCTFail("Expected official usage refresh time")
+    }
+
+    let activityRefresh = store.refreshAfterActivity(
+      now: firstOfficialRefresh.addingTimeInterval(UsageStore.activityRefreshInterval - 1))
+    let usageCalls = await usage.callCount()
+    let forecastCalls = await forecast.callCount()
+
+    XCTAssertNil(activityRefresh)
+    XCTAssertEqual(usageCalls, 1)
+    XCTAssertEqual(forecastCalls, 1)
+  }
 }

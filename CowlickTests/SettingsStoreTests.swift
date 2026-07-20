@@ -78,6 +78,13 @@ final class SettingsStoreTests: XCTestCase {
         integrationHealthy: true))
   }
 
+  func testLifecycleEventsRefreshUsageExceptTransportPing() {
+    for event in BridgeEventName.allLifecycleEvents {
+      XCTAssertTrue(AppDelegate.shouldRefreshUsage(after: event), event.rawValue)
+    }
+    XCTAssertFalse(AppDelegate.shouldRefreshUsage(after: .ping))
+  }
+
   func testInvalidMetricPreferenceFallsBackToRemaining() {
     let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
@@ -128,4 +135,10 @@ final class SettingsStoreTests: XCTestCase {
       sourceValues: ["showPromptPreviews": false])
     XCTAssertTrue(defaults.bool(forKey: "showPromptPreviews"))
   }
+}
+
+extension BridgeEventName {
+  fileprivate static let allLifecycleEvents: [Self] = [
+    .sessionStart, .working, .approvalRequested, .completed, .failed,
+  ]
 }
