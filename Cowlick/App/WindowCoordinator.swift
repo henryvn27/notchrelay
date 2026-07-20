@@ -10,6 +10,7 @@ final class WindowCoordinator {
   private var onboardingWindowController: NSWindowController?
   private var diagnosticsWindowController: NSWindowController?
   private var settingsTestWindowController: NSWindowController?
+  private var usageTestWindowController: NSWindowController?
 
   private init() {}
 
@@ -68,6 +69,36 @@ final class WindowCoordinator {
     present(controller.window!)
   }
 
+  func openUsageForTesting() {
+    guard let services else { return }
+    if let window = usageTestWindowController?.window {
+      present(window)
+      return
+    }
+    let size = CGSize(width: 400, height: 520)
+    let panel = UsageCapturePanel(
+      contentRect: CGRect(origin: .zero, size: size),
+      styleMask: [.borderless],
+      backing: .buffered,
+      defer: false
+    )
+    panel.backgroundColor = .clear
+    panel.isOpaque = false
+    panel.hasShadow = true
+    panel.isReleasedWhenClosed = false
+    panel.hidesOnDeactivate = false
+    panel.level = .floating
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+    panel.center()
+    panel.contentViewController = NSHostingController(
+      rootView: UsageCaptureView(services: services).frame(width: size.width, height: size.height)
+    )
+    let controller = NSWindowController(window: panel)
+    usageTestWindowController = controller
+    NSApp.activate(ignoringOtherApps: true)
+    panel.orderFrontRegardless()
+  }
+
   private func makeWindow(title: String, size: CGSize, rootView: AnyView) -> NSWindowController {
     let window = NSWindow(
       contentRect: CGRect(origin: .zero, size: size),
@@ -86,5 +117,31 @@ final class WindowCoordinator {
   private func present(_ window: NSWindow) {
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
+  }
+}
+
+private final class UsageCapturePanel: NSPanel {
+  override var canBecomeKey: Bool { true }
+}
+
+private struct UsageCaptureView: View {
+  let services: AppServices
+
+  var body: some View {
+    UsageSectionView(
+      store: services.usageStore,
+      showOfficialUsage: true,
+      showAPICostEstimate: true,
+      showForecast: true,
+      metricPreference: .remaining,
+      refresh: { services.usageStore.refreshOfficial(force: true) }
+    )
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(.regularMaterial)
+    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(.separator.opacity(0.55), lineWidth: 0.5)
+    }
   }
 }

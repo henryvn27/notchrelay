@@ -58,7 +58,7 @@ struct NotchRootView: View {
   }
 
   private var isExpanded: Bool {
-    store.currentApproval != nil || store.isExpanded
+    store.isExpanded
   }
 
   private var surfaceShape: UnevenRoundedRectangle {
@@ -75,7 +75,7 @@ struct NotchRootView: View {
   }
 
   private var layoutMode: LayoutMode {
-    if store.currentApproval != nil { return .approval }
+    if store.currentApproval != nil, store.isExpanded { return .approval }
     if store.isExpanded { return .sessions }
     return .compact
   }

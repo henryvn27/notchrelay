@@ -32,9 +32,18 @@ final class AppServices {
       approvalCoordinator: approvalCoordinator,
       capsLockService: capsLockService
     )
-    let apiCostService = LocalCodexCostService(
-      roots: CommandLine.arguments.contains("--ui-testing") ? [] : nil)
-    usageStore = UsageStore(settings: settings, apiCostService: apiCostService)
+    if CommandLine.arguments.contains("--usage-demo") {
+      usageStore = UsageStore(
+        settings: settings,
+        usageService: UITestingCodexUsageService(),
+        apiCostService: UITestingLocalCodexCostService(),
+        forecastService: UITestingResetForecastService()
+      )
+    } else {
+      let apiCostService = LocalCodexCostService(
+        roots: CommandLine.arguments.contains("--ui-testing") ? [] : nil)
+      usageStore = UsageStore(settings: settings, apiCostService: apiCostService)
+    }
     let providerServices = Self.makeProviderAccountServices(arguments: CommandLine.arguments)
     credentialStore = providerServices.credentialStore
     providerAccountStore = providerServices.accountStore

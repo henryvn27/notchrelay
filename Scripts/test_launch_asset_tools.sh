@@ -9,9 +9,10 @@ xcrun swift "$root_dir/Scripts/capture_launch_assets.swift" --self-check
 xcrun swift "$root_dir/Scripts/validate_launch_assets.swift" --self-check
 
 app="$temporary_directory/Cowlick.app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
 printf 'app executable' > "$app/Contents/MacOS/Cowlick"
 printf 'helper executable' > "$app/Contents/Helpers/cowlick-hook"
+git -C "$root_dir" rev-parse HEAD > "$app/Contents/Resources/cowlick-source-commit.txt"
 chmod +x "$app/Contents/MacOS/Cowlick" "$app/Contents/Helpers/cowlick-hook"
 /usr/bin/plutil -create xml1 "$app/Contents/Info.plist"
 /usr/bin/plutil -insert CFBundleIdentifier -string com.henryvn27.Cowlick "$app/Contents/Info.plist"
@@ -32,5 +33,13 @@ if "$root_dir/Scripts/record_launch_asset_provenance.sh" \
   --app "$app" --source-ref does-not-exist --output "$provenance" >/dev/null 2>&1
 then
   echo "Unknown provenance source ref was accepted." >&2
+  exit 1
+fi
+
+printf '%040d\n' 0 > "$app/Contents/Resources/cowlick-source-commit.txt"
+if "$root_dir/Scripts/record_launch_asset_provenance.sh" \
+  --app "$app" --source-ref HEAD --output "$provenance" >/dev/null 2>&1
+then
+  echo "Mismatched app source identity was accepted." >&2
   exit 1
 fi

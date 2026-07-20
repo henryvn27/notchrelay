@@ -81,14 +81,14 @@ final class NotchPanelController {
   }
 
   func updatePresentation() {
-    let interactiveApproval = store.currentApproval != nil
+    let interactiveApproval = store.currentApproval != nil && store.isExpanded
     if !interactiveApproval {
       _ = approvalFocusTracker.shouldActivate(isApproval: false)
     }
 
     let baseSize: CGSize
-    if interactiveApproval {
-      baseSize = NotchTheme.approvalSize
+    if interactiveApproval, let approval = store.currentApproval {
+      baseSize = NotchTheme.approvalSize(for: approval)
     } else if store.isExpanded {
       baseSize = NotchTheme.sessionListSize(sessionCount: store.sessionSummaries.count)
     } else {
@@ -103,7 +103,7 @@ final class NotchPanelController {
       return
     }
 
-    let isExpanded = store.currentApproval != nil || store.isExpanded
+    let isExpanded = store.isExpanded
     let contentSize: CGSize
     if let metrics = resolvedNotchMetrics(for: screen) {
       contentSize = NotchTheme.attachedSize(

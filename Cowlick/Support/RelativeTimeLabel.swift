@@ -9,6 +9,9 @@ enum RelativeTimeLabel {
     locale: Locale = .autoupdatingCurrent,
     calendar: Calendar = .autoupdatingCurrent
   ) -> String {
+    if abs(date.timeIntervalSince(referenceDate)) < 5 {
+      return "just now"
+    }
     let formatter = RelativeDateTimeFormatter()
     formatter.locale = locale
     formatter.calendar = calendar

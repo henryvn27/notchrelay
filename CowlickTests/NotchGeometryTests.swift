@@ -27,30 +27,32 @@ final class NotchGeometryTests: XCTestCase {
       requestedAt: .now,
       expiresAt: .now.addingTimeInterval(60)
     )
+    let approvalSize = NotchTheme.approvalSize(for: request)
     let content = ApprovalView(request: request, allow: {}, deny: {}, openCodex: {})
-      .frame(width: NotchTheme.approvalSize.width)
+      .frame(width: approvalSize.width)
       .background(Color.black)
     let hostingView = NSHostingView(rootView: content)
     let requiredHeight = ceil(hostingView.fittingSize.height)
 
-    XCTAssertGreaterThan(requiredHeight, 156)
-    XCTAssertLessThanOrEqual(requiredHeight, NotchTheme.approvalSize.height)
+    XCTAssertGreaterThanOrEqual(requiredHeight, 155)
+    XCTAssertEqual(approvalSize, NotchTheme.maximumApprovalSize)
+    XCTAssertLessThanOrEqual(requiredHeight, approvalSize.height)
 
     let attachedSize = NotchTheme.attachedSize(
-      baseSize: NotchTheme.approvalSize,
+      baseSize: approvalSize,
       notchGapWidth: 212,
       safeAreaTop: 38,
       expanded: true
     )
-    XCTAssertEqual(attachedSize.width, NotchTheme.approvalSize.width)
+    XCTAssertEqual(attachedSize.width, approvalSize.width)
     XCTAssertEqual(
       attachedSize.height,
-      NotchTheme.approvalSize.height + 38
+      approvalSize.height + 38
     )
 
     try attachPNG(
       of: content,
-      size: NotchTheme.approvalSize,
+      size: approvalSize,
       name: "long-approval-non-notch"
     )
     try attachPNG(
@@ -61,6 +63,24 @@ final class NotchGeometryTests: XCTestCase {
       size: attachedSize,
       name: "long-approval-simulated-notch"
     )
+  }
+
+  func testShortApprovalUsesAContentMatchedPanelHeight() {
+    let request = ApprovalRequest(
+      id: UUID(),
+      sessionID: "layout-test",
+      turnID: "turn",
+      projectName: "ActivityPilot",
+      workingDirectory: "/tmp/ActivityPilot",
+      toolName: "Bash",
+      operationDescription: "Publish the verified branch",
+      operationSummary: "git push origin main",
+      fullOperation: "git push origin main",
+      requestedAt: .now,
+      expiresAt: .now.addingTimeInterval(60)
+    )
+
+    XCTAssertEqual(NotchTheme.approvalSize(for: request), CGSize(width: 380, height: 141))
   }
 
   func testApprovalFocusActivatesOnlyWhenEnteringApproval() {
@@ -125,7 +145,7 @@ final class NotchGeometryTests: XCTestCase {
       expanded: false
     )
     let expandedSize = NotchTheme.attachedSize(
-      baseSize: NotchTheme.approvalSize,
+      baseSize: NotchTheme.maximumApprovalSize,
       notchGapWidth: 212,
       safeAreaTop: 38,
       expanded: true
@@ -137,7 +157,7 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(expanded.panelFrame.maxY, compact.panelFrame.maxY)
     XCTAssertGreaterThanOrEqual(expanded.panelFrame.width, compact.panelFrame.width)
     XCTAssertLessThan(expanded.panelFrame.minY, compact.panelFrame.minY)
-    XCTAssertEqual(expanded.panelFrame.height, 218)
+    XCTAssertEqual(expanded.panelFrame.height, 202)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {
@@ -180,11 +200,11 @@ final class NotchGeometryTests: XCTestCase {
         safeAreaTop: 0,
         auxiliaryTopLeftArea: nil,
         auxiliaryTopRightArea: nil,
-        requestedContentSize: NotchTheme.approvalSize,
+        requestedContentSize: NotchTheme.maximumApprovalSize,
         displayID: 9,
         showOnNonNotch: true
       ))
-    XCTAssertEqual(result.panelFrame.size, NotchTheme.approvalSize)
+    XCTAssertEqual(result.panelFrame.size, NotchTheme.maximumApprovalSize)
     XCTAssertEqual(result.displayID, 9)
   }
 

@@ -6,9 +6,11 @@ struct ApprovalView: View {
   let allow: () -> Void
   let deny: () -> Void
   let openCodex: () -> Void
+  @State private var copied = false
+  @State private var copyResetTask: Task<Void, Never>?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 10) {
       HStack(spacing: 8) {
         Image(systemName: "exclamationmark")
           .font(.system(size: 12, weight: .bold))
@@ -42,13 +44,16 @@ struct ApprovalView: View {
           .accessibilityHint("Reject this exact approval request")
         Button("Open Codex", action: openCodex)
         Button {
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(request.fullOperation, forType: .string)
+          copyOperation()
         } label: {
-          Image(systemName: "doc.on.doc")
+          if copied {
+            Label("Copied", systemImage: "checkmark")
+          } else {
+            Image(systemName: "doc.on.doc")
+          }
         }
-        .help("Copy full operation")
-        .accessibilityLabel("Copy full operation")
+        .help(copied ? "Full operation copied" : "Copy full operation")
+        .accessibilityLabel(copied ? "Full operation copied" : "Copy full operation")
         Spacer()
         Button("Allow once", action: allow)
           .buttonStyle(.bordered)
@@ -56,6 +61,20 @@ struct ApprovalView: View {
       }
       .controlSize(.small)
     }
-    .padding(16)
+    .padding(14)
+    .onDisappear { copyResetTask?.cancel() }
+  }
+
+  private func copyOperation() {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(request.fullOperation, forType: .string)
+    copied = true
+    AccessibilityNotification.Announcement("Full operation copied").post()
+    copyResetTask?.cancel()
+    copyResetTask = Task { @MainActor in
+      try? await Task.sleep(for: .seconds(1.4))
+      guard !Task.isCancelled else { return }
+      copied = false
+    }
   }
 }

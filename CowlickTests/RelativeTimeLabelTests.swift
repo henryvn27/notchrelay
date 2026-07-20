@@ -4,6 +4,25 @@ import XCTest
 
 @MainActor
 final class RelativeTimeLabelTests: XCTestCase {
+  func testFormatsNearSimultaneousDatesAsJustNow() {
+    let referenceDate = Date(timeIntervalSince1970: 1_000_000)
+
+    XCTAssertEqual(
+      RelativeTimeLabel.string(
+        for: referenceDate.addingTimeInterval(0.5),
+        relativeTo: referenceDate
+      ),
+      "just now"
+    )
+    XCTAssertEqual(
+      RelativeTimeLabel.string(
+        for: referenceDate.addingTimeInterval(-4.9),
+        relativeTo: referenceDate
+      ),
+      "just now"
+    )
+  }
+
   func testFormatsFutureAndPastRelativeToExplicitReferenceDate() {
     let referenceDate = Date(timeIntervalSince1970: 1_000_000)
     let locale = Locale(identifier: "en_US")

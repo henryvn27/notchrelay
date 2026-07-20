@@ -177,6 +177,10 @@ private func generate() throws {
       "Allow once or Deny stays matched to the exact request.", 2.6
     ),
     (
+      "usage.png", "Plan usage",
+      "See quota pace, time to empty, and the separate API-price equivalent.", 2.2
+    ),
+    (
       "completed.png", "Completed", "The signal clears without becoming a second Codex client.", 1.7
     ),
   ].map { filename, title, detail, duration -> DemoSegment in
@@ -248,7 +252,7 @@ private func generate() throws {
     throw DemoError.writer(writer.error?.localizedDescription ?? "writer did not finish")
   }
   _ = try FileManager.default.replaceItemAt(output, withItemAt: temporary)
-  print("Generated an 8-second 1600x900 Cowlick demo from current non-notch app captures.")
+  print("Generated a 10-second 1600x900 Cowlick demo from current non-notch app captures.")
 }
 
 do {

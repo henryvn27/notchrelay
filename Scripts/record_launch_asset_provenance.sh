@@ -48,9 +48,15 @@ fi
 info_plist="$app_path/Contents/Info.plist"
 app_executable="$app_path/Contents/MacOS/Cowlick"
 helper_executable="$app_path/Contents/Helpers/cowlick-hook"
-for path in "$info_plist" "$app_executable" "$helper_executable"; do
+source_identity="$app_path/Contents/Resources/cowlick-source-commit.txt"
+for path in "$info_plist" "$app_executable" "$helper_executable" "$source_identity"; do
   [[ -f "$path" ]] || { echo "Launch-asset provenance error: missing $path" >&2; exit 1; }
 done
+embedded_source_sha="$(tr -d '[:space:]' < "$source_identity")"
+[[ "$embedded_source_sha" == "$source_sha" ]] || {
+  echo "Launch-asset provenance error: app source $embedded_source_sha does not match $source_sha." >&2
+  exit 1
+}
 
 bundle_identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info_plist")"
 marketing_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"

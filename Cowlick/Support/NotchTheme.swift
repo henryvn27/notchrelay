@@ -16,7 +16,7 @@ enum NotchTheme {
   static let hairline = Color.white.opacity(0.12)
 
   static let compactSize = CGSize(width: 158, height: 34)
-  static let approvalSize = CGSize(width: 380, height: 180)
+  static let maximumApprovalSize = CGSize(width: 380, height: 164)
   static let attachedWingWidth: CGFloat = 82
   static let compactRadius: CGFloat = 14
   static let expandedBottomRadius: CGFloat = 22
@@ -63,5 +63,18 @@ enum NotchTheme {
 
   static func sessionListSize(sessionCount: Int) -> CGSize {
     CGSize(width: 360, height: 76 + CGFloat(min(5, max(1, sessionCount))) * 32)
+  }
+
+  static func approvalSize(for request: ApprovalRequest) -> CGSize {
+    var height: CGFloat = 116
+    if request.reasonPreview.count > 64 { height += 15 }
+    if request.showsDistinctOperation {
+      height += 25
+      if request.operationPreview.count > 48 { height += 14 }
+    }
+    return CGSize(
+      width: maximumApprovalSize.width,
+      height: min(height, maximumApprovalSize.height)
+    )
   }
 }

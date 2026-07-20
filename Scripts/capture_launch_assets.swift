@@ -91,6 +91,9 @@ private let specifications = [
   CaptureSpec(
     filename: "diagnostics.png", arguments: ["--open-diagnostics"],
     minimumLogicalSize: CGSize(width: 520, height: 430), settleDelay: 1.0),
+  CaptureSpec(
+    filename: "usage.png", arguments: ["--usage-demo", "--open-usage-demo"],
+    minimumLogicalSize: CGSize(width: 380, height: 500), settleDelay: 1.0),
 ]
 
 private func argumentValue(_ name: String) -> String? {

@@ -63,6 +63,55 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertTrue(store.approvalQueue.isEmpty)
   }
 
+  func testApprovalDoesNotAutoExpandWhenPreferenceIsDisabled() async {
+    let settings = makeTestSettings()
+    settings.approvalTimeout = 10
+    settings.autoExpandApprovals = false
+    let store = SessionStore(settings: settings)
+    let event = makeBridgeEvent(
+      event: .approvalRequested,
+      toolName: "Bash",
+      toolInput: .object(["command": .string("git push")])
+    )
+
+    let decisionTask = Task { await store.receive(event) }
+    let queued = await waitUntil { store.currentApproval?.id == event.requestId }
+    XCTAssertTrue(queued)
+    XCTAssertFalse(store.isExpanded)
+    XCTAssertTrue(store.decide(requestID: event.requestId, decision: .deny))
+    let decision = await decisionTask.value
+    XCTAssertEqual(decision, .deny)
+  }
+
+  func testPendingApprovalCanCollapseAndReopenWithoutResolving() async {
+    let settings = makeTestSettings()
+    settings.approvalTimeout = 10
+    settings.autoExpandApprovals = true
+    let store = SessionStore(settings: settings)
+    let event = makeBridgeEvent(
+      event: .approvalRequested,
+      toolName: "Bash",
+      toolInput: .object(["command": .string("git push")])
+    )
+
+    let decisionTask = Task { await store.receive(event) }
+    let queued = await waitUntil { store.currentApproval?.id == event.requestId }
+    XCTAssertTrue(queued)
+    XCTAssertTrue(store.isExpanded)
+
+    store.collapse()
+    XCTAssertFalse(store.isExpanded)
+    XCTAssertEqual(store.currentApproval?.id, event.requestId)
+    XCTAssertEqual(store.displaySession?.status, .awaitingApproval(store.currentApproval!))
+
+    store.expand()
+    XCTAssertTrue(store.isExpanded)
+    XCTAssertEqual(store.currentApproval?.id, event.requestId)
+    XCTAssertTrue(store.decide(requestID: event.requestId, decision: .deny))
+    let decision = await decisionTask.value
+    XCTAssertEqual(decision, .deny)
+  }
+
   func testApprovalKeepsHumanReasonSeparateFromOperation() async {
     let settings = makeTestSettings()
     settings.approvalTimeout = 10
