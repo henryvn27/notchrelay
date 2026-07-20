@@ -9,11 +9,7 @@ struct NotchRootView: View {
 
   var body: some View {
     ZStack(alignment: .top) {
-      if presentation.isAttached {
-        surfaceShape.fill(NotchTheme.island)
-      } else {
-        surfaceShape.fill(.regularMaterial)
-      }
+      surfaceShape.fill(NotchTheme.island)
 
       Group {
         if isExpanded {
@@ -55,7 +51,7 @@ struct NotchRootView: View {
       pullDownTriggered = false
     }
     .onExitCommand { store.collapse() }
-    .preferredColorScheme(presentation.isAttached ? .dark : nil)
+    .preferredColorScheme(.dark)
   }
 
   private var isExpanded: Bool {
