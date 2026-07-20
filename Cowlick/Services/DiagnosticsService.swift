@@ -3,11 +3,32 @@ import Foundation
 
 @MainActor
 struct DiagnosticsService {
+  enum ReportMode: Equatable {
+    case live
+    case launchAssetDemo
+  }
+
   let store: SessionStore
   let usageStore: UsageStore
   let hookInstaller: HookInstaller
+  let mode: ReportMode
+
+  init(
+    store: SessionStore,
+    usageStore: UsageStore,
+    hookInstaller: HookInstaller,
+    arguments: [String] = CommandLine.arguments,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) {
+    self.store = store
+    self.usageStore = usageStore
+    self.hookInstaller = hookInstaller
+    mode = Self.reportMode(arguments: arguments, environment: environment)
+  }
 
   func report() async -> String {
+    guard mode == .live else { return Self.launchAssetDemoReport }
+
     let caps = await store.capsLockService.supportStatus()
     let hook = hookInstaller.status()
     let hookTrust = await CodexHookTrustService().inspect()
@@ -57,6 +78,40 @@ struct DiagnosticsService {
       Recent sanitized errors:
       \(errors)
       """
+  }
+
+  static func reportMode(arguments: [String], environment: [String: String]) -> ReportMode {
+    guard arguments.contains("--ui-testing"), environment["COWLICK_ASSET_CAPTURE"] == "1"
+    else { return .live }
+    return .launchAssetDemo
+  }
+
+  static var launchAssetDemoReport: String {
+    """
+    Cowlick Diagnostics
+    Report context: Launch-asset demo snapshot — not live device data
+    Version: \(ProductVersion.marketing) (\(ProductVersion.build))
+    Protocol: \(ProductVersion.bridgeProtocol)
+    Supported macOS: 14 or newer
+    Architectures: Apple silicon and Intel
+    Launch at login: Available
+    Hook status: Installed (demo)
+    Codex hook trust: Trusted (demo)
+    Helper installed: true
+    Socket status: listening
+    Codex quota: Ready for live account data
+    Third-party reset forecast: Website data is attributed in Quota
+    Caps Lock: Optional; not evaluated in this demo snapshot
+
+    Displays:
+    Display layout: Generic non-notch demo capture
+
+    Recent sanitized events:
+    Cowlick integration health accepted (demo)
+
+    Recent sanitized errors:
+    None
+    """
   }
 
   static func formatFields(_ fields: [(label: String, value: String)]) -> String {

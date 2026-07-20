@@ -124,16 +124,40 @@ final class CowlickUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 3))
   }
 
+  func testLaunchAssetDiagnosticsUsesHealthyDemoSnapshot() {
+    let app = launch(
+      arguments: ["--open-diagnostics"],
+      environment: ["COWLICK_ASSET_CAPTURE": "1"])
+    let reportView = app.textViews.firstMatch
+    XCTAssertTrue(reportView.waitForExistence(timeout: 3))
+    guard let report = reportView.value as? String else {
+      return XCTFail("Diagnostics report is not exposed as text.")
+    }
+
+    XCTAssertTrue(report.contains("Launch-asset demo snapshot — not live device data"))
+    XCTAssertTrue(report.contains("Hook status: Installed (demo)"))
+    XCTAssertTrue(report.contains("Helper installed: true"))
+    XCTAssertTrue(report.contains("Socket status: listening"))
+    XCTAssertFalse(report.localizedCaseInsensitiveContains("hooks are not installed"))
+    XCTAssertFalse(report.contains("macOS: Version"))
+    XCTAssertFalse(report.contains("Display 1:"))
+  }
+
   private func launch(state: String) -> XCUIApplication {
     launch(arguments: ["--state=\(state)"])
   }
 
-  private func launch(arguments: [String], autoHoverEnabled: Bool = false) -> XCUIApplication {
+  private func launch(
+    arguments: [String],
+    environment: [String: String] = [:],
+    autoHoverEnabled: Bool = false
+  ) -> XCUIApplication {
     let app = XCUIApplication()
     app.launchArguments =
       ["--ui-testing"]
       + (autoHoverEnabled ? [] : ["--disable-auto-hover"])
       + arguments
+    app.launchEnvironment.merge(environment) { _, replacement in replacement }
     app.launch()
     return app
   }

@@ -120,6 +120,43 @@ private func failureCopyIssues(in recognizedText: String) -> [String] {
   return issues
 }
 
+private func diagnosticsCopyIssues(in recognizedText: String) -> [String] {
+  let text = recognizedText.lowercased()
+  var issues: [String] = []
+  for required in [
+    "launch-asset demo snapshot",
+    "not live device data",
+    "hook status: installed",
+    "helper installed: true",
+    "socket status: listening",
+  ] where !text.contains(required) {
+    issues.append("Assets/Screenshots/diagnostics.png does not visibly contain “\(required)”.")
+  }
+  for stale in [
+    "hooks are not installed",
+    "hooks are missing or disabled",
+    "helper installed: false",
+  ] where text.contains(stale) {
+    issues.append("Assets/Screenshots/diagnostics.png contains stale “\(stale)” copy.")
+  }
+  if text.range(
+    of: #"(^|\s)macos:\s*(version\s*)?[0-9]"#, options: .regularExpression) != nil
+  {
+    issues.append("Assets/Screenshots/diagnostics.png exposes a capture-machine macOS version.")
+  }
+  if text.range(
+    of: #"architecture:\s*(arm64|x86_64)"#, options: .regularExpression) != nil
+  {
+    issues.append("Assets/Screenshots/diagnostics.png exposes a capture-machine architecture.")
+  }
+  if text.range(
+    of: #"display\s+[0-9]+:\s*[0-9]+[x×][0-9]+"#, options: .regularExpression) != nil
+  {
+    issues.append("Assets/Screenshots/diagnostics.png exposes capture-machine display dimensions.")
+  }
+  return issues
+}
+
 private func validateImages() {
   let expectations = [
     ImageExpectation(
@@ -200,6 +237,9 @@ private func validateImages() {
     }
     if expectation.path == "Assets/Screenshots/failed-expanded.png" {
       for issue in failureCopyIssues(in: text) { fail(issue) }
+    }
+    if expectation.path == "Assets/Screenshots/diagnostics.png" {
+      for issue in diagnosticsCopyIssues(in: text) { fail(issue) }
     }
     if text.contains("notchrelay") || text.contains("notch relay") {
       fail("\(expectation.path) contains stale NotchRelay branding.")
@@ -546,6 +586,18 @@ private func runPressKitSelfCheck() throws {
   }
   guard !failureCopyIssues(in: "Build verification failed").isEmpty else {
     throw ValidationError.selfCheck("stale failure copy was accepted")
+  }
+  let healthyDiagnostics =
+    "Launch-asset demo snapshot not live device data Hook status: Installed "
+    + "Helper installed: true Socket status: listening"
+  guard diagnosticsCopyIssues(in: healthyDiagnostics).isEmpty else {
+    throw ValidationError.selfCheck("healthy launch-asset diagnostics copy was rejected")
+  }
+  let staleDiagnostics =
+    "macOS: Version 26.3.1 Architecture: arm64 Hook status: Codex hooks are not installed "
+    + "Helper installed: false Socket status: listening Display 1: 1512x949"
+  guard !diagnosticsCopyIssues(in: staleDiagnostics).isEmpty else {
+    throw ValidationError.selfCheck("stale capture-machine diagnostics copy was accepted")
   }
   let validDrafts =
     launchDraftHeadings.map { "## \($0)\n\n\(disclaimer)" }
