@@ -20,3 +20,4 @@ This section is the 1.0.0 candidate release note until the matching tag appears 
 - Optional native Caps Lock signaling on supported hardware, with capability testing and original-state restoration.
 - Menu bar, Settings, onboarding, diagnostics, launch-at-login, Sparkle integration, universal packaging workflows, CI, and public documentation.
 - Memory-bounded contributor, CI, local-install, and universal-release builds with an explicit concurrency override for higher-capacity hosts.
+- Memory-bounded local cost scanning with bulk JSONL reads, utility-priority work, and a low-allocation ISO-8601 parser for large Codex histories.

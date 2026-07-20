@@ -18,12 +18,13 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
 
   private static let defaultParserPricingFingerprint =
     "codex-jsonl-v2-openai-standard-2026-07-20"
-  private static let readChunkSize = 64 * 1_024
+  private static let readChunkSize = 256 * 1_024
   private static let probeSize = 4 * 1_024
 
   private let roots: [URL]
   private let now: @Sendable () -> Date
   private let parserPricingFingerprint: @Sendable () -> String
+  private var decoder = JSONDecoder()
   private var cache: [InodeIdentity: CachedFile] = [:]
   private var metrics = LocalCodexCostScanMetrics()
 
@@ -48,6 +49,14 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
   }
 
   func estimate(interval: DateInterval) async throws -> LocalCodexCostEstimate {
+    let estimate = try performEstimate(interval: interval)
+    if metrics.bytesRead >= 16 * 1_024 * 1_024 {
+      malloc_zone_pressure_relief(nil, 0)
+    }
+    return estimate
+  }
+
+  private func performEstimate(interval: DateInterval) throws -> LocalCodexCostEstimate {
     guard interval.start < interval.end else { throw LocalCodexCostServiceError.invalidInterval }
 
     var scanMetrics = LocalCodexCostScanMetrics()
@@ -70,14 +79,16 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       }
 
       let cached = cache[fileState.inode]
-      let result = try loadSummary(
-        at: discovered.url,
-        state: fileState,
-        interval: interval,
-        activeFingerprint: activeFingerprint,
-        cached: cached,
-        metrics: &scanMetrics
-      )
+      let result = try autoreleasepool {
+        try loadSummary(
+          at: discovered.url,
+          state: fileState,
+          interval: interval,
+          activeFingerprint: activeFingerprint,
+          cached: cached,
+          metrics: &scanMetrics
+        )
+      }
       summaries.append(result.summary)
       if let updatedCache = result.cache {
         cache[fileState.inode] = updatedCache
@@ -89,7 +100,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
     cache = cache.filter { retainedCacheInodes.contains($0.key) }
 
     let aggregation = try aggregate(summaries)
-    return LocalCodexCostEstimate(
+    let estimate = LocalCodexCostEstimate(
       measurement: CostMeasurement(
         kind: .apiEquivalentEstimate,
         amount: aggregation.amount,
@@ -105,6 +116,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       scannedFileCount: summaries.count,
       refreshedAt: now()
     )
+    return estimate
   }
 
   func resetCache() async {
@@ -253,6 +265,8 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
     initialState: FileParserState,
     metrics: inout LocalCodexCostScanMetrics
   ) throws -> ParsedScan {
+    decoder = JSONDecoder()
+    defer { decoder = JSONDecoder() }
     var state = initialState
     guard let handle = try? FileHandle(forReadingFrom: url) else {
       state.summary.reasons.insert(.malformedRecord)
@@ -286,26 +300,16 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       }
       metrics.bytesRead = metrics.bytesRead.saturatedAdding(chunk.count)
 
-      for (index, byte) in chunk.enumerated() {
-        if index.isMultiple(of: 4_096) { try Task.checkCancellation() }
-        absoluteOffset += 1
-        if byte == 0x0A {
-          if discardingOversizedLine {
-            state.summary.reasons.insert(.oversizedRecord)
-            discardingOversizedLine = false
-          } else if !buffer.isEmpty {
-            parseLine(buffer, into: &state)
-          }
-          buffer.removeAll(keepingCapacity: true)
-          stableOffset = absoluteOffset
-        } else if !discardingOversizedLine {
-          if buffer.count < Self.maximumLineSize {
-            buffer.append(byte)
-          } else {
-            buffer.removeAll(keepingCapacity: true)
-            discardingOversizedLine = true
-          }
-        }
+      try autoreleasepool {
+        try consume(
+          chunk,
+          absoluteOffset: &absoluteOffset,
+          stableOffset: &stableOffset,
+          buffer: &buffer,
+          discardingOversizedLine: &discardingOversizedLine,
+          state: &state,
+          metrics: &metrics
+        )
       }
     }
 
@@ -314,13 +318,97 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
     if discardingOversizedLine {
       finalState.summary.reasons.insert(.oversizedRecord)
     } else if !buffer.isEmpty {
-      parseLine(buffer, into: &finalState, failureReason: .incompleteFinalRecord)
+      parseLine(
+        buffer,
+        into: &finalState,
+        metrics: &metrics,
+        failureReason: .incompleteFinalRecord
+      )
     }
     return ParsedScan(
       stableOffset: stableOffset,
       stableState: stableState,
       finalState: finalState
     )
+  }
+
+  private func consume(
+    _ chunk: Data,
+    absoluteOffset: inout UInt64,
+    stableOffset: inout UInt64,
+    buffer: inout Data,
+    discardingOversizedLine: inout Bool,
+    state: inout FileParserState,
+    metrics: inout LocalCodexCostScanMetrics
+  ) throws {
+    guard !chunk.isEmpty else { return }
+    let chunkStartOffset = absoluteOffset
+
+    try chunk.withUnsafeBytes { rawBuffer in
+      guard let baseAddress = rawBuffer.baseAddress else { return }
+      let bytes = rawBuffer.bindMemory(to: UInt8.self)
+      var segmentStart = 0
+
+      while segmentStart < bytes.count {
+        try Task.checkCancellation()
+        let searchAddress = baseAddress.advanced(by: segmentStart)
+        let remaining = bytes.count - segmentStart
+        let found = memchr(searchAddress, Int32(0x0A), remaining)
+        let segmentEnd =
+          found.map {
+            Int(bitPattern: $0) - Int(bitPattern: baseAddress)
+          } ?? bytes.count
+        let hasNewline = found != nil
+
+        consumeSegment(
+          bytes[segmentStart..<segmentEnd],
+          terminatesRecord: hasNewline,
+          buffer: &buffer,
+          discardingOversizedLine: &discardingOversizedLine,
+          state: &state,
+          metrics: &metrics
+        )
+
+        if hasNewline {
+          stableOffset = chunkStartOffset + UInt64(segmentEnd + 1)
+          segmentStart = segmentEnd + 1
+        } else {
+          segmentStart = bytes.count
+        }
+      }
+    }
+    absoluteOffset = chunkStartOffset + UInt64(chunk.count)
+  }
+
+  private func consumeSegment(
+    _ segment: Slice<UnsafeBufferPointer<UInt8>>,
+    terminatesRecord: Bool,
+    buffer: inout Data,
+    discardingOversizedLine: inout Bool,
+    state: inout FileParserState,
+    metrics: inout LocalCodexCostScanMetrics
+  ) {
+    if !discardingOversizedLine, !segment.isEmpty {
+      let available = Self.maximumLineSize - buffer.count
+      if segment.count <= available {
+        buffer.append(contentsOf: segment)
+        metrics.recordBufferAppendCount += 1
+        metrics.peakRetainedRecordBytes = max(metrics.peakRetainedRecordBytes, buffer.count)
+      } else {
+        buffer.removeAll(keepingCapacity: true)
+        discardingOversizedLine = true
+      }
+    }
+
+    guard terminatesRecord else { return }
+    metrics.completeRecordCount += 1
+    if discardingOversizedLine {
+      state.summary.reasons.insert(.oversizedRecord)
+      discardingOversizedLine = false
+    } else if !buffer.isEmpty {
+      parseLine(buffer, into: &state, metrics: &metrics)
+    }
+    buffer.removeAll(keepingCapacity: true)
   }
 
   private func prefixProbe(
@@ -350,11 +438,14 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
   private func parseLine(
     _ data: Data,
     into state: inout FileParserState,
+    metrics: inout LocalCodexCostScanMetrics,
     failureReason: LocalCodexCostExclusionReason = .malformedRecord
   ) {
+    metrics.decodedRecordCount += 1
+    metrics.decodedRecordBytes = metrics.decodedRecordBytes.saturatedAdding(data.count)
     let record: LogRecord
     do {
-      record = try JSONDecoder().decode(LogRecord.self, from: data)
+      record = try decoder.decode(LogRecord.self, from: data)
     } catch {
       state.summary.reasons.insert(failureReason)
       return
@@ -459,9 +550,132 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
 
   private func parsedDate(_ value: String?) -> Date? {
     guard let value else { return nil }
-    let fractional = ISO8601DateFormatter()
-    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    var result: Date?
+    let usedContiguousStorage =
+      value.utf8.withContiguousStorageIfAvailable { bytes in
+        result = parsedDate(bytes)
+        return true
+      } ?? false
+    if usedContiguousStorage { return result }
+    return parsedDate(Array(value.utf8))
+  }
+
+  private func parsedDate<C: RandomAccessCollection>(_ bytes: C) -> Date?
+  where C.Element == UInt8, C.Index == Int {
+    guard bytes.count >= 20 else { return nil }
+
+    func digit(_ index: Int) -> Int? {
+      let value = bytes[index]
+      guard value >= 0x30, value <= 0x39 else { return nil }
+      return Int(value - 0x30)
+    }
+
+    func twoDigits(_ index: Int) -> Int? {
+      guard let first = digit(index), let second = digit(index + 1) else { return nil }
+      return first * 10 + second
+    }
+
+    guard
+      bytes[4] == 0x2D,
+      bytes[7] == 0x2D,
+      bytes[10] == 0x54,
+      bytes[13] == 0x3A,
+      bytes[16] == 0x3A,
+      let yearThousands = digit(0),
+      let yearHundreds = digit(1),
+      let yearTens = digit(2),
+      let yearOnes = digit(3),
+      let month = twoDigits(5),
+      let day = twoDigits(8),
+      let hour = twoDigits(11),
+      let minute = twoDigits(14),
+      let second = twoDigits(17)
+    else { return nil }
+
+    let year = yearThousands * 1_000 + yearHundreds * 100 + yearTens * 10 + yearOnes
+    guard
+      (1...12).contains(month),
+      (0...23).contains(hour),
+      (0...59).contains(minute),
+      (0...59).contains(second),
+      (1...daysInMonth(month, year: year)).contains(day)
+    else { return nil }
+
+    var index = 19
+    var fractionalSeconds = 0.0
+    if index < bytes.count, bytes[index] == 0x2E {
+      index += 1
+      let fractionStart = index
+      var place = 0.1
+      while index < bytes.count, let value = digit(index) {
+        if place >= 0.000_000_001 {
+          fractionalSeconds += Double(value) * place
+          place *= 0.1
+        }
+        index += 1
+      }
+      guard index > fractionStart else { return nil }
+    }
+
+    guard index < bytes.count else { return nil }
+
+    let timeZoneOffset: Int
+    if bytes[index] == 0x5A {
+      index += 1
+      timeZoneOffset = 0
+    } else {
+      let suffixLength = bytes.count - index
+      guard suffixLength == 3 || suffixLength == 5 || suffixLength == 6 else { return nil }
+      guard bytes[index] == 0x2B || bytes[index] == 0x2D,
+        let offsetHour = twoDigits(index + 1), (0...23).contains(offsetHour)
+      else { return nil }
+      let offsetMinute: Int
+      switch suffixLength {
+      case 3:
+        offsetMinute = 0
+      case 5:
+        guard let minute = twoDigits(index + 3) else { return nil }
+        offsetMinute = minute
+      case 6:
+        guard bytes[index + 3] == 0x3A, let minute = twoDigits(index + 4) else { return nil }
+        offsetMinute = minute
+      default:
+        return nil
+      }
+      guard (0...59).contains(offsetMinute) else { return nil }
+      let magnitude = offsetHour * 3_600 + offsetMinute * 60
+      timeZoneOffset = bytes[index] == 0x2B ? magnitude : -magnitude
+      index = bytes.count
+    }
+    guard index == bytes.count else { return nil }
+
+    let wholeSeconds =
+      daysSinceUnixEpoch(year: year, month: month, day: day) * 86_400
+      + Int64(hour * 3_600 + minute * 60 + second - timeZoneOffset)
+    return Date(timeIntervalSince1970: Double(wholeSeconds) + fractionalSeconds)
+  }
+
+  private func daysInMonth(_ month: Int, year: Int) -> Int {
+    switch month {
+    case 2:
+      let leapYear =
+        year.isMultiple(of: 4) && (!year.isMultiple(of: 100) || year.isMultiple(of: 400))
+      return leapYear ? 29 : 28
+    case 4, 6, 9, 11:
+      return 30
+    default:
+      return 31
+    }
+  }
+
+  private func daysSinceUnixEpoch(year: Int, month: Int, day: Int) -> Int64 {
+    let adjustedYear = year - (month <= 2 ? 1 : 0)
+    let era = (adjustedYear >= 0 ? adjustedYear : adjustedYear - 399) / 400
+    let yearOfEra = adjustedYear - era * 400
+    let adjustedMonth = month + (month > 2 ? -3 : 9)
+    let dayOfYear = (153 * adjustedMonth + 2) / 5 + day - 1
+    let dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear
+    return Int64(era * 146_097 + dayOfEra - 719_468)
   }
 
   private func aggregate(_ summaries: [FileSummary]) throws -> Aggregation {
