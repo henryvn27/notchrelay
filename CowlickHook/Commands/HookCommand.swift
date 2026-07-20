@@ -61,6 +61,10 @@ enum HookCommand {
       writeError("invalid or unsupported Codex hook input: \(error.localizedDescription)")
       return 1
     }
+    guard input.hasValidSubagentIdentity else {
+      writeError("invalid Codex subagent hook input: missing agent identity")
+      return 1
+    }
 
     let bridgeEvent = event(from: input)
     updateLifecycleLedger(input: input, event: bridgeEvent)
@@ -75,12 +79,14 @@ enum HookCommand {
       } catch {
         writeError("approval deferred to Codex: \(error.localizedDescription)")
       }
-    case .stop:
+    case .stop, .subagentStop:
       do { _ = try client.send(bridgeEvent, waitForResponse: false) } catch {
         writeError("completion delivery failed: \(error.localizedDescription)")
       }
-      FileHandle.standardOutput.write(HookOutput.neutralStop)
-    case .sessionStart, .userPromptSubmit:
+      if input.hookEventName == .stop {
+        FileHandle.standardOutput.write(HookOutput.neutralStop)
+      }
+    case .sessionStart, .userPromptSubmit, .subagentStart:
       do { _ = try client.send(bridgeEvent, waitForResponse: false) } catch {
         writeError("status delivery skipped: \(error.localizedDescription)")
       }
@@ -168,6 +174,8 @@ enum HookCommand {
     case .sessionStart: eventName = .sessionStart
     case .userPromptSubmit: eventName = .working
     case .permissionRequest: eventName = .approvalRequested
+    case .subagentStart: eventName = .subagentStarted
+    case .subagentStop: eventName = .subagentStopped
     case .stop: eventName = .completed
     }
     return HookBridgeEvent(
@@ -176,6 +184,8 @@ enum HookCommand {
       turnId: input.turnId,
       cwd: input.cwd,
       model: input.model,
+      agentId: input.agentId.map { String($0.prefix(256)) },
+      agentType: input.agentType.map { String($0.prefix(128)) },
       prompt: input.prompt.map { String($0.prefix(65_536)) },
       lastAssistantMessage: input.lastAssistantMessage.map { String($0.prefix(65_536)) },
       toolName: input.toolName,
@@ -197,6 +207,8 @@ enum HookCommand {
         )
       case .sessionStart, .stop:
         try LifecycleLedger.remove(sessionID: event.sessionId, now: event.timestamp)
+      case .subagentStart, .subagentStop:
+        break
       }
     } catch {
       writeError("lifecycle recovery state was not updated: \(error.localizedDescription)")

@@ -55,6 +55,8 @@ enum CodexHookEventName: String, Codable, Equatable, Sendable {
   case sessionStart = "SessionStart"
   case userPromptSubmit = "UserPromptSubmit"
   case permissionRequest = "PermissionRequest"
+  case subagentStart = "SubagentStart"
+  case subagentStop = "SubagentStop"
   case stop = "Stop"
 }
 
@@ -66,6 +68,9 @@ struct HookInput: Codable, Equatable, Sendable {
   let model: String?
   let turnId: String?
   let permissionMode: String?
+  let agentId: String?
+  let agentType: String?
+  let agentTranscriptPath: String?
   let prompt: String?
   let toolName: String?
   let toolInput: HookJSONValue?
@@ -80,6 +85,9 @@ struct HookInput: Codable, Equatable, Sendable {
     case model
     case turnId = "turn_id"
     case permissionMode = "permission_mode"
+    case agentId = "agent_id"
+    case agentType = "agent_type"
+    case agentTranscriptPath = "agent_transcript_path"
     case prompt
     case toolName = "tool_name"
     case toolInput = "tool_input"
@@ -89,5 +97,14 @@ struct HookInput: Codable, Equatable, Sendable {
 
   var humanDescription: String? {
     toolInput?.objectValue?["description"]?.stringValue
+  }
+
+  var hasValidSubagentIdentity: Bool {
+    switch hookEventName {
+    case .subagentStart, .subagentStop:
+      agentId?.isEmpty == false && agentType?.isEmpty == false && turnId?.isEmpty == false
+    default:
+      true
+    }
   }
 }

@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import Cowlick
 
 final class NotchSwipeInterpreterTests: XCTestCase {

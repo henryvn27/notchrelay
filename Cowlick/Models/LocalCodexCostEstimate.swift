@@ -23,6 +23,11 @@ enum LocalCodexCostExclusionReason: String, CaseIterable, Equatable, Sendable {
 
 struct LocalCodexCostScanMetrics: Equatable, Sendable {
   var bytesRead = 0
+  var completeRecordCount = 0
+  var decodedRecordCount = 0
+  var decodedRecordBytes = 0
+  var peakRetainedRecordBytes = 0
+  var recordBufferAppendCount = 0
   var fullyReadFileCount = 0
   var incrementallyReadFileCount = 0
   var reusedFileCount = 0

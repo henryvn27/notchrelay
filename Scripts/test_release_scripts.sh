@@ -9,6 +9,16 @@ temporary_directory="$(mktemp -d "${TMPDIR%/}/cowlick-release-tests.XXXXXX")"
 chmod 700 "$temporary_directory"
 trap 'rm -rf "$temporary_directory"' EXIT
 
+source "$script_dir/xcode_build_jobs.sh"
+[[ "$(cowlick_xcode_build_jobs)" == 2 ]]
+[[ "$(COWLICK_XCODE_JOBS=3 cowlick_xcode_build_jobs)" == 3 ]]
+for invalid_jobs in 0 -1 two 2.5; do
+  if COWLICK_XCODE_JOBS="$invalid_jobs" cowlick_xcode_build_jobs >/dev/null 2>&1; then
+    print -u2 -- "invalid Xcode build concurrency unexpectedly passed: $invalid_jobs"
+    exit 1
+  fi
+done
+
 "$script_dir/release_preflight.sh" 1.0.0 --source-only >/dev/null
 grep -Fq 'requires_signed_feed' "$script_dir/release_preflight.sh"
 grep -Fq 'export method must be developer-id' "$script_dir/release_preflight.sh"
@@ -525,7 +535,7 @@ wrapper_scripts="$wrapper_project/Scripts"
 wrapper_fake_bin="$temporary_directory/wrapper-bin"
 mkdir -p "$wrapper_scripts" "$wrapper_fake_bin"
 cp "$script_dir/install_local.sh" "$script_dir/uninstall_local.sh" \
-  "$script_dir/install_hooks.swift" "$wrapper_scripts/"
+  "$script_dir/install_hooks.swift" "$script_dir/xcode_build_jobs.sh" "$wrapper_scripts/"
 cp "$uninstall_fake_bin/swift" "$wrapper_fake_bin/swift"
 chmod 755 "$wrapper_fake_bin/swift"
 for command_name in pgrep open xcodegen; do
@@ -581,14 +591,16 @@ chmod 755 "$wrapper_scripts/install_local.sh"
 print -r -- '#!/bin/zsh
 set -euo pipefail
 derived_data=""
+jobs=""
 while (( $# > 0 )); do
-  if [[ "$1" == -derivedDataPath ]]; then
-    derived_data="$2"
-    break
-  fi
-  shift
+  case "$1" in
+    -derivedDataPath) derived_data="$2"; shift 2 ;;
+    -jobs) jobs="$2"; shift 2 ;;
+    *) shift ;;
+  esac
 done
 [[ -n "$derived_data" ]]
+[[ "$jobs" == "${COWLICK_TEST_EXPECTED_XCODE_JOBS:-2}" ]]
 helper="$derived_data/Build/Products/Release/Cowlick.app/Contents/Helpers/cowlick-hook"
 mkdir -p "${helper:h}"
 print -r -- "#!/bin/zsh" > "$helper"
@@ -709,6 +721,7 @@ mkdir -p "$wrapper_install_first_barrier"
 env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_install_first_home" \
   COWLICK_HOME="$wrapper_install_first_home" TMPDIR="$temporary_directory" \
   COWLICK_TEST_REAL_SWIFT="$real_swift" COWLICK_TEST_HELPER_MARKER=install-first \
+  COWLICK_XCODE_JOBS=3 COWLICK_TEST_EXPECTED_XCODE_JOBS=3 \
   COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY="$wrapper_install_first_barrier" \
   "$wrapper_scripts/install_local.sh" > "$wrapper_install_first_output" 2>&1 &
 wrapper_install_pid=$!
@@ -1036,6 +1049,10 @@ mutation_runner="$script_dir/release_run_mutation.sh"
 stability_guard="$script_dir/release_stability_guard.sh"
 grep -Fq 'derived_data="$project_root/DerivedData"' "$package_script"
 grep -Fq -- '-derivedDataPath "$derived_data"' "$package_script"
+grep -Fq -- '-jobs "$xcode_jobs"' "$package_script"
+grep -Fq -- '-jobs "$xcode_jobs"' "$script_dir/build_and_run.sh"
+grep -Fq -- '-jobs "$xcode_jobs"' "$script_dir/install_local.sh"
+[[ "$(grep -Fc -- '-jobs "$COWLICK_XCODE_JOBS"' "$ci_workflow")" == 4 ]]
 grep -Fq '"$script_dir/verify_release_artifacts.sh" "$version" "$output"' \
   "$create_release_script"
 grep -Fq 'workflow_dispatch:' "$release_workflow"
@@ -1047,6 +1064,9 @@ awk '
   END { exit found ? 0 : 1 }
 ' "$ci_workflow" \
   || { print -u2 -- "build-test must prove asset provenance from a shallow checkout"; exit 1; }
+grep -Fq 'ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Release/Cowlick.app' \
+  "$ci_workflow"
+grep -Fq 'path: ${{ runner.temp }}/Cowlick-unsigned-inspection.zip' "$ci_workflow"
 if grep -Fq "tags: ['v*']" "$release_workflow"; then
   print -u2 -- "release workflow still trusts a tag-supplied workflow definition"
   exit 1

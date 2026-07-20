@@ -7,10 +7,93 @@ final class HookInstallerTests: XCTestCase {
   private let command = "/Users/test/.local/bin/cowlick-hook hook"
   private let legacyCommand = "/Users/test/.local/bin/notchrelay-hook hook"
 
+  func testSupportedEventsIncludeCurrentSessionAndSubagentLifecycle() {
+    XCTAssertEqual(
+      Set(HookInstaller.supportedEvents),
+      [
+        "SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop",
+        "Stop",
+      ])
+  }
+
   func testMergeIsIdempotent() throws {
     let first = try HookInstaller.merging(Data("{}".utf8), command: command)
     let second = try HookInstaller.merging(first, command: command)
     XCTAssertEqual(first, second)
+  }
+
+  func testRepairMigratesFourEventInstallToSixAndRemovalPreservesForeignConfiguration() throws {
+    let formerEvents = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
+    let ownedHandler: [String: Any] = [
+      "type": "command",
+      "command": command,
+      "cowlick": ["product": "Cowlick", "protocol": 1],
+    ]
+    var hooks: [String: Any] = [:]
+    for event in formerEvents {
+      hooks[event] = [["hooks": [ownedHandler]]]
+    }
+    hooks["Stop"] = [
+      [
+        "matcher": "preserve",
+        "hooks": [
+          ownedHandler,
+          ["type": "command", "command": "/usr/local/bin/unrelated"],
+        ],
+      ]
+    ]
+    hooks["FutureEvent"] = [
+      [
+        "futureGroup": true,
+        "hooks": [["type": "command", "command": "/usr/local/bin/future"]],
+      ]
+    ]
+    let original = try JSONSerialization.data(withJSONObject: [
+      "future": ["enabled": true],
+      "hooks": hooks,
+    ])
+
+    let repaired = try HookInstaller.merging(original, command: command)
+    let repairedAgain = try HookInstaller.merging(repaired, command: command)
+    XCTAssertEqual(repaired, repairedAgain)
+
+    let repairedRoot = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: repaired) as? [String: Any])
+    let repairedHooks = try XCTUnwrap(repairedRoot["hooks"] as? [String: Any])
+    XCTAssertEqual((repairedRoot["future"] as? [String: Any])?["enabled"] as? Bool, true)
+    let repairedFutureGroups = try XCTUnwrap(
+      repairedHooks["FutureEvent"] as? [[String: Any]])
+    XCTAssertEqual(repairedFutureGroups.first?["futureGroup"] as? Bool, true)
+    let repairedFutureHandlers = try XCTUnwrap(
+      repairedFutureGroups.first?["hooks"] as? [[String: Any]])
+    XCTAssertEqual(repairedFutureHandlers.first?["command"] as? String, "/usr/local/bin/future")
+    for event in HookInstaller.supportedEvents {
+      let groups = try XCTUnwrap(repairedHooks[event] as? [[String: Any]])
+      let handlers = groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+      let owned = handlers.filter {
+        ($0["cowlick"] as? [String: Any])?["product"] as? String == "Cowlick"
+      }
+      XCTAssertEqual(owned.count, 1, "Expected one Cowlick handler for \(event)")
+    }
+
+    let removed = try HookInstaller.removing(repaired, command: command)
+    let removedRoot = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: removed) as? [String: Any])
+    let removedHooks = try XCTUnwrap(removedRoot["hooks"] as? [String: Any])
+    XCTAssertEqual((removedRoot["future"] as? [String: Any])?["enabled"] as? Bool, true)
+    let removedFutureGroups = try XCTUnwrap(
+      removedHooks["FutureEvent"] as? [[String: Any]])
+    XCTAssertEqual(removedFutureGroups.first?["futureGroup"] as? Bool, true)
+    let removedFutureHandlers = try XCTUnwrap(
+      removedFutureGroups.first?["hooks"] as? [[String: Any]])
+    XCTAssertEqual(removedFutureHandlers.first?["command"] as? String, "/usr/local/bin/future")
+    for event in HookInstaller.supportedEvents where event != "Stop" {
+      XCTAssertNil(removedHooks[event], "Expected Cowlick-only event \(event) to be removed")
+    }
+    let stopGroups = try XCTUnwrap(removedHooks["Stop"] as? [[String: Any]])
+    XCTAssertEqual(stopGroups.first?["matcher"] as? String, "preserve")
+    let stopHandlers = try XCTUnwrap(stopGroups.first?["hooks"] as? [[String: Any]])
+    XCTAssertEqual(stopHandlers.map { $0["command"] as? String }, ["/usr/local/bin/unrelated"])
   }
 
   func testMergePreservesUnrelatedHooksAndUnknownFields() throws {
@@ -408,6 +491,42 @@ final class HookInstallerTests: XCTestCase {
         as? NSDictionary,
       try JSONSerialization.jsonObject(with: originalHooks) as? NSDictionary)
     XCTAssertEqual(try Data(contentsOf: settingsURL), settings)
+  }
+
+  func testInstalledFourEventIntegrationRepairsAutomatically() throws {
+    let fixture = try makeInstaller(bundledContents: "current-helper")
+    defer { try? FileManager.default.removeItem(at: fixture.home) }
+    try installOwnedHelper(fixture.installer, contents: "current-helper")
+    let installedCommand = "'\(fixture.installer.shimURL.path)' hook"
+    let ownedHandler: [String: Any] = [
+      "type": "command",
+      "command": installedCommand,
+      "cowlick": ["product": "Cowlick", "protocol": 1],
+    ]
+    let oldEvents = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
+    let hooks = Dictionary(
+      uniqueKeysWithValues: oldEvents.map { ($0, [["hooks": [ownedHandler]]]) })
+    try FileManager.default.createDirectory(
+      at: fixture.installer.hooksURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true)
+    try JSONSerialization.data(withJSONObject: ["hooks": hooks])
+      .write(to: fixture.installer.hooksURL)
+
+    XCTAssertTrue(
+      try fixture.installer.repairExistingIntegrationIfNeeded(intentionallyRemoved: false))
+    XCTAssertTrue(fixture.installer.status().isHealthy)
+    XCTAssertFalse(
+      try fixture.installer.repairExistingIntegrationIfNeeded(intentionallyRemoved: false))
+  }
+
+  func testAutomaticRepairRespectsExplicitIntegrationRemoval() throws {
+    let fixture = try makeInstaller(bundledContents: "current-helper")
+    defer { try? FileManager.default.removeItem(at: fixture.home) }
+    try installOwnedHelper(fixture.installer, contents: "current-helper")
+
+    XCTAssertFalse(
+      try fixture.installer.repairExistingIntegrationIfNeeded(intentionallyRemoved: true))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.installer.hooksURL.path))
   }
 
   func testRemoveIntegrationRefusesForeignShimWithoutChangingAnything() throws {

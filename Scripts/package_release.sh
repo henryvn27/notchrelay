@@ -5,10 +5,12 @@ script_dir="${0:A:h}"
 project_root="${script_dir:h}"
 version="${1:-1.0.0}"
 source "$script_dir/release_common.sh"
+source "$script_dir/xcode_build_jobs.sh"
 validate_release_version "$version"
 validate_project_version "$project_root" "$version"
 identity="${DEVELOPER_ID_APPLICATION:-}"
 [[ -n "$identity" ]] || { print -u2 "Set DEVELOPER_ID_APPLICATION to a Developer ID Application identity."; exit 1; }
+xcode_jobs="$(cowlick_xcode_build_jobs)"
 
 cd "$project_root"
 xcodegen generate
@@ -26,6 +28,7 @@ xcodebuild archive \
   -derivedDataPath "$derived_data" \
   -archivePath "$archive" \
   -destination 'generic/platform=macOS' \
+  -jobs "$xcode_jobs" \
   ARCHS='arm64 x86_64' \
   ONLY_ACTIVE_ARCH=NO \
   CODE_SIGN_IDENTITY="$identity" \

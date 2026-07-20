@@ -20,12 +20,15 @@ func makeBridgeEvent(
   turnID: String? = "turn-1",
   cwd: String = "/tmp/Scoutly",
   timestamp: Date = Date(),
+  agentID: String? = nil,
+  agentType: String? = nil,
   prompt: String? = nil,
   result: String? = nil,
   error: String? = nil,
   toolName: String? = nil,
   toolInput: JSONValue? = nil,
-  description: String? = nil
+  description: String? = nil,
+  deliverySequence: UInt64? = nil
 ) -> BridgeEvent {
   BridgeEvent(
     requestId: requestID,
@@ -34,13 +37,16 @@ func makeBridgeEvent(
     sessionId: sessionID,
     turnId: turnID,
     cwd: cwd,
+    agentId: agentID,
+    agentType: agentType,
     prompt: prompt,
     lastAssistantMessage: result,
     errorMessage: error,
     toolName: toolName,
     toolInput: toolInput,
     humanDescription: description,
-    authToken: "test-token"
+    authToken: "test-token",
+    deliverySequence: deliverySequence
   )
 }
 

@@ -3,11 +3,13 @@ set -euo pipefail
 
 script_dir="${0:A:h}"
 project_root="${script_dir:h}"
+source "$script_dir/xcode_build_jobs.sh"
 derived_data="$project_root/DerivedData"
 configuration="Debug"
 run_verify=false
 show_logs=false
 local_telemetry=false
+xcode_jobs="$(cowlick_xcode_build_jobs)"
 
 for argument in "$@"; do
   case "$argument" in
@@ -47,6 +49,7 @@ xcodebuild \
   -configuration "$configuration" \
   -derivedDataPath "$derived_data" \
   -destination 'platform=macOS,arch=arm64' \
+  -jobs "$xcode_jobs" \
   build
 
 app_path="$derived_data/Build/Products/$configuration/Cowlick.app"

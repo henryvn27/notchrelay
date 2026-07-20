@@ -46,7 +46,8 @@ struct CodexHookTrustService: Sendable {
   static let processTimeout: TimeInterval = 8
 
   private static let expectedEvents = [
-    "sessionStart", "userPromptSubmit", "permissionRequest", "stop",
+    "sessionStart", "userPromptSubmit", "permissionRequest", "subagentStart", "subagentStop",
+    "stop",
   ]
 
   private let locator: CodexExecutableLocator

@@ -13,6 +13,8 @@ jobs:
   build-test:
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      COWLICK_XCODE_JOBS: "2"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -24,11 +26,11 @@ jobs:
       - name: Formatting
         run: xcrun swift-format lint --recursive --strict Cowlick CowlickHook CowlickTests CowlickUITests
       - name: Unit tests
-        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UnitTests -derivedDataPath DerivedData -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UnitTests -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" CODE_SIGNING_ALLOWED=NO test
       - name: Build UI test bundle
-        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData -destination 'platform=macOS' build-for-testing
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" build-for-testing
       - name: Static analysis
-        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Debug -derivedDataPath DerivedData -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO analyze
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Debug -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" CODE_SIGNING_ALLOWED=NO analyze
       - name: Verify installer script
         run: |
           swiftc -typecheck Scripts/install_hooks.swift
@@ -40,15 +42,18 @@ jobs:
           ./Scripts/test_launch_asset_tools.sh
           xcrun swift Scripts/validate_launch_assets.swift --source-ref "$(git rev-parse HEAD)"
       - name: Build release candidate
-        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Release -derivedDataPath DerivedData -destination 'generic/platform=macOS' CODE_SIGN_IDENTITY=- build
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Release -derivedDataPath DerivedData -destination 'generic/platform=macOS' -jobs "$COWLICK_XCODE_JOBS" CODE_SIGN_IDENTITY=- build
       - name: Verify Sparkle signing pipeline
         run: ./Scripts/verify_update_signing.sh
+      - name: Package app for inspection
+        if: github.ref == 'refs/heads/main'
+        run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Release/Cowlick.app "$RUNNER_TEMP/Cowlick-unsigned-inspection.zip"
       - name: Upload app for main
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: Cowlick-unsigned-inspection
-          path: DerivedData/Build/Products/Release/Cowlick.app
+          path: ${{ runner.temp }}/Cowlick-unsigned-inspection.zip
           if-no-files-found: error
           retention-days: 7
 

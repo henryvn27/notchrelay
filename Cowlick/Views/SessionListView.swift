@@ -41,7 +41,7 @@ struct SessionListView: View {
         .accessibilityIdentifier("session-row-\(session.id)")
       }
       if sessions.contains(where: { session in
-        if case .failed = session.status { return true }
+        if case .failed = session.presentationStatus { return true }
         return false
       }) {
         Button("Open Diagnostics", action: openDiagnostics)
@@ -58,7 +58,7 @@ struct SessionListView: View {
     if session.isRecovered {
       Image(systemName: "clock.arrow.circlepath").foregroundStyle(.secondary)
     } else {
-      switch session.status {
+      switch session.presentationStatus {
       case .working: ProgressView().controlSize(.mini).tint(.white.opacity(0.68))
       case .awaitingApproval:
         Image(systemName: "exclamationmark").foregroundStyle(NotchTheme.warning)
@@ -74,10 +74,12 @@ struct SessionListView: View {
     showPromptPreviews: Bool,
     showResultPreviews: Bool
   ) -> String {
-    if showPromptPreviews, case .working(let prompt) = session.status, let prompt, !prompt.isEmpty {
+    if showPromptPreviews, case .working(let prompt) = session.presentationStatus, let prompt,
+      !prompt.isEmpty
+    {
       return String(prompt.replacingOccurrences(of: "\n", with: " ").prefix(80))
     }
-    switch session.status {
+    switch session.presentationStatus {
     case .failed(let message): return message.map { String($0.prefix(80)) } ?? "Failed"
     case .completed(let message):
       guard showResultPreviews else { return "Completed" }

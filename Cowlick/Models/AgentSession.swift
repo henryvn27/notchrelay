@@ -6,6 +6,7 @@ struct AgentSession: Identifiable, Equatable, Sendable {
   var projectName: String
   var workingDirectory: String
   var model: String?
+  var subagents: [String: SubagentActivity] = [:]
   var status: AgentStatus
   var updatedAt: Date
   var completionVisibleUntil: Date?
@@ -13,13 +14,24 @@ struct AgentSession: Identifiable, Equatable, Sendable {
 
   var isActive: Bool {
     guard !isRecovered else { return false }
-    return switch status {
+    return switch presentationStatus {
     case .working, .awaitingApproval: true
     case .idle, .failed, .completed: false
     }
   }
 
+  var presentationStatus: AgentStatus {
+    switch status {
+    case .awaitingApproval, .failed, .working:
+      status
+    case .idle, .completed:
+      subagents.isEmpty ? status : .working(prompt: nil)
+    }
+  }
+
   var statusLabel: String {
-    isRecovered ? "Unconfirmed after restart" : status.shortLabel
+    let label = isRecovered ? "Unconfirmed after restart" : presentationStatus.shortLabel
+    guard !subagents.isEmpty else { return label }
+    return "\(label) · \(subagents.count) \(subagents.count == 1 ? "agent" : "agents")"
   }
 }

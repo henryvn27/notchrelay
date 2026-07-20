@@ -75,6 +75,78 @@ final class LocalCodexCostServiceTests: XCTestCase {
     XCTAssertEqual(estimate.pricedTokenCount, 100)
   }
 
+  func testISO8601TimestampsSupportFractionalSecondsAndOffsets() async throws {
+    try write(
+      lines: [
+        metadata(id: "fractional-time"),
+        context(model: "gpt-5.6-sol"),
+        token(
+          total: usage(input: 100),
+          last: usage(input: 100),
+          timestamp: "2026-07-20T00:10:00.125Z"
+        ),
+      ],
+      to: sessions.appendingPathComponent("fractional-time.jsonl")
+    )
+    try write(
+      lines: [
+        metadata(id: "offset-time"),
+        context(model: "gpt-5.6-sol"),
+        token(
+          total: usage(input: 100),
+          last: usage(input: 100),
+          timestamp: "2026-07-19T20:10:00-04:00"
+        ),
+      ],
+      to: sessions.appendingPathComponent("offset-time.jsonl")
+    )
+    for (id, timestamp) in [
+      ("compact-offset", "2026-07-20T00:10:00+0000"),
+      ("fractional-compact-offset", "2026-07-19T20:10:00.125-0400"),
+      ("hour-offset", "2026-07-19T20:10:00.125-04"),
+    ] {
+      try write(
+        lines: [
+          metadata(id: id),
+          context(model: "gpt-5.6-sol"),
+          token(total: usage(input: 100), last: usage(input: 100), timestamp: timestamp),
+        ],
+        to: sessions.appendingPathComponent("\(id).jsonl")
+      )
+    }
+
+    let estimate = try await makeService().estimate(interval: interval)
+
+    XCTAssertEqual(estimate.pricedTokenCount, 500)
+  }
+
+  func testInvalidCalendarTimestampIsRejected() async throws {
+    for (id, timestamp) in [
+      ("invalid-calendar-time", "2026-02-30T00:10:00Z"),
+      ("fraction-without-zone", "2026-07-20T00:10:00.1"),
+      ("truncated-offset", "2026-07-20T00:10:00+"),
+      ("truncated-offset-hour", "2026-07-20T00:10:00+0"),
+    ] {
+      try write(
+        lines: [
+          metadata(id: id),
+          context(model: "gpt-5.6-sol"),
+          token(
+            total: usage(input: 100),
+            last: usage(input: 100),
+            timestamp: timestamp
+          ),
+        ],
+        to: sessions.appendingPathComponent("\(id).jsonl")
+      )
+    }
+
+    let estimate = try await makeService().estimate(interval: interval)
+
+    XCTAssertEqual(estimate.pricedTokenCount, 0)
+    XCTAssertTrue(estimate.exclusionReasons.contains(.malformedRecord))
+  }
+
   func testLongContextMultiplierStartsAbove272000InputTokens() async throws {
     try writeRollout(id: "threshold", model: "gpt-5.6-sol", input: 272_000, output: 100_000)
     try writeRollout(id: "long", model: "gpt-5.6-sol", input: 272_001, output: 100_000)
@@ -347,6 +419,47 @@ final class LocalCodexCostServiceTests: XCTestCase {
     XCTAssertEqual(appended.pricedTokenCount, 150)
     XCTAssertEqual(appendMetrics.incrementallyReadFileCount, 1)
     XCTAssertLessThan(appendMetrics.bytesRead, initialMetrics.bytesRead / 4)
+  }
+
+  func testNoiseHeavyHistoryUsesBulkBufferingWithBoundedRetention() async throws {
+    let url = sessions.appendingPathComponent("noise-heavy.jsonl")
+    try Data().write(to: url)
+    let handle = try FileHandle(forWritingTo: url)
+    defer { try? handle.close() }
+
+    let relevant = [
+      metadata(id: "noise-heavy"),
+      context(model: "gpt-5.6-sol"),
+      token(total: usage(input: 100), last: usage(input: 100)),
+    ]
+    for line in relevant {
+      try handle.write(contentsOf: Data((line + "\n").utf8))
+    }
+
+    let noise = String(repeating: "x", count: 32 * 1_024)
+    let ignoredRecord =
+      #"{"type":"response_item","timestamp":"2026-07-20T00:05:00Z","payload":{"type":"message","content":"\#(noise)"}}"#
+    let ignoredData = Data((ignoredRecord + "\n").utf8)
+    for _ in 0..<256 {
+      try handle.write(contentsOf: ignoredData)
+    }
+    try handle.synchronize()
+
+    let service = makeService()
+    let estimate = try await service.estimate(interval: interval)
+    let scanMetrics = await service.lastScanMetrics()
+    let sourceBytes = relevant.reduce(0) { $0 + $1.utf8.count + 1 } + ignoredData.count * 256
+    let expectedChunks = (sourceBytes + 256 * 1_024 - 1) / (256 * 1_024)
+
+    XCTAssertEqual(estimate.pricedTokenCount, 100)
+    XCTAssertEqual(scanMetrics.completeRecordCount, relevant.count + 256)
+    XCTAssertEqual(scanMetrics.decodedRecordCount, relevant.count + 256)
+    XCTAssertEqual(scanMetrics.decodedRecordBytes, sourceBytes - (relevant.count + 256))
+    XCTAssertLessThanOrEqual(scanMetrics.peakRetainedRecordBytes, ignoredData.count - 1)
+    XCTAssertLessThanOrEqual(
+      scanMetrics.recordBufferAppendCount,
+      scanMetrics.completeRecordCount + expectedChunks
+    )
   }
 
   func testPreIntervalHistoricalFileIsRejectedWithoutReadingContents() async throws {

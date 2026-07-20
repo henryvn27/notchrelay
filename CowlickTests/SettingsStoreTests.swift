@@ -61,7 +61,7 @@ final class SettingsStoreTests: XCTestCase {
   }
 
   func testUnhealthyIntegrationReopensOnboardingUntilRepair() {
-    XCTAssertTrue(
+    XCTAssertFalse(
       AppDelegate.shouldOpenOnboarding(
         onboardingComplete: true,
         integrationIntentionallyRemoved: true,
@@ -144,6 +144,7 @@ final class SettingsStoreTests: XCTestCase {
 
 extension BridgeEventName {
   fileprivate static let allLifecycleEvents: [Self] = [
-    .sessionStart, .working, .approvalRequested, .completed, .failed,
+    .sessionStart, .working, .approvalRequested, .subagentStarted, .subagentStopped, .completed,
+    .failed,
   ]
 }

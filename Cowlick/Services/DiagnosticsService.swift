@@ -147,7 +147,7 @@ struct DiagnosticsService {
 @MainActor
 enum CodexIntegrationPresentation {
   static let reviewInstruction =
-    "In the Codex CLI, enter /hooks and review the four Cowlick hooks."
+    "In the Codex CLI, enter /hooks and review the Cowlick lifecycle hooks."
 
   static let futureEventsNote =
     "Tasks already running cannot be backfilled. Send a new prompt or start a new task after review."

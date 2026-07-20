@@ -5,10 +5,12 @@ import XCTest
 
 private actor APICostFetchRecorder: LocalCodexCostEstimating {
   private(set) var intervals: [DateInterval] = []
+  private(set) var priorities: [TaskPriority] = []
   private(set) var resetCount = 0
 
   func estimate(interval: DateInterval) async throws -> LocalCodexCostEstimate {
     intervals.append(interval)
+    priorities.append(Task.currentPriority)
     return LocalCodexCostEstimate(
       measurement: CostMeasurement(
         kind: .apiEquivalentEstimate,
@@ -30,6 +32,7 @@ private actor APICostFetchRecorder: LocalCodexCostEstimating {
   func resetCache() async { resetCount += 1 }
 
   func recordedIntervals() -> [DateInterval] { intervals }
+  func recordedPriorities() -> [TaskPriority] { priorities }
 }
 
 private actor SuspendedAPICostRecorder: LocalCodexCostEstimating {
@@ -106,6 +109,27 @@ private enum UnexpectedUsageStoreServiceCall: Error {
 
 @MainActor
 final class UsageStoreAPICostTests: XCTestCase {
+  func testCostScanStartsAtUtilityPriorityWithoutForegroundDonation() async throws {
+    let settings = makeTestSettings()
+    settings.showCodexUsage = false
+    settings.showAPICostEstimate = true
+    settings.showResetForecast = false
+    let recorder = APICostFetchRecorder()
+    let store = UsageStore(
+      settings: settings,
+      usageService: UnusedCodexUsageService(),
+      apiCostService: recorder,
+      forecastService: UnusedResetForecastService()
+    )
+
+    _ = store.refreshAPICost(force: true)
+    let completed = await waitUntil { !store.isAPICostRefreshing }
+    let priorities = await recorder.recordedPriorities()
+
+    XCTAssertTrue(completed)
+    XCTAssertEqual(try XCTUnwrap(priorities.first), .utility)
+  }
+
   func testActivityRefreshesCostWithoutOfficialQuotaAndUsesCurrentMonth() async throws {
     let settings = makeTestSettings()
     settings.showCodexUsage = false

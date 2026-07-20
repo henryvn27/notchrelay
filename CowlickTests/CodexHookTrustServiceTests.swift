@@ -9,18 +9,18 @@ final class CodexHookTrustServiceTests: XCTestCase {
 
   func testReportsTrustedWhenAllCowlickHooksAreTrusted() throws {
     let report = try CodexHookTrustService.parseResponse(
-      response(statuses: ["trusted", "trusted", "managed", "trusted"]),
+      response(statuses: ["trusted", "trusted", "managed", "trusted", "managed", "trusted"]),
       workingDirectory: cwd,
       expectedCommand: command
     )
 
     XCTAssertEqual(report.state, .trusted)
-    XCTAssertEqual(report.eventStatuses.count, 4)
+    XCTAssertEqual(report.eventStatuses.count, 6)
   }
 
   func testReportsReviewRequiredForUntrustedHook() throws {
     let report = try CodexHookTrustService.parseResponse(
-      response(statuses: ["trusted", "untrusted", "trusted", "trusted"]),
+      response(statuses: ["trusted", "untrusted", "trusted", "trusted", "trusted", "trusted"]),
       workingDirectory: cwd,
       expectedCommand: command
     )
@@ -30,7 +30,7 @@ final class CodexHookTrustServiceTests: XCTestCase {
 
   func testReportsIncompleteWhenHookIsMissing() throws {
     let report = try CodexHookTrustService.parseResponse(
-      response(statuses: ["trusted", "trusted", "trusted"]),
+      response(statuses: ["trusted", "trusted", "trusted", "trusted", "trusted"]),
       workingDirectory: cwd,
       expectedCommand: command
     )
@@ -40,7 +40,7 @@ final class CodexHookTrustServiceTests: XCTestCase {
 
   func testIgnoresForeignHookCommands() throws {
     let report = try CodexHookTrustService.parseResponse(
-      response(statuses: ["trusted", "trusted", "trusted", "trusted"]),
+      response(statuses: ["trusted", "trusted", "trusted", "trusted", "trusted", "trusted"]),
       workingDirectory: cwd,
       expectedCommand: "'/usr/local/bin/other-hook' hook"
     )
@@ -59,11 +59,14 @@ final class CodexHookTrustServiceTests: XCTestCase {
   }
 
   func testProbeCompletesNormalHandshakeWithBoundedRunner() async throws {
-    let hooks = ["sessionStart", "userPromptSubmit", "permissionRequest", "stop"]
-      .map {
-        "{\"eventName\":\"\($0)\",\"command\":\"\(command)\",\"enabled\":true,\"trustStatus\":\"trusted\"}"
-      }
-      .joined(separator: ",")
+    let hooks = [
+      "sessionStart", "userPromptSubmit", "permissionRequest", "subagentStart", "subagentStop",
+      "stop",
+    ]
+    .map {
+      "{\"eventName\":\"\($0)\",\"command\":\"\(command)\",\"enabled\":true,\"trustStatus\":\"trusted\"}"
+    }
+    .joined(separator: ",")
     let fixture = try ExecutableFixture(
       script: """
         #!/bin/sh
@@ -195,7 +198,10 @@ final class CodexHookTrustServiceTests: XCTestCase {
   }
 
   private func response(statuses: [String]) -> Data {
-    let events = ["sessionStart", "userPromptSubmit", "permissionRequest", "stop"]
+    let events = [
+      "sessionStart", "userPromptSubmit", "permissionRequest", "subagentStart", "subagentStop",
+      "stop",
+    ]
     let hooks = zip(events, statuses).map { event, status in
       """
       {"eventName":"\(event)","command":"\(command)","enabled":true,"trustStatus":"\(status)"}

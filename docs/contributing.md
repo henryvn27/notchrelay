@@ -2,6 +2,8 @@
 
 Install Xcode 16+ and XcodeGen, clone, then run `./Scripts/build_and_run.sh --verify`. `project.yml` is the Xcode project source of truth.
 
+Contributor builds default to two concurrent Xcode build operations so Cowlick can be built alongside Codex without excessive memory pressure. Set `COWLICK_XCODE_JOBS` to a positive integer only when the host has enough memory for more concurrency.
+
 ## Style
 
 - Swift 6 strict concurrency and main-actor observable state.
@@ -13,8 +15,8 @@ Install Xcode 16+ and XcodeGen, clone, then run `./Scripts/build_and_run.sh --ve
 
 ```sh
 xcrun swift-format lint --recursive --strict Cowlick CowlickHook CowlickTests CowlickUITests
-xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UnitTests -derivedDataPath DerivedData test
-xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData test
+xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UnitTests -derivedDataPath DerivedData -jobs "${COWLICK_XCODE_JOBS:-2}" test
+xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData -jobs "${COWLICK_XCODE_JOBS:-2}" test
 git diff --check
 ```
 

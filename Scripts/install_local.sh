@@ -3,6 +3,8 @@ set -euo pipefail
 
 script_dir="${0:A:h}"
 project_root="${script_dir:h}"
+source "$script_dir/xcode_build_jobs.sh"
+xcode_jobs="$(cowlick_xcode_build_jobs)"
 
 usage() {
   print "usage: $0"
@@ -168,6 +170,7 @@ xcodebuild \
   -configuration Release \
   -derivedDataPath "$derived_data" \
   -destination 'platform=macOS,arch=arm64' \
+  -jobs "$xcode_jobs" \
   ENABLE_HARDENED_RUNTIME=NO \
   build
 
@@ -247,4 +250,4 @@ if [[ -n "$backup" && "$backup" == "$HOME/Applications/Cowlick.app.backup-"* ]];
 fi
 
 print "Installed Cowlick locally at $destination"
-print "Open Codex /hooks once to review and trust the four Cowlick commands if prompted."
+print "Open Codex /hooks once to review and trust the Cowlick commands if prompted."

@@ -5,6 +5,8 @@ enum HookBridgeEventName: String, Codable, Sendable {
   case sessionStart
   case working
   case approvalRequested
+  case subagentStarted
+  case subagentStopped
   case completed
   case failed
   case ping
@@ -21,6 +23,8 @@ struct HookBridgeEvent: Codable, Sendable {
   let turnId: String?
   let cwd: String
   let model: String?
+  let agentId: String?
+  let agentType: String?
   let prompt: String?
   let lastAssistantMessage: String?
   let errorMessage: String?
@@ -36,6 +40,8 @@ struct HookBridgeEvent: Codable, Sendable {
     turnId: String? = nil,
     cwd: String,
     model: String? = nil,
+    agentId: String? = nil,
+    agentType: String? = nil,
     prompt: String? = nil,
     lastAssistantMessage: String? = nil,
     errorMessage: String? = nil,
@@ -52,6 +58,8 @@ struct HookBridgeEvent: Codable, Sendable {
     self.turnId = turnId
     self.cwd = cwd
     self.model = model
+    self.agentId = agentId
+    self.agentType = agentType
     self.prompt = prompt
     self.lastAssistantMessage = lastAssistantMessage
     self.errorMessage = errorMessage
@@ -69,6 +77,8 @@ struct HookBridgeEvent: Codable, Sendable {
       turnId: turnId,
       cwd: cwd,
       model: model,
+      agentId: agentId,
+      agentType: agentType,
       prompt: prompt,
       lastAssistantMessage: lastAssistantMessage,
       errorMessage: errorMessage,

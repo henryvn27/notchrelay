@@ -60,7 +60,10 @@ enum HookInstallerError: LocalizedError {
 }
 
 struct HookInstaller {
-  static let supportedEvents = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
+  static let supportedEvents = [
+    "SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop",
+    "Stop",
+  ]
 
   private let fileManager: FileManager
   private let homeDirectory: URL
@@ -176,6 +179,17 @@ struct HookInstaller {
     }
   }
 
+  @discardableResult
+  func repairExistingIntegrationIfNeeded(intentionallyRemoved: Bool) throws -> Bool {
+    guard allowsAutomaticHelperRefresh, !intentionallyRemoved else { return false }
+    let current = status()
+    guard !current.isHealthy,
+      current.helperInstalled || !current.installedEvents.isEmpty
+    else { return false }
+    try installOrRepair()
+    return true
+  }
+
   func currentInstalledHelperURL() throws -> URL {
     guard allowsAutomaticHelperRefresh else {
       throw HookInstallerError.automaticHelperRefreshUnavailable
@@ -247,7 +261,7 @@ struct HookInstaller {
             "command": command,
             "timeout": timeout,
             "statusMessage": "Cowlick",
-            "cowlick": ["product": "Cowlick", "protocol": 1],
+            "cowlick": ["product": "Cowlick", "protocol": ProductVersion.bridgeProtocol],
           ]
         ]
       ])

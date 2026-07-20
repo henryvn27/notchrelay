@@ -28,7 +28,7 @@ struct MenuBarLabelView: View {
   var body: some View {
     let content = MenuBarLabelContent.resolve(
       presentation: settings.menuBarPresentation,
-      status: store.displaySession?.status,
+      status: store.displaySession?.presentationStatus,
       activeSessionCount: store.activeSessionCount,
       percentageText: percentageText
     )
@@ -66,10 +66,15 @@ struct MenuBarLabelView: View {
   }
 
   private var accessibilityText: String {
-    let status = store.displaySession?.status.shortLabel ?? "Idle"
+    let status = store.displaySession?.presentationStatus.shortLabel ?? "Idle"
     var parts = ["Cowlick", status]
     if store.activeSessionCount > 1 {
       parts.append("\(store.activeSessionCount) active sessions")
+    }
+    if store.activeSubagentCount > 0 {
+      parts.append(
+        "\(store.activeSubagentCount) active \(store.activeSubagentCount == 1 ? "agent" : "agents")"
+      )
     }
     if let usage = usageStore.primaryMetricAccessibilityLabel, settings.showCodexUsage {
       parts.append(usage)
@@ -243,23 +248,23 @@ struct MenuBarContentView: View {
     HStack(spacing: 10) {
       Image(
         systemName: headerIcon(
-          status: store.displaySession?.status,
+          status: store.displaySession?.presentationStatus,
           trustState: hookTrust.state
         )
       )
       .font(.system(size: 15, weight: .semibold))
       .foregroundStyle(
         shouldShowIntegrationAttentionInHeader(
-          status: store.displaySession?.status,
+          status: store.displaySession?.presentationStatus,
           trustState: hookTrust.state
         )
-          ? NotchTheme.warning : stateColor(store.displaySession?.status)
+          ? NotchTheme.warning : stateColor(store.displaySession?.presentationStatus)
       )
       .frame(width: 20)
       VStack(alignment: .leading, spacing: 2) {
         Text(
           Self.headerTitle(
-            status: store.displaySession?.status,
+            status: store.displaySession?.presentationStatus,
             trustState: hookTrust.state
           )
         )
@@ -267,6 +272,7 @@ struct MenuBarContentView: View {
         Text(
           Self.activitySummary(
             activeSessionCount: store.activeSessionCount,
+            activeSubagentCount: store.activeSubagentCount,
             trustState: hookTrust.state
           )
         )
@@ -337,9 +343,9 @@ struct MenuBarContentView: View {
           HStack(spacing: 8) {
             Image(
               systemName: session.isRecovered
-                ? "clock.arrow.circlepath" : stateIcon(session.status)
+                ? "clock.arrow.circlepath" : stateIcon(session.presentationStatus)
             )
-            .foregroundStyle(stateColor(session.status))
+            .foregroundStyle(stateColor(session.presentationStatus))
             .frame(width: 14)
             Text(session.projectName)
               .lineLimit(1)
@@ -415,11 +421,15 @@ struct MenuBarContentView: View {
 
   static func activitySummary(
     activeSessionCount: Int,
+    activeSubagentCount: Int = 0,
     trustState: CodexHookTrustState
   ) -> String {
     if activeSessionCount > 0 {
-      return
+      let sessions =
         "\(activeSessionCount) active \(activeSessionCount == 1 ? "session" : "sessions")"
+      guard activeSubagentCount > 0 else { return sessions }
+      return
+        "\(sessions) · \(activeSubagentCount) \(activeSubagentCount == 1 ? "agent" : "agents")"
     }
     switch trustState {
     case .needsReview:

@@ -111,6 +111,97 @@ ln -s "$temporary_directory/missing-marker-target" \
   "$dangling_marker_snapshot/.cowlick-integration-snapshot-v1"
 assert_invalid_snapshot_rejected_without_mutation dangling-marker "$dangling_marker_snapshot"
 
+migration_home="$temporary_directory/four-event-migration-home"
+migration_hooks="$migration_home/.codex/hooks.json"
+mkdir -p "${migration_hooks:h}"
+COWLICK_TEST_HOME="$migration_home" COWLICK_TEST_HOOKS="$migration_hooks" swift -e '
+  import Foundation
+
+  let environment = ProcessInfo.processInfo.environment
+  let home = environment["COWLICK_TEST_HOME"]!
+  let destination = URL(fileURLWithPath: environment["COWLICK_TEST_HOOKS"]!)
+  let owned: [String: Any] = [
+    "type": "command",
+    "command": "\(home)/.local/bin/cowlick-hook hook",
+    "cowlick": ["product": "Cowlick", "protocol": 1],
+  ]
+  var hooks: [String: Any] = [:]
+  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"] {
+    hooks[event] = [["hooks": [owned]]]
+  }
+  hooks["Stop"] = [[
+    "matcher": "preserve",
+    "hooks": [owned, ["type": "command", "command": "/usr/local/bin/unrelated"]],
+  ]]
+  hooks["FutureEvent"] = [[
+    "futureGroup": true,
+    "hooks": [["type": "command", "command": "/usr/local/bin/future"]],
+  ]]
+  let root: [String: Any] = [
+    "future": ["preserve": true],
+    "hooks": hooks,
+  ]
+  try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
+    .write(to: destination, options: .atomic)
+'
+chmod 600 "$migration_hooks"
+
+COWLICK_HOME="$migration_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" >/dev/null
+migration_first_hash="$(shasum -a 256 "$migration_hooks" | awk '{print $1}')"
+COWLICK_HOME="$migration_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" >/dev/null
+migration_second_hash="$(shasum -a 256 "$migration_hooks" | awk '{print $1}')"
+[[ "$migration_first_hash" == "$migration_second_hash" ]] \
+  || { print -u2 "four-event repair is not idempotent"; exit 1; }
+
+COWLICK_TEST_HOOKS="$migration_hooks" swift -e '
+  import Foundation
+
+  let path = ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!
+  let root = try JSONSerialization.jsonObject(
+    with: Data(contentsOf: URL(fileURLWithPath: path))) as! [String: Any]
+  precondition((root["future"] as? [String: Any])?["preserve"] as? Bool == true)
+  let hooks = root["hooks"] as! [String: Any]
+  let future = hooks["FutureEvent"] as! [[String: Any]]
+  precondition(future.first?["futureGroup"] as? Bool == true)
+  let futureCommands = future.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+    .compactMap { $0["command"] as? String }
+  precondition(futureCommands == ["/usr/local/bin/future"])
+  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop", "Stop"] {
+    let groups = hooks[event] as! [[String: Any]]
+    let handlers = groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+    let owned = handlers.filter {
+      ($0["cowlick"] as? [String: Any])?["product"] as? String == "Cowlick"
+    }
+    precondition(owned.count == 1)
+  }
+'
+
+COWLICK_HOME="$migration_home" swift "$script_dir/install_hooks.swift" remove >/dev/null
+COWLICK_TEST_HOOKS="$migration_hooks" swift -e '
+  import Foundation
+
+  let path = ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!
+  let root = try JSONSerialization.jsonObject(
+    with: Data(contentsOf: URL(fileURLWithPath: path))) as! [String: Any]
+  precondition((root["future"] as? [String: Any])?["preserve"] as? Bool == true)
+  let hooks = root["hooks"] as! [String: Any]
+  let future = hooks["FutureEvent"] as! [[String: Any]]
+  precondition(future.first?["futureGroup"] as? Bool == true)
+  let futureCommands = future.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+    .compactMap { $0["command"] as? String }
+  precondition(futureCommands == ["/usr/local/bin/future"])
+  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop"] {
+    precondition(hooks[event] == nil)
+  }
+  let stop = hooks["Stop"] as! [[String: Any]]
+  precondition(stop.first?["matcher"] as? String == "preserve")
+  let commands = stop.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+    .compactMap { $0["command"] as? String }
+  precondition(commands == ["/usr/local/bin/unrelated"])
+'
+
 COWLICK_TEST_HOME="$test_home" COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   import Foundation
 
@@ -175,7 +266,7 @@ COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   let future = root["future"] as! [String: Any]
   precondition(future["preserve"] as? Bool == true)
   let hooks = root["hooks"] as! [String: Any]
-  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"] {
+  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop", "Stop"] {
     let groups = hooks[event] as! [[String: Any]]
     let handlers = groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
     let owned = handlers.filter { ($0["cowlick"] as? [String: Any])?["product"] as? String == "Cowlick" }
@@ -242,7 +333,7 @@ COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
   let handlers = stop.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
   let commands = handlers.compactMap { $0["command"] as? String }
   precondition(Set(commands) == ["/usr/local/bin/unrelated", "/usr/local/bin/concurrent"])
-  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest"] {
+  for event in ["SessionStart", "UserPromptSubmit", "PermissionRequest", "SubagentStart", "SubagentStop"] {
     precondition(hooks[event] == nil)
   }
 '

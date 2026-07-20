@@ -188,7 +188,7 @@ final class UsageStore {
       currentAPICostRefreshToken = token
       isAPICostRefreshing = true
       let interval = Self.currentMonthInterval(now: now)
-      let task = Task { [weak self] in
+      let task = Task(priority: .utility) { [weak self] in
         defer { self?.finishAPICostRefresh(token: token) }
         let result: Result<LocalCodexCostEstimate, Error>
         do {
@@ -224,7 +224,8 @@ final class UsageStore {
 
     guard !startedTasks.isEmpty else { return nil }
     let tasks = startedTasks
-    return Task {
+    let wrapperPriority: TaskPriority? = refreshAPICost ? .utility : nil
+    return Task(priority: wrapperPriority) {
       await withTaskCancellationHandler {
         for task in tasks {
           await task.value
