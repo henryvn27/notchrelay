@@ -110,6 +110,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func configureUITestingIfNeeded(_ services: AppServices) {
     guard CommandLine.arguments.contains("--ui-testing") else { return }
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
+    if ProcessInfo.processInfo.environment["COWLICK_ASSET_CAPTURE"] == "1" {
+      services.settings.reducedAnimation = true
+    }
     if CommandLine.arguments.contains("--usage-demo") {
       services.settings.showCodexUsage = true
       services.settings.showAPICostEstimate = true
