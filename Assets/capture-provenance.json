@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
-  "sourceCommit": "afc93f26e5c7abb9ef9e2003b982c4271d262f83",
+  "sourceCommit": "d6eb036c010ba4962056f85384965c69b2bb8325",
   "productSourceAlgorithm": "sha256(git-ls-tree-r-z-full-tree-v1)",
-  "productSourceSHA256": "83fde53ec5ac60d7614d227b28452c43440c95539cfc2311cc45b7104e4b0840",
+  "productSourceSHA256": "f20a390cca19e6196ba8532f63535cd3f1fba7dff250195650c2f36f2e5e752a",
   "bundleIdentifier": "com.henryvn27.Cowlick",
   "marketingVersion": "1.0.0",
   "buildVersion": "1",
-  "appExecutableSHA256": "0a64afcfd606f73b07b4cb0ef8f4e4ecc59ad430546d84d37ff13da4ba6357fc",
+  "appExecutableSHA256": "a12211746edd56a65dbc1dbcfd4d58a8bdbf0cf2189d28e3e0d7bc7e7c15e742",
   "helperExecutableSHA256": "cf6a34e0c51e93de1942b1d7dab653a02e5895e6b71e2cde5f07acaf029c423b"
 }
