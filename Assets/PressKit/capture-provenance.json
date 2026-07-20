@@ -1,6 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sourceCommit": "6901340d2f16e165a568767b39da8182b091ad71",
+  "productSourceAlgorithm": "sha256(git-ls-tree-r-z-full-tree-v1)",
+  "productSourceSHA256": "9790dfa8b094a6f1c1de623af961cfc556fa05bcb74a9e7c5dad3a9bc3661efc",
   "bundleIdentifier": "com.henryvn27.Cowlick",
   "marketingVersion": "1.0.0",
   "buildVersion": "1",

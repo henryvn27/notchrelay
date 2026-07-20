@@ -74,13 +74,19 @@ done
 
 app_sha256="$(shasum -a 256 "$app_executable" | awk '{print $1}')"
 helper_sha256="$(shasum -a 256 "$helper_executable" | awk '{print $1}')"
+product_source_algorithm='sha256(git-ls-tree-r-z-full-tree-v1)'
+product_source_digest="$(
+  "$root_dir/Scripts/product_source_digest.sh" --require-clean "$source_sha"
+)"
 mkdir -p "$(dirname "$output_path")"
 temporary_path="$(mktemp "${output_path}.XXXXXX")"
 trap 'rm -f "$temporary_path"' EXIT
 printf '%s\n' \
   '{' \
-  '  "schemaVersion": 1,' \
+  '  "schemaVersion": 2,' \
   "  \"sourceCommit\": \"$source_sha\"," \
+  "  \"productSourceAlgorithm\": \"$product_source_algorithm\"," \
+  "  \"productSourceSHA256\": \"$product_source_digest\"," \
   "  \"bundleIdentifier\": \"$bundle_identifier\"," \
   "  \"marketingVersion\": \"$marketing_version\"," \
   "  \"buildVersion\": \"$build_version\"," \
