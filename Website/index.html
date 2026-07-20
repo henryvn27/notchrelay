@@ -120,7 +120,7 @@
             <img
               src="./assets/approval.png"
               width="760"
-              height="282"
+              height="232"
               loading="lazy"
               alt="Cowlick approval view for a Bash command, with Deny, Open Codex, Copy, and Allow once actions"
             >
@@ -134,7 +134,7 @@
             <img
               src="./assets/multi-session.png"
               width="720"
-              height="280"
+              height="210"
               loading="lazy"
               alt="Cowlick session list showing ActivityPilot and Scoutly working independently"
             >
@@ -171,6 +171,13 @@
               </dd>
               </div>
             </dl>
+            <p class="forecast-attribution">
+              <strong>Unofficial reset forecast.</strong>
+              Cowlick displays data from
+              <a href="https://www.willcodexquotareset.com">Will Codex Reset?</a>
+              as provided. It is not Cowlick data or a Cowlick estimate, and Cowlick does not
+              warrant it.
+            </p>
           </div>
 
           <figure class="usage-capture">
@@ -224,7 +231,10 @@
           backend, ads, or third-party crash reporter.
         </p>
         <div class="privacy-facts">
-          <p><strong>No transcript-derived state.</strong> Lifecycle state comes from official Codex hooks.</p>
+          <p>
+            <strong>Lifecycle fields only.</strong> Local observation ignores prompt, message,
+            command, tool-input, and result payloads. Approvals come only from authenticated hooks.
+          </p>
           <p><strong>No prompt history.</strong> Full prompts and approval operations are not persisted.</p>
           <p><strong>No hidden aggregation.</strong> Provider accounts and cost coverage remain separate.</p>
         </div>
