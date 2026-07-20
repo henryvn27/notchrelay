@@ -1,6 +1,6 @@
 # Cowlick social assets
 
-- `github-social-preview.png` is the 1280 × 640 repository social preview.
+- `github-social-preview.png` is the 1280 × 640 source for the repository social preview. It is not live merely because it is committed; a repository administrator must upload it through GitHub Settings and verify the public Open Graph image by following [`docs/releasing.md`](../../docs/releasing.md#publish-the-repository-social-preview).
 - `x-launch.png` is the 1600 × 900 launch image.
 - `launch-copy.md` contains factual, channel-specific release copy.
 
