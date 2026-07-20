@@ -18,12 +18,13 @@ Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays hidd
 ## What it does
 
 - Shows working, approval, completed, and multi-session Codex lifecycle states. Cowlick's failure presentation is reserved for its own bridge and self-test diagnostics; the available Codex hooks do not provide authoritative task-failure state.
-- Uses official Codex lifecycle hooks; it does not parse transcripts.
+- Uses official Codex lifecycle hooks for state; it never parses prompt or transcript content.
 - Matches approval decisions to a unique pending request and never defaults to Allow.
 - Falls back to Codex's normal approval UI if the app is unavailable, disconnected, malformed, or timed out.
 - Uses the built-in display's real safe-area geometry; non-notch Macs get a compact top-center island.
 - Shows current Codex quota from the single local Codex identity, with no account-file access or usage history.
 - Estimates whether the current burn rate should last through reset or approximately how long remains before quota exhaustion; it does not present an “expected percent” as the forecast.
+- Optionally prices this Mac's month-to-date local Codex token counters at published OpenAI Standard API rates. It is labeled as a partial API-price equivalent, never as a subscription charge or actual bill.
 - Keeps multiple labeled OpenAI API and Anthropic API organization-billing accounts separate, with an account switcher in the menu, aliases in owner-only metadata, and Admin API keys in macOS Keychain.
 - Can optionally display an attributed, unofficial reset forecast from [Will Codex Reset?](https://www.willcodexquotareset.com/); it is off by default and never presented as Cowlick data.
 - On supported hardware, optionally pulses the Caps Lock LED while preserving its original state; the feature stays disabled when its in-app signal test cannot verify native control.
@@ -77,13 +78,13 @@ Cowlick's Allow button is never the default action. Every response contains the 
 
 ## Privacy
 
-Cowlick has no analytics, cloud backend, Cowlick account, ads, or third-party crash reporter. Sparkle checks only the signed update feed attached to verified GitHub releases; an absent feed cannot become an unsigned update. If you explicitly enable the unofficial reset forecast, Cowlick requests data from willcodexquotareset.com and labels it as third-party data that Cowlick does not estimate or warrant. Organization-billing requests happen only for accounts you add and go directly to that provider. Cowlick does not persist full prompts, commands, quota history, forecast history, billing history, or session history. See [PRIVACY.md](PRIVACY.md) for every stored file, network path, and permission.
+Cowlick has no analytics, cloud backend, Cowlick account, ads, or third-party crash reporter. Sparkle checks only the signed update feed attached to verified GitHub releases; an absent feed cannot become an unsigned update. If you explicitly enable the unofficial reset forecast, Cowlick requests data from willcodexquotareset.com and labels it as third-party data that Cowlick does not estimate or warrant. Organization-billing requests happen only for accounts you add and go directly to that provider. The API-price equivalent reads allowlisted token counters and model names locally; it does not upload them or retain prompt content. Cowlick does not persist full prompts, commands, quota history, forecast history, billing history, or session history. See [PRIVACY.md](PRIVACY.md) for every stored file, network path, and permission.
 
 ## How it works
 
 Codex invokes the bundled `cowlick-hook` helper for `SessionStart`, `UserPromptSubmit`, `PermissionRequest`, and `Stop`. The helper sends authenticated, versioned newline-delimited JSON over a private Unix-domain socket. The native app arbitrates independent session state and returns synchronous approval decisions only when the request is still current.
 
-For quota display, Cowlick asks the installed Codex app-server only for `account/rateLimits/read`; it does not read `auth.json` or request account identity. This is the single subscription identity active in the Codex executable Cowlick selects, not a managed multi-login system. In Settings → Accounts, Add Account accepts separately labeled OpenAI API and Anthropic API organization accounts; the menu can switch and refresh the selected account. Cowlick shows each account's month-to-date charges without aggregating providers or presenting them as Codex subscription usage. OpenAI organization costs are account-wide; Anthropic's official cost report excludes Priority Tier usage, so Cowlick marks Anthropic coverage as partial. The optional reset forecast is fetched separately from `https://www.willcodexquotareset.com/api/forecast`, decoded as untrusted display-only data, and kept in memory.
+For quota display, Cowlick asks the installed Codex app-server only for `account/rateLimits/read`; it does not read `auth.json` or request account identity. This is the single subscription identity active in the Codex executable Cowlick selects, not a managed multi-login system. The optional API-price equivalent scans local Codex session JSONL but retains only allowlisted model and numeric token-counter fields, applies a bundled reviewed pricing table, and labels unsupported or ambiguous coverage as partial. It excludes tool fees and cannot attribute work to a subscription account. In Settings → Accounts, Add Account accepts separately labeled OpenAI API and Anthropic API organization accounts; the menu can switch and refresh the selected account. Cowlick shows each account's month-to-date charges without aggregating providers or presenting them as Codex subscription usage. OpenAI organization costs are account-wide; Anthropic's official cost report excludes Priority Tier usage, so Cowlick marks Anthropic coverage as partial. The optional reset forecast is fetched separately from `https://www.willcodexquotareset.com/api/forecast`, decoded as untrusted display-only data, and kept in memory.
 
 See [architecture](docs/architecture.md) and the [bridge protocol](docs/protocol.md).
 

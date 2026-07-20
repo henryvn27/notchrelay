@@ -15,6 +15,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertFalse(first.capsLockEnabled)
     XCTAssertTrue(first.automaticUpdateChecks)
     XCTAssertTrue(first.showCodexUsage)
+    XCTAssertFalse(first.showAPICostEstimate)
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
     XCTAssertEqual(first.menuBarPresentation, .iconAndDetails)
@@ -22,6 +23,7 @@ final class SettingsStoreTests: XCTestCase {
     first.showPromptPreviews = true
     first.approvalTimeout = 35
     first.usageMetricPreference = .used
+    first.showAPICostEstimate = true
     first.menuBarPresentation = .percentageOnly
     first.integrationIntentionallyRemoved = true
 
@@ -29,6 +31,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertTrue(second.showPromptPreviews)
     XCTAssertEqual(second.approvalTimeout, 35)
     XCTAssertEqual(second.usageMetricPreference, .used)
+    XCTAssertTrue(second.showAPICostEstimate)
     XCTAssertEqual(second.menuBarPresentation, .percentageOnly)
     XCTAssertTrue(second.integrationIntentionallyRemoved)
   }
@@ -39,6 +42,7 @@ final class SettingsStoreTests: XCTestCase {
     settings.showResultPreviews = true
     settings.capsLockEnabled = true
     settings.showCodexUsage = false
+    settings.showAPICostEstimate = false
     settings.showResetForecast = true
     settings.usageMetricPreference = .used
     settings.menuBarPresentation = .statusAndPercentage
@@ -49,6 +53,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertFalse(settings.showResultPreviews)
     XCTAssertFalse(settings.capsLockEnabled)
     XCTAssertTrue(settings.showCodexUsage)
+    XCTAssertFalse(settings.showAPICostEstimate)
     XCTAssertFalse(settings.showResetForecast)
     XCTAssertEqual(settings.usageMetricPreference, .remaining)
     XCTAssertEqual(settings.menuBarPresentation, .iconAndDetails)

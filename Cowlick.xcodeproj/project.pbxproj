@@ -34,6 +34,7 @@
 		49DB8166733079D169559C13 /* AppServicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4281CE3CDAC4E72BA0B304A /* AppServicesTests.swift */; };
 		4BD51E93EF53560037F8C5A8 /* HookOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44F0B7EA2F5B2EF6E98A6E8 /* HookOutput.swift */; };
 		4ECA030B4CAE91ECD2B1E0C9 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 36AE3445A5BC5D1D33FE0494 /* Sparkle */; };
+		5074CEC2A4EA25A2D64F3E72 /* LocalCodexCostEstimate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F7AA4D4579780636AC224B /* LocalCodexCostEstimate.swift */; };
 		519296BB76C25C5C9CB7AD29 /* CapsLockSignalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02ADF6742F705A79BFD1F25E /* CapsLockSignalTests.swift */; };
 		56A5976E38FAB79105A75563 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72107190257BB6F3F1A763C2 /* Security.framework */; };
 		57CB98F35E5F1C5C36FC5DBD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17CB3752D75079A36E6788A0 /* SettingsView.swift */; };
@@ -57,12 +58,15 @@
 		7F2252103C2374B6E4007AC7 /* ProviderAccountEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F354262AEDBE7AD60387B22F /* ProviderAccountEditorView.swift */; };
 		809528534D6F5C05251CF572 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */; };
 		82A978BC7EC0B0E45EB5D27A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4A920B7BBA7C42B9E6473E /* OnboardingView.swift */; };
+		8635C38A1A8A66612B69DED8 /* LocalCodexCostServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B884B9CEC9D8D9D3B349F7C6 /* LocalCodexCostServiceTests.swift */; };
 		8958A7C719F44CBE7E83BD52 /* UsagePlanningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6080E9C79459106F29BEF54A /* UsagePlanningTests.swift */; };
+		8BEFC17DD2E6E84851D63414 /* UsageStoreAPICostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7C7A684D1C338945B2F5D5 /* UsageStoreAPICostTests.swift */; };
 		8E5C02F7C19B459A8A8D89AF /* IntegrationSelfTestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E10574FDBB0DF5CC4E43E6 /* IntegrationSelfTestService.swift */; };
 		9556AC0B863F62C2371D320C /* ProviderBilling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14FBD7EF15E1E70F2D401E73 /* ProviderBilling.swift */; };
 		9A9EA8D5BDF0EB4594DE2645 /* NotchSwipeInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88ED5A412FE03AEA6626B118 /* NotchSwipeInterpreterTests.swift */; };
 		9BADE6962880887AF572E4F7 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22095EDA92103DBF8E98E176 /* LaunchAtLoginService.swift */; };
 		9EC14FDFFC2E6F445E58228C /* CodexUsageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6344453156A3CDC276DB49CF /* CodexUsageTests.swift */; };
+		A296ED335E3CB1D3AD829019 /* LocalCodexCostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF7845F077956AB9B5A1EBB7 /* LocalCodexCostService.swift */; };
 		A2FD0E5E7709F6A649440CC1 /* UsageSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D0238E0BD27674B640C3D43 /* UsageSectionView.swift */; };
 		A7E738D40998DFB2BE208F22 /* CodexHookTrustServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE732DF92FFC25F889A600B /* CodexHookTrustServiceTests.swift */; };
 		A8A7FF4ADACCFF33D2892329 /* CodexHookTrustService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0879F6B4406A86E13BD5C08 /* CodexHookTrustService.swift */; };
@@ -173,6 +177,7 @@
 		30ECF7F3AC168F8424EB04B0 /* ProviderBillingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBillingStoreTests.swift; sourceTree = "<group>"; };
 		33E040C9DEDBFFC3B36C9BDF /* WindowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCoordinator.swift; sourceTree = "<group>"; };
 		3723611B2465DB0C20B81BC6 /* UsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStore.swift; sourceTree = "<group>"; };
+		41F7AA4D4579780636AC224B /* LocalCodexCostEstimate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCodexCostEstimate.swift; sourceTree = "<group>"; };
 		45690028E62EE54D08B6588E /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		471662E80DA80898B3E934F4 /* Cowlick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cowlick.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D1915591D78BF5127C51F2E /* HookBridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookBridgeClient.swift; sourceTree = "<group>"; };
@@ -203,6 +208,7 @@
 		84FC1BD8D1B2681E9B43971F /* ProviderAccountStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountStoreTests.swift; sourceTree = "<group>"; };
 		855F997D51121756D7C809CA /* ProviderAccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountStore.swift; sourceTree = "<group>"; };
 		88ED5A412FE03AEA6626B118 /* NotchSwipeInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchSwipeInterpreterTests.swift; sourceTree = "<group>"; };
+		8D7C7A684D1C338945B2F5D5 /* UsageStoreAPICostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStoreAPICostTests.swift; sourceTree = "<group>"; };
 		94D3AF41288D4F11FD6B15B4 /* ResetForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetForecast.swift; sourceTree = "<group>"; };
 		99EEA2BB113CB13D02F76C1A /* ResetForecastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetForecastService.swift; sourceTree = "<group>"; };
 		9AC03E90E1F69CE34F316C90 /* UsageStoreCancellationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStoreCancellationTests.swift; sourceTree = "<group>"; };
@@ -217,6 +223,7 @@
 		AE7EDFE0F3F27803FE307D22 /* ProviderAccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountsView.swift; sourceTree = "<group>"; };
 		B07C61D9A6E253E32ECF5B0F /* HookCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookCommand.swift; sourceTree = "<group>"; };
 		B6045E7C191CE6C3586C33AF /* CowlickUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CowlickUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B884B9CEC9D8D9D3B349F7C6 /* LocalCodexCostServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCodexCostServiceTests.swift; sourceTree = "<group>"; };
 		B8ADE618862771F340A8867C /* ApprovalCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalCoordinator.swift; sourceTree = "<group>"; };
 		BD54D120D6BDC45FFFDF778E /* LifecycleLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleLedger.swift; sourceTree = "<group>"; };
 		BEF03FAEB9588CCCB87772B1 /* UsageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageProvider.swift; sourceTree = "<group>"; };
@@ -225,6 +232,7 @@
 		C40D11073EEB9076D14C0EE8 /* HookProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookProtocolTests.swift; sourceTree = "<group>"; };
 		C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
 		CEF47108CEFB5C90BE8AB0BD /* CowlickUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CowlickUITests.swift; sourceTree = "<group>"; };
+		CF7845F077956AB9B5A1EBB7 /* LocalCodexCostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCodexCostService.swift; sourceTree = "<group>"; };
 		D17E3A7161E00D5EFD2DA2B5 /* LocalSocketServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSocketServerTests.swift; sourceTree = "<group>"; };
 		D2D09214687330BDFA8A9AA8 /* CodexUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsage.swift; sourceTree = "<group>"; };
 		D75654446D4FBE87C22FF7FD /* CodexUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageService.swift; sourceTree = "<group>"; };
@@ -272,6 +280,7 @@
 				C40D11073EEB9076D14C0EE8 /* HookProtocolTests.swift */,
 				AB3651BA18513BBA1AA7CF71 /* IntegrationSelfTestServiceTests.swift */,
 				DEF7180FDAC277C032065547 /* LifecycleLedgerTests.swift */,
+				B884B9CEC9D8D9D3B349F7C6 /* LocalCodexCostServiceTests.swift */,
 				D17E3A7161E00D5EFD2DA2B5 /* LocalSocketServerTests.swift */,
 				0478BAE10E695EDB10EF1243 /* MenuBarPresentationTests.swift */,
 				13CBA9B585034C9478D3781F /* NotchGeometryTests.swift */,
@@ -288,6 +297,7 @@
 				1CAAB05E62D69052440C36A1 /* TestSupport.swift */,
 				A1594E6652349760A9BCE9B7 /* UpdateConfigurationTests.swift */,
 				6080E9C79459106F29BEF54A /* UsagePlanningTests.swift */,
+				8D7C7A684D1C338945B2F5D5 /* UsageStoreAPICostTests.swift */,
 				9AC03E90E1F69CE34F316C90 /* UsageStoreCancellationTests.swift */,
 			);
 			path = CowlickTests;
@@ -302,6 +312,7 @@
 				E823D89D3D5ED1556C99C36F /* ApprovalRequest.swift */,
 				FE80FB8AB883D6453448BD5D /* BridgeEvent.swift */,
 				D2D09214687330BDFA8A9AA8 /* CodexUsage.swift */,
+				41F7AA4D4579780636AC224B /* LocalCodexCostEstimate.swift */,
 				1E00C90A7F0DE8486E7B9D5B /* MenuBarPresentation.swift */,
 				14FBD7EF15E1E70F2D401E73 /* ProviderBilling.swift */,
 				94D3AF41288D4F11FD6B15B4 /* ResetForecast.swift */,
@@ -439,6 +450,7 @@
 				84E10574FDBB0DF5CC4E43E6 /* IntegrationSelfTestService.swift */,
 				22095EDA92103DBF8E98E176 /* LaunchAtLoginService.swift */,
 				2ED240338A14E5AD0106B003 /* LegacyMigrationService.swift */,
+				CF7845F077956AB9B5A1EBB7 /* LocalCodexCostService.swift */,
 				57D4DF843AF60195B58086E6 /* LocalSocketServer.swift */,
 				E1D730D384C7D37A77A7BEC6 /* ProviderCostService.swift */,
 				99EEA2BB113CB13D02F76C1A /* ResetForecastService.swift */,
@@ -701,6 +713,8 @@
 				9BADE6962880887AF572E4F7 /* LaunchAtLoginService.swift in Sources */,
 				7460A4FFB08FABD64B657ED5 /* LegacyMigrationService.swift in Sources */,
 				750A2443E3BA5974479344E5 /* LifecycleLedger.swift in Sources */,
+				5074CEC2A4EA25A2D64F3E72 /* LocalCodexCostEstimate.swift in Sources */,
+				A296ED335E3CB1D3AD829019 /* LocalCodexCostService.swift in Sources */,
 				C1F3BEC24142BC6BCFB023B3 /* LocalSocketServer.swift in Sources */,
 				FA3587BF1D082C8812D9A9C1 /* MenuBarContentView.swift in Sources */,
 				D64ECC90F1571B8A0445490F /* MenuBarPresentation.swift in Sources */,
@@ -757,6 +771,7 @@
 				D151862299B630F7F7A441EF /* IntegrationSelfTestServiceTests.swift in Sources */,
 				AAB96E84ADA69539A322F8D8 /* LifecycleLedger.swift in Sources */,
 				5E577BA227739D458D55343A /* LifecycleLedgerTests.swift in Sources */,
+				8635C38A1A8A66612B69DED8 /* LocalCodexCostServiceTests.swift in Sources */,
 				D45CCAC0D6EA207C0664C792 /* LocalSocketServerTests.swift in Sources */,
 				AF581DECD3D5F1953ACD6898 /* MenuBarPresentationTests.swift in Sources */,
 				280BEF7D013F811918328516 /* NotchGeometryTests.swift in Sources */,
@@ -774,6 +789,7 @@
 				11792475DD4A7CC56077BB33 /* TestSupport.swift in Sources */,
 				D5765310BD62C3F1B4467D88 /* UpdateConfigurationTests.swift in Sources */,
 				8958A7C719F44CBE7E83BD52 /* UsagePlanningTests.swift in Sources */,
+				8BEFC17DD2E6E84851D63414 /* UsageStoreAPICostTests.swift in Sources */,
 				DB37E9D87BD1144771ACB6E9 /* UsageStoreCancellationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

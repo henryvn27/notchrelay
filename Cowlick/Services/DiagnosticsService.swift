@@ -55,6 +55,7 @@ struct DiagnosticsService {
         Self.bridgeSocketStatus(isListening: bridgeIsListening)
       ),
       ("Codex quota", usageStore.officialStatus),
+      ("API-price equivalent", usageStore.apiCostStatus),
       ("Third-party reset forecast", usageStore.forecastStatus),
       ("Caps Lock", caps.summary),
     ])
@@ -108,6 +109,7 @@ struct DiagnosticsService {
     Helper installed: true
     Socket status: listening
     Codex quota: Ready for live account data
+    API-price equivalent: Local estimate is labeled and separate from billing
     Third-party reset forecast: Website data is attributed in Quota
     Caps Lock: Optional; not evaluated in this demo snapshot
 

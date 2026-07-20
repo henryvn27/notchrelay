@@ -8,7 +8,9 @@ func makeTestSettings(_ name: String = UUID().uuidString) -> SettingsStore {
   let suite = "com.henryvn27.CowlickTests.\(name)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
-  return SettingsStore(defaults: defaults)
+  let settings = SettingsStore(defaults: defaults)
+  settings.showAPICostEstimate = false
+  return settings
 }
 
 func makeBridgeEvent(

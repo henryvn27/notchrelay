@@ -3,6 +3,7 @@ import SwiftUI
 struct UsageSectionView: View {
   let store: UsageStore
   let showOfficialUsage: Bool
+  let showAPICostEstimate: Bool
   let showForecast: Bool
   let metricPreference: UsageMetricPreference
   let refresh: () -> Void
@@ -12,6 +13,9 @@ struct UsageSectionView: View {
     VStack(alignment: .leading, spacing: 12) {
       if showOfficialUsage {
         officialUsage
+      }
+      if showAPICostEstimate {
+        apiEquivalentCost
       }
       if showForecast {
         thirdPartyForecast
@@ -23,6 +27,72 @@ struct UsageSectionView: View {
       MenuPresentationObserver { presentationDate = Date() }
         .frame(width: 0, height: 0)
     }
+  }
+
+  private var apiEquivalentCost: some View {
+    VStack(alignment: .leading, spacing: 7) {
+      HStack {
+        VStack(alignment: .leading, spacing: 1) {
+          Text("API-price equivalent")
+            .font(.caption.weight(.semibold))
+          Text("This Mac · month to date")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        Spacer()
+        apiCostRefreshButton
+      }
+
+      if let estimate = store.apiCostEstimate {
+        HStack(alignment: .firstTextBaseline) {
+          Text(
+            estimate.measurement.amount.formatted(
+              .currency(code: estimate.measurement.currency.uppercased()))
+          )
+          .font(.title3.weight(.semibold).monospacedDigit())
+          Spacer()
+          VStack(alignment: .trailing, spacing: 1) {
+            Text("OpenAI Standard rates")
+            if let pricingAsOf = estimate.measurement.pricingAsOf {
+              Text("as of \(pricingAsOf.formatted(date: .abbreviated, time: .omitted))")
+            }
+          }
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+        }
+
+        Text(
+          "Updated \(RelativeTimeLabel.string(for: estimate.refreshedAt, relativeTo: presentationDate))"
+        )
+        .font(.caption2)
+        .foregroundStyle(store.apiCostError == nil ? Color.secondary : Color.orange)
+
+        if estimate.measurement.coverage == .partial || estimate.unpricedTokenCount > 0 {
+          Label("Partial estimate · some local usage was excluded", systemImage: "circle.dashed")
+            .font(.caption2)
+            .foregroundStyle(.orange)
+        }
+        if store.apiCostError != nil {
+          Label("Refresh failed · showing the last estimate", systemImage: "arrow.clockwise.circle")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+      } else if let error = store.apiCostError {
+        unavailableRow(error)
+      } else {
+        loadingRow("Reading local token counters…")
+      }
+
+      Text(
+        "Estimate only; not your subscription charge or an actual bill. Tool fees and unsupported models are excluded."
+      )
+      .font(.caption2)
+      .foregroundStyle(.secondary)
+      .fixedSize(horizontal: false, vertical: true)
+      Link("OpenAI pricing", destination: Self.openAIPriceURL)
+        .font(.caption2)
+    }
+    .accessibilityElement(children: .contain)
   }
 
   private var officialUsage: some View {
@@ -179,6 +249,23 @@ struct UsageSectionView: View {
     .accessibilityLabel("Refresh quota")
   }
 
+  private var apiCostRefreshButton: some View {
+    Button {
+      store.refreshAPICost(force: true)
+    } label: {
+      if store.isAPICostRefreshing {
+        ProgressView()
+          .controlSize(.mini)
+      } else {
+        Image(systemName: "arrow.clockwise")
+      }
+    }
+    .buttonStyle(.plain)
+    .disabled(store.isAPICostRefreshing)
+    .help("Refresh API-price equivalent")
+    .accessibilityLabel("Refresh API-price equivalent")
+  }
+
   private var forecastRefreshButton: some View {
     Button {
       store.refreshForecast(force: true)
@@ -268,6 +355,9 @@ struct UsageSectionView: View {
     case .deficit: .orange
     }
   }
+
+  private static let openAIPriceURL = URL(
+    string: "https://developers.openai.com/api/docs/models/gpt-5.6-sol")!
 }
 
 private struct QuotaProgressBar: View {

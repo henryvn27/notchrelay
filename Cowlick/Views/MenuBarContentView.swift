@@ -92,11 +92,14 @@ struct MenuBarContentView: View {
         integrationAttentionSection
       }
 
-      if services.settings.showCodexUsage || services.settings.showResetForecast {
+      if services.settings.showCodexUsage || services.settings.showAPICostEstimate
+        || services.settings.showResetForecast
+      {
         Divider()
         UsageSectionView(
           store: services.usageStore,
           showOfficialUsage: services.settings.showCodexUsage,
+          showAPICostEstimate: services.settings.showAPICostEstimate,
           showForecast: services.settings.showResetForecast,
           metricPreference: services.settings.usageMetricPreference,
           refresh: { services.usageStore.refreshOfficial(force: true) }

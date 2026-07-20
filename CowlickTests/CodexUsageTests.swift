@@ -474,7 +474,7 @@ final class UsageStoreTests: XCTestCase {
     guard let parentPID = await waitForProcessID(at: parentPIDURL),
       let descendantPID = await waitForProcessID(at: descendantPIDURL)
     else {
-      store.reset()
+      await store.reset()
       return XCTFail("Expected UsageStore process tree to start")
     }
     defer {
@@ -482,7 +482,7 @@ final class UsageStoreTests: XCTestCase {
       Darwin.kill(descendantPID, SIGKILL)
     }
 
-    store.reset()
+    await store.reset()
 
     let processTreeExited = await waitForProcessesToExit([parentPID, descendantPID])
     XCTAssertTrue(processTreeExited)
@@ -518,7 +518,7 @@ final class UsageStoreTests: XCTestCase {
     store.refreshIfNeeded(force: true)
     let forecastLoaded = await waitUntil { !store.isRefreshing && store.forecast != nil }
     XCTAssertTrue(forecastLoaded)
-    store.reset()
+    await store.reset()
 
     XCTAssertNil(store.snapshot)
     XCTAssertNil(store.forecast)

@@ -26,9 +26,13 @@ Cowlick reads quota from one local Codex identity: the identity active in the Co
 
 The time-to-empty estimate needs a valid reset window, at least 3% of that window elapsed, and at least 1% observed use. Before that, Cowlick shows the current used or remaining value without pretending it knows when the quota will run out. The marker still represents an even pace through the reset window.
 
+## The API-price equivalent is partial or unavailable
+
+Cowlick prices only local Codex token counters with an exact supported model name. Unknown models, unresolved fork lineages, malformed or oversized records, and tool-call fees are excluded instead of guessed. “Partial” means the displayed amount is a conservative subtotal for this Mac, not that excluded work cost zero. Refresh from the menu or Settings → Quota after the current Codex turn records its next token-count event.
+
 ## Organization billing is unavailable
 
-Settings → Accounts supports separately labeled OpenAI API and Anthropic API organization-billing accounts. Choose Add Account and enter an alias plus an Admin API key with access to the provider's official organization cost endpoint; ordinary project API keys may not have that access. Opening Accounts or choosing Refresh requests month-to-date data separately per account. OpenAI organization costs are account-wide. Anthropic's official cost report excludes Priority Tier usage, so its coverage is partial. Cowlick does not combine providers, and this data is not the Codex subscription quota or an API-equivalent estimate.
+Settings → Accounts supports separately labeled OpenAI API and Anthropic API organization-billing accounts. Choose Add Account and enter an alias plus an Admin API key with access to the provider's official organization cost endpoint; ordinary project API keys may not have that access. Opening Accounts or choosing Refresh requests month-to-date data separately per account. OpenAI organization costs are account-wide. Anthropic's official cost report excludes Priority Tier usage, so its coverage is partial. Cowlick does not combine providers, and this actual billing data remains separate from Codex subscription quota and the local API-price equivalent.
 
 If a refresh fails, verify that the selected alias is the intended organization and replace its credential. Removing an account removes its Keychain credential and only that account's metadata.
 

@@ -168,7 +168,7 @@ final class UsageStoreCancellationTests: XCTestCase {
     XCTAssertTrue(store.isOfficialRefreshing)
     XCTAssertFalse(store.isForecastRefreshing)
 
-    store.reset()
+    await store.reset()
     await usageFetch.waitForCancellation(of: 0)
     await usageFetch.resume(call: 0, throwing: CancellationError())
     await refresh?.value
@@ -214,7 +214,7 @@ final class UsageStoreCancellationTests: XCTestCase {
 
     let refresh = store.refreshIfNeeded(force: true)
     await fetch.waitForCalls(1)
-    store.reset()
+    await store.reset()
     await fetch.waitForCancellation(of: 0)
     await fetch.resume(call: 0, returning: usageSnapshot(usedPercent: 25))
     await refresh?.value
@@ -238,7 +238,7 @@ final class UsageStoreCancellationTests: XCTestCase {
 
     let refresh = store.refreshIfNeeded(force: true)
     await fetch.waitForCalls(1)
-    store.reset()
+    await store.reset()
     await fetch.waitForCancellation(of: 0)
     await fetch.resume(call: 0, throwing: SuspendedFetchError.unavailable)
     await refresh?.value
@@ -451,7 +451,7 @@ final class UsageStoreCancellationTests: XCTestCase {
 
     let refresh = store?.refreshIfNeeded(force: true)
     await fetch.waitForCalls(1)
-    store?.reset()
+    await store?.reset()
     await fetch.waitForCancellation(of: 0)
     store = nil
 
