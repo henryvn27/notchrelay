@@ -40,11 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return max(5, min(60, value == 0 ? 60 : value))
       },
       eventHandler: { event in
-        let decision = await services.sessionStore.receive(event)
-        if event.event == .completed || event.event == .failed {
+        if Self.shouldRefreshUsage(after: event.event) {
           await services.usageStore.refreshAfterActivity()
         }
-        return decision
+        return await services.sessionStore.receive(event)
       }
     )
     do {
@@ -81,6 +80,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     integrationHealthy: Bool
   ) -> Bool {
     !onboardingComplete || !integrationHealthy
+  }
+
+  nonisolated static func shouldRefreshUsage(after event: BridgeEventName) -> Bool {
+    event != .ping
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
