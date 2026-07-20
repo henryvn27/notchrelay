@@ -59,6 +59,7 @@ final class SettingsStore {
     static let automaticUpdateChecks = "automaticUpdateChecks"
     static let automaticUpdateDownloads = "automaticUpdateDownloads"
     static let showCodexUsage = "showCodexUsage"
+    static let showAPICostEstimate = "showAPICostEstimate"
     static let showResetForecast = "showResetForecast"
     static let usageMetricPreference = "usageMetricPreference"
     static let menuBarPresentation = "menuBarPresentation"
@@ -72,7 +73,8 @@ final class SettingsStore {
     Key.approvalTimeout, Key.autoExpandApprovals, Key.capsLockEnabled,
     Key.showOnNonNotch, Key.preferredDisplay, Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
-    Key.showResetForecast, Key.usageMetricPreference, Key.menuBarPresentation,
+    Key.showAPICostEstimate, Key.showResetForecast, Key.usageMetricPreference,
+    Key.menuBarPresentation,
     Key.selectedProviderAccountID, Key.onboardingComplete, Key.integrationIntentionallyRemoved,
   ]
 
@@ -111,6 +113,9 @@ final class SettingsStore {
   }
   var showCodexUsage: Bool {
     didSet { defaults.set(showCodexUsage, forKey: Key.showCodexUsage) }
+  }
+  var showAPICostEstimate: Bool {
+    didSet { defaults.set(showAPICostEstimate, forKey: Key.showAPICostEstimate) }
   }
   var showResetForecast: Bool {
     didSet { defaults.set(showResetForecast, forKey: Key.showResetForecast) }
@@ -154,6 +159,7 @@ final class SettingsStore {
       Key.automaticUpdateChecks: true,
       Key.automaticUpdateDownloads: false,
       Key.showCodexUsage: true,
+      Key.showAPICostEstimate: false,
       Key.showResetForecast: false,
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
       Key.menuBarPresentation: MenuBarPresentation.iconAndDetails.rawValue,
@@ -176,6 +182,7 @@ final class SettingsStore {
     automaticUpdateChecks = defaults.bool(forKey: Key.automaticUpdateChecks)
     automaticUpdateDownloads = defaults.bool(forKey: Key.automaticUpdateDownloads)
     showCodexUsage = defaults.bool(forKey: Key.showCodexUsage)
+    showAPICostEstimate = defaults.bool(forKey: Key.showAPICostEstimate)
     showResetForecast = defaults.bool(forKey: Key.showResetForecast)
     usageMetricPreference =
       UsageMetricPreference(rawValue: defaults.string(forKey: Key.usageMetricPreference) ?? "")
@@ -206,6 +213,7 @@ final class SettingsStore {
     automaticUpdateChecks = replacement.automaticUpdateChecks
     automaticUpdateDownloads = replacement.automaticUpdateDownloads
     showCodexUsage = replacement.showCodexUsage
+    showAPICostEstimate = replacement.showAPICostEstimate
     showResetForecast = replacement.showResetForecast
     usageMetricPreference = replacement.usageMetricPreference
     menuBarPresentation = replacement.menuBarPresentation

@@ -209,7 +209,10 @@ private func validateImages() {
     ImageExpectation(
       path: "Assets/Screenshots/diagnostics.png", exactSize: nil,
       minimumSize: CGSize(width: 1_000, height: 800),
-      requiredText: ["Codex hook trust", "Codex quota", "Third-party reset forecast"]),
+      requiredText: [
+        "Codex hook trust", "Codex quota", "API-price equivalent",
+        "Third-party reset forecast",
+      ]),
   ]
 
   for expectation in expectations {

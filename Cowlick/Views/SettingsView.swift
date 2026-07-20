@@ -140,6 +140,23 @@ struct SettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         }
+        Section("API-price equivalent") {
+          Toggle(
+            "Estimate local Codex usage at API rates",
+            isOn: Binding(
+              get: { settings.showAPICostEstimate },
+              set: { value in
+                settings.showAPICostEstimate = value
+                services.usageStore.settingsDidChange()
+              }
+            ))
+          LabeledContent("Status", value: services.usageStore.apiCostStatus)
+          Text(
+            "Cowlick scans local Codex session files, but retains or logs only model names and numeric token counters. It applies published OpenAI Standard rates. The result covers this Mac only and is not your subscription charge or an actual bill."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
         Section("Unofficial reset forecast") {
           Toggle(
             "Show data from Will Codex Reset?",
@@ -231,7 +248,7 @@ struct SettingsView: View {
       Button("Reset", role: .destructive) {
         Task {
           services.sessionStore.reset()
-          services.usageStore.reset()
+          await services.usageStore.reset()
           services.settings.reset()
           await services.providerAccountsController.resetTransientState()
         }

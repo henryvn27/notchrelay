@@ -31,6 +31,7 @@ final class DiagnosticsTests: XCTestCase {
       "Codex hook trust: Trusted (demo)",
       "Helper installed: true",
       "Socket status: listening",
+      "API-price equivalent: Local estimate is labeled and separate from billing",
       "Display layout: Generic non-notch demo capture",
     ] {
       XCTAssertTrue(report.contains(required), "Missing \(required) in:\n\(report)")

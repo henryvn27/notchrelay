@@ -4,7 +4,7 @@ Cowlick follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
-No changes yet.
+- Added an optional, event-driven month-to-date API-price equivalent for local Codex token counters, with official GPT-5.6 Standard rates, conservative fork/replay containment, partial-coverage disclosure, and no prompt-content retention.
 
 ## 1.0.0
 

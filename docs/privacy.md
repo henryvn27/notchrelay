@@ -8,6 +8,7 @@
 - No analytics or crash SDK is linked.
 - No localhost server or external backend exists.
 - Official quota comes from the local Codex app-server and is not persisted.
+- The optional API-price equivalent scans local Codex session files but retains only allowlisted rollout identity, model, timestamp, and numeric token-counter fields. It keeps sanitized file summaries in memory, never retains or logs prompt/tool content, makes no network request, and is labeled as this-Mac partial coverage.
 - Cowlick uses the single Codex subscription identity active in its selected local Codex executable. It does not read, import, or switch Codex authentication files.
 - Optional organization-billing accounts are limited to OpenAI API and Anthropic API. Account aliases and opaque credential references are stored in owner-only metadata; admin credentials are stored in macOS Keychain.
 - Organization billing is fetched separately per account for the current month and held in memory. OpenAI organization costs are account-wide. Anthropic coverage is partial because its official cost report excludes Priority Tier usage. Cowlick does not aggregate accounts or providers and does not save billing history.
@@ -20,6 +21,8 @@ Opening Settings → Accounts refreshes every saved billing account. Refresh All
 - Anthropic API: `https://api.anthropic.com/v1/organizations/cost_report`
 
 Those providers receive the administrator credential required by their billing API, the requested month-to-date interval, and normal HTTPS request metadata such as the user's IP address and Cowlick user-agent. Cowlick does not send Codex prompts, approval operations, or data from another provider.
+
+The API-price-equivalent scan is not an organization-billing request. It runs locally after a Codex lifecycle event, a menu presentation, or a user refresh, with a freshness guard and no idle timer. It never sends the scanned model names or token counts to OpenAI, Cowlick, or another service.
 
 Normal uninstall preserves saved provider accounts and their Keychain credentials. The contributor-only `./Scripts/uninstall_local.sh --purge` command verifies that every credential referenced by `provider-accounts.json` is absent from Keychain before removing that metadata. If Keychain access or verification fails, purge stops and preserves the metadata for a safe retry. Homebrew's declarative zap cannot remove Keychain items, so the cask preserves provider-account metadata and tells users to remove saved accounts in Cowlick before requesting zap.
 

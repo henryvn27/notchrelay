@@ -12,6 +12,8 @@ flowchart LR
     Store --> Panel[Notch NSPanel and SwiftUI]
     Store --> Menu[MenuBarExtra]
     LocalCodex[Installed Codex app-server] -->|account/rateLimits/read| Usage[MainActor UsageStore]
+    LocalLogs[Local Codex token counters] -->|bounded allowlisted scan| Cost[LocalCodexCostService actor]
+    Cost --> Usage
     Accounts[ProviderAccountsController] --> AccountMetadata[Owner-only account metadata]
     Accounts --> Credentials[macOS Keychain]
     Accounts --> Billing[ProviderBillingStore]
@@ -33,6 +35,8 @@ Quota and billing work are outside the hook bridge. `CodexUsageService` starts t
 
 `QuotaPaceCalculator` compares observed use with an even pace through each reset window. After enough time and at least one percent of observed use, it projects a time to empty from the average burn rate. Presentation says whether the quota should last through reset or approximately how long remains before exhaustion; the expected-use percentage remains an internal marker and is not shown as the forecast.
 
-`ProviderAccountsController` manages separately labeled OpenAI API and Anthropic API organization-billing accounts. Aliases and opaque Keychain references are stored in an owner-only versioned metadata file; admin credentials live only in Keychain. Up to four accounts refresh concurrently, while every credential, result, error, and selection remains account-scoped. The menu exposes only the selected account's month-to-date result. Cowlick does not aggregate providers or translate organization API charges into subscription usage.
+`LocalCodexCostService` is an isolated background actor. It scans only Codex's active and archived local JSONL roots, streams bounded lines, and retains only rollout identity, model, timestamp, and numeric token counters. Historical files outside the requested interval are skipped. Unchanged files reuse sanitized in-memory aggregates; growing files resume from the last complete-line byte offset instead of rescanning prior content. Repeated totals, active/archive duplicates, fork baselines, and decreasing interleaved counters are contained conservatively; unresolved, ambiguous long-context, or unknown usage is excluded and marks the estimate partial. Pricing uses a reviewed, versioned table of published OpenAI Standard rates. Reasoning is already part of output and is not added twice. Tool fees, account attribution, service tiers, discounts, and actual billing are outside the estimate.
+
+`ProviderAccountsController` manages separately labeled OpenAI API and Anthropic API organization-billing accounts. Aliases and opaque Keychain references are stored in an owner-only versioned metadata file; admin credentials live only in Keychain. Up to four accounts refresh concurrently, while every credential, result, error, and selection remains account-scoped. The menu exposes only the selected account's month-to-date result. Actual organization billing and the local API-price equivalent remain visually and structurally separate; Cowlick does not aggregate either value into subscription usage.
 
 `ResetForecastService` is reachable only when the user enables the separate forecast preference. Usage and forecast responses are bounded and held only in memory. Refreshes are event-driven rather than timer-driven: official quota uses a five-minute freshness interval, ordinary forecast triggers use fifteen minutes, and opening the menu can refresh a forecast older than 30 seconds.
