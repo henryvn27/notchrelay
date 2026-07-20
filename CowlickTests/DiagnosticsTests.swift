@@ -1047,6 +1047,131 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertTrue(output.contains("Codex hook trust: probe failedFake: authorization=<redacted>"))
   }
 
+  func testIntegrationPresentationTreatsReviewAsBlockedAndActionable() {
+    let healthy = HookInstallationStatus(
+      installedEvents: Set(HookInstaller.supportedEvents),
+      helperInstalled: true,
+      configurationExists: true,
+      error: nil
+    )
+    XCTAssertEqual(
+      CodexIntegrationPresentation.diagnosticStatus(
+        hookStatus: healthy,
+        trustState: .needsReview,
+        bridgeIsListening: true
+      ),
+      "BLOCKED until Cowlick is reviewed in Codex /hooks; existing tasks are not backfilled"
+    )
+
+    let guidance = CodexIntegrationPresentation.guidance(for: .needsReview)
+    XCTAssertTrue(guidance.contains("Codex CLI"), guidance)
+    XCTAssertTrue(guidance.contains("enter /hooks"), guidance)
+    XCTAssertTrue(guidance.contains("Tasks already running cannot be backfilled"), guidance)
+    XCTAssertTrue(guidance.contains("Send a new prompt or start a new task"), guidance)
+  }
+
+  func testIntegrationPresentationNeverReportsUnknownTrustAsReady() {
+    let healthy = HookInstallationStatus(
+      installedEvents: Set(HookInstaller.supportedEvents),
+      helperInstalled: true,
+      configurationExists: true,
+      error: nil
+    )
+    let unknownStates: [CodexHookTrustState] = [
+      .notChecked,
+      .needsReview,
+      .incomplete,
+      .unavailable("Codex unavailable"),
+    ]
+
+    for state in unknownStates {
+      XCTAssertFalse(
+        CodexIntegrationPresentation.diagnosticStatus(
+          hookStatus: healthy,
+          trustState: state,
+          bridgeIsListening: true
+        ).hasPrefix("READY"),
+        "Unexpected ready state for \(state)"
+      )
+    }
+    XCTAssertTrue(
+      CodexIntegrationPresentation.diagnosticStatus(
+        hookStatus: healthy,
+        trustState: .trusted,
+        bridgeIsListening: true
+      ).hasPrefix("READY"))
+  }
+
+  func testIntegrationPresentationRequiresHealthyFilesAndBridgeBeforeReady() {
+    let missing = HookInstallationStatus(
+      installedEvents: [], helperInstalled: false, configurationExists: false, error: nil)
+    let healthy = HookInstallationStatus(
+      installedEvents: Set(HookInstaller.supportedEvents),
+      helperInstalled: true,
+      configurationExists: true,
+      error: nil
+    )
+
+    XCTAssertFalse(
+      CodexIntegrationPresentation.diagnosticStatus(
+        hookStatus: missing,
+        trustState: .trusted,
+        bridgeIsListening: true
+      ).hasPrefix("READY"))
+    XCTAssertFalse(
+      CodexIntegrationPresentation.diagnosticStatus(
+        hookStatus: healthy,
+        trustState: .trusted,
+        bridgeIsListening: false
+      ).hasPrefix("READY"))
+  }
+
+  func testUnavailableTrustGuidancePreservesReasonWithoutClaimingReviewFixesIt() {
+    let guidance = CodexIntegrationPresentation.guidance(
+      for: .unavailable("probe failed; authorization=secret"))
+
+    XCTAssertTrue(guidance.contains("probe failed"), guidance)
+    XCTAssertTrue(guidance.contains("authorization=<redacted>"), guidance)
+    XCTAssertFalse(guidance.contains("/hooks"), guidance)
+  }
+
+  func testListeningSocketIsExplicitlyTransportOnly() {
+    let status = DiagnosticsService.bridgeSocketStatus(isListening: true)
+
+    XCTAssertTrue(status.contains("transport only"), status)
+    XCTAssertTrue(status.contains("does not prove Codex hook execution"), status)
+  }
+
+  func testOnboardingDoesNotClaimReadyBeforeCodexTrust() {
+    let unreadyStates: [CodexHookTrustState] = [
+      .notChecked,
+      .needsReview,
+      .incomplete,
+      .unavailable("Codex unavailable"),
+    ]
+
+    for state in unreadyStates {
+      XCTAssertFalse(OnboardingView.canContinueFromIntegration(trustState: state))
+      XCTAssertEqual(
+        OnboardingView.finishTitle(trustState: state),
+        "Codex review still needed."
+      )
+    }
+    XCTAssertTrue(OnboardingView.canContinueFromIntegration(trustState: .trusted))
+    XCTAssertEqual(OnboardingView.finishTitle(trustState: .trusted), "You're ready.")
+  }
+
+  func testDeferredOnboardingExplainsLiveSessionsRemainUnavailable() {
+    let detail = OnboardingView.finishDetail(
+      trustState: .needsReview,
+      integrationDeferred: true
+    )
+
+    XCTAssertTrue(detail.contains("finish later"), detail)
+    XCTAssertTrue(detail.contains("live sessions will not appear"), detail)
+    XCTAssertFalse(detail.contains("ready"), detail)
+  }
+
   func testDiagnosticsSanitizesEventScalarsBeforeAddingSeparators() {
     let record = SanitizedBridgeRecord(
       id: UUID(),

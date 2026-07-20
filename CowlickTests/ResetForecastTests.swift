@@ -48,6 +48,30 @@ final class ResetForecastTests: XCTestCase {
     XCTAssertEqual(forecast.score, 72)
   }
 
+  func testHTTP503MapsToSourceAPIUnavailableWithoutResponseBody() async {
+    ForecastStreamingURLProtocol.configure(
+      .body(Data(#"secret upstream diagnostic"#.utf8)),
+      statusCode: 503
+    )
+    defer { ForecastStreamingURLProtocol.reset() }
+    let session = makeForecastSession()
+    defer { session.invalidateAndCancel() }
+    let service = ResetForecastService(
+      session: session, endpoint: URL(string: "https://cowlick.invalid/forecast")!)
+
+    do {
+      _ = try await service.fetchForecast()
+      XCTFail("Expected unavailable source API to fail")
+    } catch {
+      XCTAssertEqual(error as? ResetForecastServiceError, .unavailable)
+      XCTAssertEqual(
+        error.localizedDescription,
+        "The Will Codex Reset? source API is unavailable."
+      )
+      XCTAssertFalse(error.localizedDescription.contains("secret upstream diagnostic"))
+    }
+  }
+
   func testFetchForecastCancelsKnownOversizedResponseFromHeader() async {
     let cancelled = expectation(description: "Known oversized forecast task cancelled")
     ForecastStreamingURLProtocol.configure(
@@ -107,6 +131,7 @@ private final class ForecastStreamingURLProtocol: URLProtocol, @unchecked Sendab
   private static let configurationLock = NSLock()
   nonisolated(unsafe) private static var payload = Payload.body(Data())
   nonisolated(unsafe) private static var expectedContentLength: Int64?
+  nonisolated(unsafe) private static var statusCode = 200
   nonisolated(unsafe) private static var stopHandler: (() -> Void)?
 
   private let stateLock = NSLock()
@@ -115,11 +140,13 @@ private final class ForecastStreamingURLProtocol: URLProtocol, @unchecked Sendab
   static func configure(
     _ payload: Payload,
     expectedContentLength: Int64? = nil,
+    statusCode: Int = 200,
     onStop: (() -> Void)? = nil
   ) {
     configurationLock.lock()
     self.payload = payload
     self.expectedContentLength = expectedContentLength
+    self.statusCode = statusCode
     stopHandler = onStop
     configurationLock.unlock()
   }
@@ -136,9 +163,10 @@ private final class ForecastStreamingURLProtocol: URLProtocol, @unchecked Sendab
     Self.configurationLock.lock()
     let payload = Self.payload
     let expectedContentLength = Self.expectedContentLength
+    let statusCode = Self.statusCode
     Self.configurationLock.unlock()
     let response = HTTPURLResponse(
-      url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+      url: request.url!, statusCode: statusCode, httpVersion: "HTTP/1.1",
       headerFields: expectedContentLength.map { ["Content-Length": String($0)] }
     )!
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)

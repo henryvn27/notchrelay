@@ -36,7 +36,7 @@ struct UsageSectionView: View {
             .foregroundStyle(.secondary)
         }
         Spacer()
-        refreshButton
+        officialRefreshButton
       }
 
       if let snapshot = store.snapshot {
@@ -106,10 +106,17 @@ struct UsageSectionView: View {
         }
         Spacer()
         if let forecast = store.forecast {
-          Text(forecast.scoreLabel)
-            .font(.caption.weight(.medium))
-            .monospacedDigit()
+          if forecast.resetAnnounced {
+            Label("Reset announced", systemImage: "checkmark.circle.fill")
+              .font(.caption.weight(.semibold))
+              .foregroundStyle(.green)
+          } else {
+            Text(forecast.scoreLabel)
+              .font(.caption.weight(.medium))
+              .monospacedDigit()
+          }
         }
+        forecastRefreshButton
       }
 
       if store.forecast == nil {
@@ -133,11 +140,20 @@ struct UsageSectionView: View {
         }
         .font(.caption2)
         .foregroundStyle(store.forecastError == nil ? Color.secondary : Color.orange)
-        if store.forecastError != nil {
-          Label("Refresh failed", systemImage: "arrow.clockwise.circle")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
+      }
+
+      if let error = store.forecastError, store.forecast != nil {
+        Label("Stale data · \(error)", systemImage: "arrow.clockwise.circle")
+          .font(.caption2)
+          .foregroundStyle(.orange)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+
+      if store.forecastError == ResetForecastServiceError.unavailable.errorDescription {
+        Text(ResetForecast.outageNote)
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
       }
 
       Text(ResetForecast.disclaimer)
@@ -148,9 +164,9 @@ struct UsageSectionView: View {
     .accessibilityElement(children: .contain)
   }
 
-  private var refreshButton: some View {
+  private var officialRefreshButton: some View {
     Button(action: refresh) {
-      if store.isRefreshing {
+      if store.isOfficialRefreshing {
         ProgressView()
           .controlSize(.mini)
       } else {
@@ -158,9 +174,26 @@ struct UsageSectionView: View {
       }
     }
     .buttonStyle(.plain)
-    .disabled(store.isRefreshing)
+    .disabled(store.isOfficialRefreshing)
     .help("Refresh quota")
     .accessibilityLabel("Refresh quota")
+  }
+
+  private var forecastRefreshButton: some View {
+    Button {
+      store.refreshForecast(force: true)
+    } label: {
+      if store.isForecastRefreshing {
+        ProgressView()
+          .controlSize(.mini)
+      } else {
+        Image(systemName: "arrow.clockwise")
+      }
+    }
+    .buttonStyle(.plain)
+    .disabled(store.isForecastRefreshing)
+    .help("Refresh unofficial reset forecast")
+    .accessibilityLabel("Refresh unofficial reset forecast")
   }
 
   private func loadingRow(_ text: String) -> some View {

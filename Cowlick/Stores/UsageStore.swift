@@ -13,15 +13,18 @@ final class UsageStore {
   private(set) var forecast: ResetForecast?
   private(set) var officialError: String?
   private(set) var forecastError: String?
-  private(set) var isRefreshing = false
+  private(set) var isOfficialRefreshing = false
+  private(set) var isForecastRefreshing = false
   private(set) var lastOfficialRefresh: Date?
   private(set) var lastForecastRefresh: Date?
 
   let settings: SettingsStore
   private let usageService: any CodexUsageFetching
   private let forecastService: any ResetForecastFetching
-  private var refreshTask: Task<Void, Never>?
-  private var currentRefreshToken: UUID?
+  private var officialRefreshTask: Task<Void, Never>?
+  private var forecastRefreshTask: Task<Void, Never>?
+  private var currentOfficialRefreshToken: UUID?
+  private var currentForecastRefreshToken: UUID?
 
   init(
     settings: SettingsStore,
@@ -38,6 +41,10 @@ final class UsageStore {
     return limit.displayedPercent(for: settings.usageMetricPreference)
   }
 
+  var isRefreshing: Bool {
+    isOfficialRefreshing || isForecastRefreshing
+  }
+
   var primaryMetricAccessibilityLabel: String? {
     guard let percent = primaryDisplayedPercent else { return nil }
     return
@@ -46,15 +53,19 @@ final class UsageStore {
 
   var officialStatus: String {
     if !settings.showCodexUsage { return "disabled" }
-    if let error = officialError { return "unavailable: \(error)" }
+    if let error = officialError {
+      return snapshot == nil ? "unavailable: \(error)" : "stale: \(error)"
+    }
     if let snapshot { return "available (\(snapshot.limits.count) windows)" }
-    return isRefreshing ? "refreshing" : "not loaded"
+    return isOfficialRefreshing ? "refreshing" : "not loaded"
   }
 
   var forecastStatus: String {
     if !settings.showResetForecast { return "disabled" }
-    if let error = forecastError { return "unavailable: \(error)" }
-    return forecast == nil ? (isRefreshing ? "refreshing" : "not loaded") : "available"
+    if let error = forecastError {
+      return forecast == nil ? "unavailable: \(error)" : "stale: \(error)"
+    }
+    return forecast == nil ? (isForecastRefreshing ? "refreshing" : "not loaded") : "available"
   }
 
   @discardableResult
@@ -85,39 +96,80 @@ final class UsageStore {
   }
 
   @discardableResult
+  func refreshForecast(force: Bool = true, now: Date = Date()) -> Task<Void, Never>? {
+    clearDisabledSources()
+    guard settings.showResetForecast else { return nil }
+    let shouldRefresh =
+      force || isStale(lastForecastRefresh, interval: Self.forecastRefreshInterval, now: now)
+    return startRefresh(official: false, forecast: shouldRefresh)
+  }
+
+  @discardableResult
+  func refreshOfficial(force: Bool = true, now: Date = Date()) -> Task<Void, Never>? {
+    clearDisabledSources()
+    guard settings.showCodexUsage else { return nil }
+    let shouldRefresh =
+      force || isStale(lastOfficialRefresh, interval: Self.officialRefreshInterval, now: now)
+    return startRefresh(official: shouldRefresh, forecast: false)
+  }
+
+  @discardableResult
   private func startRefresh(official refreshOfficial: Bool, forecast refreshForecast: Bool)
     -> Task<Void, Never>?
   {
-    guard refreshOfficial || refreshForecast, !isRefreshing else { return nil }
-
-    let token = UUID()
-    currentRefreshToken = token
-    isRefreshing = true
+    var startedTasks: [Task<Void, Never>] = []
     let usageService = usageService
     let forecastService = forecastService
-    refreshTask = Task { [weak self] in
-      guard self != nil else { return }
-      defer { self?.finishRefresh(token: token) }
-      if refreshOfficial {
+
+    if refreshOfficial, officialRefreshTask == nil {
+      let token = UUID()
+      currentOfficialRefreshToken = token
+      isOfficialRefreshing = true
+      let task = Task { [weak self] in
+        defer { self?.finishOfficialRefresh(token: token) }
         let result: Result<CodexUsageSnapshot, Error>
         do {
           result = .success(try await usageService.fetchUsage())
         } catch {
           result = .failure(error)
         }
-        guard self?.applyOfficial(result, token: token) == true else { return }
+        _ = self?.applyOfficial(result, token: token)
       }
-      if refreshForecast {
+      officialRefreshTask = task
+      startedTasks.append(task)
+    }
+
+    if refreshForecast, forecastRefreshTask == nil {
+      let token = UUID()
+      currentForecastRefreshToken = token
+      isForecastRefreshing = true
+      let task = Task { [weak self] in
+        defer { self?.finishForecastRefresh(token: token) }
         let result: Result<ResetForecast, Error>
         do {
           result = .success(try await forecastService.fetchForecast())
         } catch {
           result = .failure(error)
         }
-        guard self?.applyForecast(result, token: token) == true else { return }
+        _ = self?.applyForecast(result, token: token)
+      }
+      forecastRefreshTask = task
+      startedTasks.append(task)
+    }
+
+    guard !startedTasks.isEmpty else { return nil }
+    let tasks = startedTasks
+    return Task {
+      await withTaskCancellationHandler {
+        for task in tasks {
+          await task.value
+        }
+      } onCancel: {
+        for task in tasks {
+          task.cancel()
+        }
       }
     }
-    return refreshTask
   }
 
   func refreshAfterActivity(now: Date = Date()) {
@@ -144,17 +196,21 @@ final class UsageStore {
   }
 
   private func invalidateRefresh() {
-    currentRefreshToken = nil
-    refreshTask?.cancel()
-    refreshTask = nil
-    isRefreshing = false
+    currentOfficialRefreshToken = nil
+    currentForecastRefreshToken = nil
+    officialRefreshTask?.cancel()
+    forecastRefreshTask?.cancel()
+    officialRefreshTask = nil
+    forecastRefreshTask = nil
+    isOfficialRefreshing = false
+    isForecastRefreshing = false
   }
 
   private func applyOfficial(
     _ result: Result<CodexUsageSnapshot, Error>,
     token: UUID
   ) -> Bool {
-    guard currentRefreshToken == token else { return false }
+    guard currentOfficialRefreshToken == token else { return false }
     guard settings.showCodexUsage else { return true }
     switch result {
     case .success(let fetchedSnapshot):
@@ -171,7 +227,7 @@ final class UsageStore {
     _ result: Result<ResetForecast, Error>,
     token: UUID
   ) -> Bool {
-    guard currentRefreshToken == token else { return false }
+    guard currentForecastRefreshToken == token else { return false }
     guard settings.showResetForecast else { return true }
     switch result {
     case .success(let fetchedForecast):
@@ -184,11 +240,18 @@ final class UsageStore {
     return true
   }
 
-  private func finishRefresh(token: UUID) {
-    guard currentRefreshToken == token else { return }
-    currentRefreshToken = nil
-    refreshTask = nil
-    isRefreshing = false
+  private func finishOfficialRefresh(token: UUID) {
+    guard currentOfficialRefreshToken == token else { return }
+    currentOfficialRefreshToken = nil
+    officialRefreshTask = nil
+    isOfficialRefreshing = false
+  }
+
+  private func finishForecastRefresh(token: UUID) {
+    guard currentForecastRefreshToken == token else { return }
+    currentForecastRefreshToken = nil
+    forecastRefreshTask = nil
+    isForecastRefreshing = false
   }
 
   private func isStale(_ date: Date?, interval: TimeInterval, now: Date) -> Bool {

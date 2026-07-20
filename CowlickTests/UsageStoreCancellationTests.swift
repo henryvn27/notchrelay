@@ -83,6 +83,23 @@ private struct UnusedForecastService: ResetForecastFetching {
   }
 }
 
+private actor FetchCallCounter {
+  private(set) var count = 0
+
+  func record() {
+    count += 1
+  }
+}
+
+private struct CountingForecastService: ResetForecastFetching {
+  let counter: FetchCallCounter
+
+  func fetchForecast() async throws -> ResetForecast {
+    await counter.record()
+    throw SuspendedFetchError.unexpectedCall
+  }
+}
+
 private enum SuspendedFetchError: LocalizedError {
   case unavailable
   case unexpectedCall
@@ -104,6 +121,87 @@ private func usageSnapshot(usedPercent: Double, fetchedAt: Date = Date()) -> Cod
 
 @MainActor
 final class UsageStoreCancellationTests: XCTestCase {
+  func testOfficialOnlyRefreshDoesNotContactForecastSource() async {
+    let settings = makeTestSettings()
+    settings.showCodexUsage = true
+    settings.showResetForecast = true
+    let usageFetch = SuspendedFetch<CodexUsageSnapshot>()
+    let forecastCalls = FetchCallCounter()
+    let store = UsageStore(
+      settings: settings,
+      usageService: SuspendedUsageService(fetch: usageFetch),
+      forecastService: CountingForecastService(counter: forecastCalls)
+    )
+
+    let refresh = store.refreshOfficial(force: true)
+    await usageFetch.waitForCalls(1)
+    await usageFetch.resume(call: 0, returning: usageSnapshot(usedPercent: 25))
+    await refresh?.value
+
+    let forecastCallCount = await forecastCalls.count
+    XCTAssertEqual(forecastCallCount, 0)
+    XCTAssertEqual(store.snapshot?.primaryLimit?.usedPercent, 25)
+    XCTAssertNil(store.forecast)
+  }
+
+  func testBlockedOfficialFetchDoesNotDelayForecastApplication() async {
+    let settings = makeTestSettings()
+    settings.showCodexUsage = true
+    settings.showResetForecast = true
+    let usageFetch = SuspendedFetch<CodexUsageSnapshot>()
+    let forecastFetch = SuspendedFetch<ResetForecast>()
+    let store = UsageStore(
+      settings: settings,
+      usageService: SuspendedUsageService(fetch: usageFetch),
+      forecastService: SuspendedForecastService(fetch: forecastFetch)
+    )
+    let expectedForecast = ResetForecast(
+      score: 72, resetAnnounced: false, fetchedAt: Date(), nextRefreshAt: nil)
+
+    let refresh = store.refreshIfNeeded(force: true)
+    await usageFetch.waitForCalls(1)
+    await forecastFetch.waitForCalls(1)
+    await forecastFetch.resume(call: 0, returning: expectedForecast)
+
+    let forecastApplied = await waitUntil { store.forecast == expectedForecast }
+    XCTAssertTrue(forecastApplied)
+    XCTAssertTrue(store.isOfficialRefreshing)
+    XCTAssertFalse(store.isForecastRefreshing)
+
+    store.reset()
+    await usageFetch.waitForCancellation(of: 0)
+    await usageFetch.resume(call: 0, throwing: CancellationError())
+    await refresh?.value
+  }
+
+  func testFailedRefreshRetainsLastSuccessfulForecastAsStale() async {
+    let settings = makeTestSettings()
+    settings.showCodexUsage = false
+    settings.showResetForecast = true
+    let fetch = SuspendedFetch<ResetForecast>()
+    let store = UsageStore(
+      settings: settings,
+      usageService: UnusedUsageService(),
+      forecastService: SuspendedForecastService(fetch: fetch)
+    )
+    let successfulForecast = ResetForecast(
+      score: 64, resetAnnounced: false, fetchedAt: Date(), nextRefreshAt: nil)
+
+    let firstRefresh = store.refreshIfNeeded(force: true)
+    await fetch.waitForCalls(1)
+    await fetch.resume(call: 0, returning: successfulForecast)
+    await firstRefresh?.value
+
+    let failedRefresh = store.refreshIfNeeded(force: true)
+    await fetch.waitForCalls(2)
+    await fetch.resume(call: 1, throwing: SuspendedFetchError.unavailable)
+    await failedRefresh?.value
+
+    XCTAssertEqual(store.forecast, successfulForecast)
+    XCTAssertNotNil(store.forecastError)
+    XCTAssertTrue(store.forecastStatus.hasPrefix("stale:"))
+  }
+
   func testResetInvalidatesPendingOfficialSuccess() async {
     let settings = makeTestSettings()
     settings.showResetForecast = false

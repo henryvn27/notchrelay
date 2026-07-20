@@ -91,7 +91,7 @@ final class MenuBarPresentationTests: XCTestCase {
     )
     XCTAssertEqual(
       MenuBarContentView.activitySummary(activeSessionCount: 0, trustState: .needsReview),
-      "Trust Cowlick in Codex /hooks"
+      "Review Cowlick in Codex CLI /hooks"
     )
     XCTAssertEqual(
       MenuBarContentView.headerTitle(status: .idle, trustState: .incomplete),
