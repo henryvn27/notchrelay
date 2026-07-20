@@ -4,6 +4,54 @@ import XCTest
 
 @MainActor
 final class DiagnosticsTests: XCTestCase {
+  func testLaunchAssetDiagnosticsRequiresBothTestingSignals() {
+    XCTAssertEqual(
+      DiagnosticsService.reportMode(
+        arguments: [], environment: ["COWLICK_ASSET_CAPTURE": "1"]),
+      .live)
+    XCTAssertEqual(
+      DiagnosticsService.reportMode(arguments: ["--ui-testing"], environment: [:]),
+      .live)
+    XCTAssertEqual(
+      DiagnosticsService.reportMode(
+        arguments: ["--ui-testing"], environment: ["COWLICK_ASSET_CAPTURE": "true"]),
+      .live)
+    XCTAssertEqual(
+      DiagnosticsService.reportMode(
+        arguments: ["--ui-testing"], environment: ["COWLICK_ASSET_CAPTURE": "1"]),
+      .launchAssetDemo)
+  }
+
+  func testLaunchAssetDiagnosticsIsHealthyTruthfulAndMachineIndependent() {
+    let report = DiagnosticsService.launchAssetDemoReport
+
+    for required in [
+      "Launch-asset demo snapshot — not live device data",
+      "Hook status: Installed (demo)",
+      "Codex hook trust: Trusted (demo)",
+      "Helper installed: true",
+      "Socket status: listening",
+      "Display layout: Generic non-notch demo capture",
+    ] {
+      XCTAssertTrue(report.contains(required), "Missing \(required) in:\n\(report)")
+    }
+
+    for forbidden in [
+      "hooks are not installed",
+      "hooks are missing or disabled",
+      "Codex hook trust: Untrusted",
+      "Codex hook trust: Needs review",
+      "Codex hook trust: Unavailable",
+      "Helper installed: false",
+      "macOS: Version",
+      "Architecture: arm64",
+      "Display 1:",
+      "/Users/",
+    ] {
+      XCTAssertFalse(report.localizedCaseInsensitiveContains(forbidden), report)
+    }
+  }
+
   func testSanitizesPathsAndSecrets() {
     let input = "failed /Users/example/private token=abc123 password:letmein"
     let output = EventLogger.sanitizeError(input)
