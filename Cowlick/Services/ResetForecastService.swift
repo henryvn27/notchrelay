@@ -13,7 +13,7 @@ enum ResetForecastServiceError: LocalizedError, Equatable {
     switch self {
     case .invalidResponse: "The third-party forecast returned unreadable data."
     case .responseTooLarge: "The third-party forecast response exceeded Cowlick's limit."
-    case .unavailable: "The third-party forecast is unavailable."
+    case .unavailable: "The Will Codex Reset? source API is unavailable."
     }
   }
 }

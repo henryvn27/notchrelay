@@ -87,6 +87,11 @@ struct MenuBarContentView: View {
     VStack(alignment: .leading, spacing: 0) {
       header(store: store)
 
+      if hookTrust.state.requiresIntegrationAttention {
+        Divider()
+        integrationAttentionSection
+      }
+
       if services.settings.showCodexUsage || services.settings.showResetForecast {
         Divider()
         UsageSectionView(
@@ -94,7 +99,7 @@ struct MenuBarContentView: View {
           showOfficialUsage: services.settings.showCodexUsage,
           showForecast: services.settings.showResetForecast,
           metricPreference: services.settings.usageMetricPreference,
-          refresh: { services.usageStore.refreshIfNeeded(force: true) }
+          refresh: { services.usageStore.refreshOfficial(force: true) }
         )
       }
 
@@ -114,7 +119,7 @@ struct MenuBarContentView: View {
     .frame(width: 328)
     .onAppear {
       services.usageStore.refreshForMenuPresentation()
-      Task { hookTrust = await services.hookTrustService.inspect() }
+      Task { await refreshHookTrust() }
       Task { await services.providerAccountsController.load() }
     }
   }
@@ -233,10 +238,21 @@ struct MenuBarContentView: View {
 
   private func header(store: SessionStore) -> some View {
     HStack(spacing: 10) {
-      Image(systemName: stateIcon(store.displaySession?.status))
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundStyle(stateColor(store.displaySession?.status))
-        .frame(width: 20)
+      Image(
+        systemName: headerIcon(
+          status: store.displaySession?.status,
+          trustState: hookTrust.state
+        )
+      )
+      .font(.system(size: 15, weight: .semibold))
+      .foregroundStyle(
+        shouldShowIntegrationAttentionInHeader(
+          status: store.displaySession?.status,
+          trustState: hookTrust.state
+        )
+          ? NotchTheme.warning : stateColor(store.displaySession?.status)
+      )
+      .frame(width: 20)
       VStack(alignment: .leading, spacing: 2) {
         Text(
           Self.headerTitle(
@@ -267,6 +283,43 @@ struct MenuBarContentView: View {
     }
     .padding(.horizontal, 14)
     .padding(.vertical, 12)
+  }
+
+  @ViewBuilder
+  private var integrationAttentionSection: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Label(integrationAttentionTitle, systemImage: "exclamationmark.triangle.fill")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(NotchTheme.warning)
+      Text(CodexIntegrationPresentation.guidance(for: hookTrust.state))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+      HStack(spacing: 12) {
+        if hookTrust.state == .incomplete {
+          Button("Open Settings") { WindowCoordinator.shared.openSettingsForTesting() }
+        } else if hookTrust.state == .needsReview {
+          Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
+        } else {
+          Button("Open Diagnostics") { WindowCoordinator.shared.openDiagnostics() }
+        }
+        Button("Check Again") { Task { await refreshHookTrust() } }
+      }
+      .buttonStyle(.link)
+    }
+    .padding(.horizontal, 14)
+    .padding(.vertical, 10)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("codex-integration-attention")
+  }
+
+  private var integrationAttentionTitle: String {
+    switch hookTrust.state {
+    case .needsReview: "Codex review required"
+    case .incomplete: "Integration needs repair"
+    case .unavailable: "Integration not verified"
+    case .notChecked, .trusted: ""
+    }
   }
 
   private func sessionSection(store: SessionStore) -> some View {
@@ -303,7 +356,7 @@ struct MenuBarContentView: View {
 
   private func actionSection(store: SessionStore) -> some View {
     VStack(spacing: 0) {
-      actionButton("Open Codex", systemImage: "terminal") {
+      actionButton("Open Codex", systemImage: "macwindow") {
         CodexActivationService.openCodex(fallbackDirectory: store.displaySession?.workingDirectory)
       }
       Menu {
@@ -367,7 +420,7 @@ struct MenuBarContentView: View {
     }
     switch trustState {
     case .needsReview:
-      return "Trust Cowlick in Codex /hooks"
+      return "Review Cowlick in Codex CLI /hooks"
     case .incomplete:
       return "Open Settings to repair integration"
     case .notChecked, .trusted, .unavailable:
@@ -389,6 +442,24 @@ struct MenuBarContentView: View {
     return "Idle"
   }
 
+  private func refreshHookTrust() async {
+    hookTrust = await services.hookTrustService.inspect()
+  }
+
+  private func headerIcon(status: AgentStatus?, trustState: CodexHookTrustState) -> String {
+    if shouldShowIntegrationAttentionInHeader(status: status, trustState: trustState) {
+      return "exclamationmark.triangle.fill"
+    }
+    return stateIcon(status)
+  }
+
+  private func shouldShowIntegrationAttentionInHeader(
+    status: AgentStatus?,
+    trustState: CodexHookTrustState
+  ) -> Bool {
+    (status == nil || status == .idle) && trustState.requiresIntegrationAttention
+  }
+
   private func stateIcon(_ status: AgentStatus?) -> String {
     switch status {
     case .working: "waveform.path"
@@ -405,6 +476,15 @@ struct MenuBarContentView: View {
     case .completed: .green
     case .failed: .red
     default: .secondary
+    }
+  }
+}
+
+extension CodexHookTrustState {
+  fileprivate var requiresIntegrationAttention: Bool {
+    switch self {
+    case .needsReview, .incomplete, .unavailable: true
+    case .notChecked, .trusted: false
     }
   }
 }

@@ -6,6 +6,8 @@ struct ResetForecast: Equatable, Sendable {
   static let endpointURL = URL(string: "https://www.willcodexquotareset.com/api/forecast")!
   static let disclaimer =
     "Third-party data shown as provided. It is not Cowlick data or a Cowlick estimate, and Cowlick does not warrant it."
+  static let outageNote =
+    "During a source API outage, the website may show its own bundled snapshot. Cowlick does not scrape or reproduce that fallback."
 
   let score: Double
   let resetAnnounced: Bool

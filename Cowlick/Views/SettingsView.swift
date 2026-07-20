@@ -62,6 +62,24 @@ struct SettingsView: View {
 
       Form {
         Section("Codex integration") {
+          if hookTrust.state != .trusted && hookTrust.state != .notChecked {
+            Label(integrationAttentionTitle, systemImage: "exclamationmark.triangle.fill")
+              .font(.headline)
+              .foregroundStyle(NotchTheme.warning)
+            Text(CodexIntegrationPresentation.guidance(for: hookTrust.state))
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+            HStack {
+              if hookTrust.state == .needsReview {
+                Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
+              }
+              if case .unavailable = hookTrust.state {
+                Button("Open Diagnostics") { WindowCoordinator.shared.openDiagnostics() }
+              }
+              Button("Check Again") { Task { await refreshHookTrust() } }
+            }
+          }
           LabeledContent("Configuration", value: hookStatus.summary)
           LabeledContent("Codex trust", value: hookTrust.state.summary)
           Stepper(value: $settings.approvalTimeout, in: 5...60, step: 5) {
@@ -76,9 +94,11 @@ struct SettingsView: View {
           if !integrationMessage.isEmpty {
             Text(integrationMessage).font(.caption).foregroundStyle(.secondary)
           }
-          Text(hookTrustGuidance)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+          if hookTrust.state == .trusted || hookTrust.state == .notChecked {
+            Text(hookTrustGuidance)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
         }
         Section("Test integration") {
           HStack {
@@ -226,9 +246,13 @@ struct SettingsView: View {
 
   private func refreshStatus() async {
     hookStatus = services.hookInstaller.status()
-    hookTrust = await services.hookTrustService.inspect()
+    await refreshHookTrust()
     launchAtLogin = LaunchAtLoginService.isEnabled
     capsStatus = await services.capsLockService.supportStatus().summary
+  }
+
+  private func refreshHookTrust() async {
+    hookTrust = await services.hookTrustService.inspect()
   }
 
   private func installHooks() {
@@ -252,7 +276,7 @@ struct SettingsView: View {
         services.settings.integrationIntentionallyRemoved = false
       }
       hookTrust = await services.hookTrustService.inspect()
-      integrationMessage = result.errorMessage ?? hookTrustGuidance
+      integrationMessage = result.errorMessage ?? ""
     }
   }
 
@@ -290,15 +314,15 @@ struct SettingsView: View {
   }
 
   private var hookTrustGuidance: String {
+    CodexIntegrationPresentation.guidance(for: hookTrust.state)
+  }
+
+  private var integrationAttentionTitle: String {
     switch hookTrust.state {
-    case .trusted:
-      "Cowlick is trusted. New Codex prompts will report working and completion states."
-    case .needsReview:
-      "Cowlick installed the hooks. Codex requires one security review in the Codex CLI: run codex, then /hooks. Codex will not run them before review."
-    case .incomplete:
-      "Install or repair the integration, then review Cowlick in the Codex CLI /hooks."
-    case .notChecked, .unavailable:
-      "Codex may require one security review in the Codex CLI /hooks after installation."
+    case .needsReview: "Codex is skipping Cowlick"
+    case .incomplete: "Integration needs repair"
+    case .unavailable: "Integration could not be verified"
+    case .notChecked, .trusted: ""
     }
   }
 

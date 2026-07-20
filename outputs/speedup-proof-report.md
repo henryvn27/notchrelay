@@ -1,81 +1,83 @@
 # Speedup Proof
 
-## ✅ PROVEN — at least 90.62% lower idle CPU time
+## ✅ PROVEN — 92.87% faster
 
-> Correctness passed and the conservative after upper bound remains below the noise-adjusted proof threshold.
+> Correctness passed and the lower after median exceeds the noise threshold.
 
-**Project:** Cowlick  
-**Target:** Idle Cowlick process with the MenuBarExtra closed and the overlay hidden  
-**Preserved behavior:** Usage freshness and time-to-empty labels retain the same meaning and update when the menu is presented; hidden UI no longer schedules relative-time redraws.  
-**Generated:** 2026-07-18
+**Project:** Cowlick
+**Target:** Twenty-five consecutive production Codex executable lookups through BoundedProcessRunner
+**Preserved behavior:** Candidate ordering, cancellation, validation, executable replacement and deletion detection, and fallback behavior remain unchanged.
+**Generated:** 2026-07-20
 
 ## Before vs after
 
 | Measurement | Before | After |
 |---|---:|---:|
-| Median CPU time per two-second window | 32 ms | ≤ 3 ms |
-| p95 CPU time per two-second window | 37.2 ms | ≤ 3 ms |
-| Mean CPU time per two-second window | 33.778 ms | ≤ 3 ms |
-| Range | 30–38 ms | ≤ 3 ms |
-| Variability | 8.08% CV | 0% CV |
+| Median runtime | 167.21 ms | 11.917 ms |
+| p95 runtime | 169.223 ms | 12.416 ms |
+| Mean runtime | 167.336 ms | 11.962 ms |
+| Range | 166.058–170.193 ms | 11.603–12.526 ms |
+| Variability | 0.73% CV | 2.52% CV |
 | Measured runs | 9 | 9 |
 
-**CPU reduction ratio:** at least 10.667×  
-**Proof threshold:** 16.16%  
+**Speedup ratio:** 14.031×
+**Proof threshold:** 5.03%
 **Correctness:** PASSED
 
 ## What changed
 
-Replaced SwiftUI's continuously scheduled relative-date text in the hidden menu hierarchy with deterministic labels whose reference date advances only while the menu window is visible.
+Cached only the built-in validator's last successful executable and its filesystem identity. Repeated lookups use cheap stat checks; custom validators remain uncached.
 
-**Why behavior remains equivalent:** The same dates and forecast values are formatted for display. The presentation observer refreshes the reference date when the menu becomes visible, while hidden labels are not user-observable.
+**Why behavior remains equivalent:** Every lookup still walks candidates in priority order. A cached result is reused only while device, inode, mode, size, modification time, and change time match; replacement, deletion, permission changes, or a newly available higher-priority candidate force normal validation.
 
 | Complexity | Before | After |
 |---|---:|---:|
-| Estimate | Recurring hidden render scheduling | Event-driven refresh while visible |
+| Estimate | 25 child-process validations for 25 unchanged lookups | 1 child-process validation plus 24 filesystem identity checks |
 
 ### Changed files
 
-- [UsageSectionView.swift](../Cowlick/Views/UsageSectionView.swift) — Uses deterministic relative-time labels tied to menu presentation.
-- [RelativeTimeLabel.swift](../Cowlick/Support/RelativeTimeLabel.swift) — Formats relative time and observes menu-window visibility.
-- [RelativeTimeLabelTests.swift](../CowlickTests/RelativeTimeLabelTests.swift) — Covers deterministic formatting and reference-date behavior.
+- [CodexExecutableLocator.swift](../Cowlick/Services/CodexExecutableLocator.swift:13) — Added production-only validated-executable caching with strict filesystem invalidation.
+- [CodexUsageTests.swift](../CowlickTests/CodexUsageTests.swift:259) — Covered unchanged reuse, replacement, deletion fallback, and higher-priority candidates.
 
 ## Correctness checks
 
 | Check | Status | Evidence |
 |---|---|---|
-| Focused performance-behavior tests | ✅ passed | 2 tests passed, 0 failed |
-| Full unit suite | ✅ passed | 169 tests passed, 0 failed |
-| Full UI suite | ✅ passed | 13 tests passed, 0 failed |
-| Universal Release build | ✅ passed | arm64 and x86_64 app and helper built successfully |
+| Focused locator and usage tests | ✅ passed | 21 tests passed, 0 failures |
+| Full Cowlick unit suite | ✅ passed | 305 tests passed, 0 failures |
+| Strict formatting and diff validation | ✅ passed | swift-format --strict and git diff --check passed |
 
 ## Benchmark protocol
 
-**Workload:** Installed universal Release app, overlay hidden, menu closed, two warmups and nine measured two-second top windows on an M4 Mac mini running macOS 26.3.1.  
-**Command:** `top -l 11 -s 2 -stats pid,cpu,mem,threads,time -pid "$speed_pid"`  
-**Warmups:** 2  
+**Workload:** Optimized Swift harness importing the production locator and process runner; one executable fixture that behaves like codex --version; 25 lookups per process; 2 warmups and 9 measured runs per revision.
+**Command:** `./locator-bench-before`
+**Warmups:** 2
 **Measured runs:** 9 per version
 
 ## Reproduce
 
 ```bash
-speed_pid=$(pgrep -f "^$HOME/Applications/Cowlick.app/Contents/MacOS/Cowlick$" | head -n 1); top -l 11 -s 2 -stats pid,cpu,mem,threads,time -pid "$speed_pid"
+Compile the committed pre-change and current CodexExecutableLocator.swift with BoundedProcessRunner.swift and the same 25-lookup fixture using xcrun swiftc -O, then run benchmark_command.py with --warmups 2 --runs 9 for each binary.
+```
+```bash
+xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -destination 'platform=macOS' -derivedDataPath DerivedData -jobs 2 test -only-testing:CowlickTests CODE_SIGNING_ALLOWED=NO
 ```
 
 ## Limitations
 
-- The after values are a conservative upper bound imposed by top's one-decimal CPU precision; the exact residual CPU time is lower than the reported 3 ms per window.
-- Measurements were taken on one M4 Mac mini under a busy shared development workload, not every supported Mac.
+- The benchmark uses a deterministic local codex --version fixture so it isolates process-launch overhead; absolute time for the installed Codex binary varies by machine.
+- The temporary benchmark harness is not shipped with Cowlick; the machine-readable samples are retained in this report's companion JSON.
 
 ## Residual risks
 
-- Relative-time text advances from a one-minute clock that exists only while AppKit reports the menu window visible.
+- A dependency outside the executable file could theoretically change validation behavior without changing the executable identity; custom validators are therefore deliberately not cached.
+- Concurrent first lookups may each validate before either publishes the cache, but subsequent lookups converge on the same validated identity.
 
 ## Notes
 
-- No network, socket, billing, approval, privacy, or persistence behavior changed.
-- The before and after raw top captures are retained at /tmp/cowlick-speedup-before-top.txt and /tmp/cowlick-speedup-after-top-rerun.txt on the verification machine.
+- The fixture observed 25 validator processes before and 1 after.
+- No network, quota, hook, approval, logging, privacy, or user-facing behavior changed.
 
 ---
 
-Generated by `$speedup-proof`. CPU-time evidence and correctness checks determine the verdict.
+Generated by `$speedup-proof`. Runtime evidence and correctness checks determine the verdict.

@@ -12,9 +12,13 @@ enum CodexExecutableLocatorError: LocalizedError, Equatable {
 
 struct CodexExecutableLocator: Sendable {
   typealias Validator = @Sendable (URL) -> Bool
+  private static let defaultValidator: Validator = { url in
+    isWorkingCodexExecutable(url)
+  }
 
   private let candidates: [URL]
   private let validator: Validator
+  private let validationCache: ExecutableValidationCache?
 
   init(
     candidates: [URL]? = nil,
@@ -22,9 +26,10 @@ struct CodexExecutableLocator: Sendable {
     homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
     runningApplicationURLs: [URL]? = nil,
     installedApplicationURLs: [URL]? = nil,
-    validator: @escaping Validator = Self.isWorkingCodexExecutable
+    validator: Validator? = nil
   ) {
-    self.validator = validator
+    self.validator = validator ?? Self.defaultValidator
+    validationCache = validator == nil ? ExecutableValidationCache() : nil
     if let candidates {
       self.candidates = candidates
       return
@@ -64,7 +69,20 @@ struct CodexExecutableLocator: Sendable {
       try Task.checkCancellation()
       let path = candidate.standardizedFileURL.path
       guard seen.insert(path).inserted else { continue }
-      if validator(candidate) { return candidate }
+      if let identity = Self.executableIdentity(at: candidate),
+        validationCache?.matches(path: path, identity: identity) == true
+      {
+        return candidate
+      }
+      if validator(candidate) {
+        if let identity = Self.executableIdentity(at: candidate) {
+          validationCache?.store(path: path, identity: identity)
+        } else {
+          validationCache?.clear()
+        }
+        return candidate
+      }
+      validationCache?.clear(path: path)
       try Task.checkCancellation()
     }
     throw CodexExecutableLocatorError.notFound
@@ -106,6 +124,22 @@ struct CodexExecutableLocator: Sendable {
     }
   }
 
+  private static func executableIdentity(at url: URL) -> ExecutableIdentity? {
+    guard FileManager.default.isExecutableFile(atPath: url.path) else { return nil }
+    var info = stat()
+    guard stat(url.path, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG else { return nil }
+    return ExecutableIdentity(
+      device: UInt64(info.st_dev),
+      inode: UInt64(info.st_ino),
+      mode: UInt32(info.st_mode),
+      size: Int64(info.st_size),
+      modificationSeconds: Int64(info.st_mtimespec.tv_sec),
+      modificationNanoseconds: Int64(info.st_mtimespec.tv_nsec),
+      changeSeconds: Int64(info.st_ctimespec.tv_sec),
+      changeNanoseconds: Int64(info.st_ctimespec.tv_nsec)
+    )
+  }
+
   private static func runningCodexApplicationURLs() -> [URL] {
     NSWorkspace.shared.runningApplications
       .filter { $0.bundleIdentifier == "com.openai.codex" }
@@ -129,5 +163,43 @@ struct CodexExecutableLocator: Sendable {
     return info["CFBundleVersion"] as? String
       ?? info["CFBundleShortVersionString"] as? String
       ?? "0"
+  }
+}
+
+private struct ExecutableIdentity: Equatable, Sendable {
+  let device: UInt64
+  let inode: UInt64
+  let mode: UInt32
+  let size: Int64
+  let modificationSeconds: Int64
+  let modificationNanoseconds: Int64
+  let changeSeconds: Int64
+  let changeNanoseconds: Int64
+}
+
+private final class ExecutableValidationCache: @unchecked Sendable {
+  private let lock = NSLock()
+  private var validatedPath: String?
+  private var validatedIdentity: ExecutableIdentity?
+
+  func matches(path: String, identity: ExecutableIdentity) -> Bool {
+    lock.withLock {
+      validatedPath == path && validatedIdentity == identity
+    }
+  }
+
+  func store(path: String, identity: ExecutableIdentity) {
+    lock.withLock {
+      validatedPath = path
+      validatedIdentity = identity
+    }
+  }
+
+  func clear(path: String? = nil) {
+    lock.withLock {
+      guard path == nil || validatedPath == path else { return }
+      validatedPath = nil
+      validatedIdentity = nil
+    }
   }
 }

@@ -64,4 +64,33 @@ spctl --assess --type execute --verbose=2 /Applications/Cowlick.app
 
 Complete onboarding without Terminal, run working/approval/completed tests, verify a signed Sparkle update from an older test build, then uninstall and confirm unrelated Codex hooks remain.
 
+## Publish the repository social preview
+
+This is an authenticated repository-settings step; committing the source image does not publish it as GitHub's social preview. After the final launch assets have been reviewed, a repository administrator must:
+
+1. Sign in to GitHub and open [the Cowlick repository settings](https://github.com/henryvn27/cowlick/settings).
+2. On the **Settings** tab's **General** page, scroll to **Social preview**, select **Edit**, then **Upload an image…**.
+3. Upload [`Assets/Social/github-social-preview.png`](../Assets/Social/github-social-preview.png). It is the release-owned 1280 × 640 PNG; do not substitute a screenshot from an unsigned or older build.
+
+GitHub can take a short time to propagate the new preview. First confirm that the repository reports a custom Open Graph image:
+
+```sh
+gh api graphql \
+  -f query='query { repository(owner: "henryvn27", name: "cowlick") { usesCustomOpenGraphImage openGraphImageUrl } }' \
+  --jq '.data.repository'
+```
+
+`usesCustomOpenGraphImage` must be `true`. Then fetch the Open Graph image referenced by the public repository page and inspect the served image, rather than relying on the local asset alone:
+
+```sh
+public_preview_url="$(
+  curl -fsSL https://github.com/henryvn27/cowlick |
+    ruby -e 'html = STDIN.read; match = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/) || html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/); abort("missing og:image") unless match; puts match[1]'
+)"
+curl -fsSL "$public_preview_url" -o /tmp/cowlick-github-social-preview.png
+open /tmp/cowlick-github-social-preview.png
+```
+
+Visually compare the downloaded image with the committed source. Do not begin launch posts until the public preview is correct. This metadata check is additive: it does not replace successful Developer ID signing, notarization and stapling, public artifact validation, or the canonical Homebrew install verification above. See [GitHub's social-preview documentation](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview) for the current settings workflow.
+
 Build numbers increase monotonically; marketing versions follow semantic versioning. Protocol changes require compatibility or safe version rejection.

@@ -256,6 +256,94 @@ final class CodexUsageTests: XCTestCase {
     )
   }
 
+  func testExecutableLocatorCachesUnchangedValidatedExecutable() throws {
+    let directory = temporaryURL("locator-cache")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let counter = directory.appendingPathComponent("validations")
+    let executable = try makeCodexExecutable(
+      at: directory.appendingPathComponent("codex"), counter: counter)
+    let locator = CodexExecutableLocator(candidates: [executable])
+
+    XCTAssertEqual(try locator.locate(), executable)
+    XCTAssertEqual(try locator.locate(), executable)
+
+    XCTAssertEqual(try validationCount(at: counter), 1)
+  }
+
+  func testExecutableLocatorRevalidatesReplacedExecutable() throws {
+    let directory = temporaryURL("locator-replacement")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let counter = directory.appendingPathComponent("validations")
+    let executable = directory.appendingPathComponent("codex")
+    _ = try makeCodexExecutable(at: executable, counter: counter)
+    let locator = CodexExecutableLocator(candidates: [executable])
+
+    XCTAssertEqual(try locator.locate(), executable)
+    try FileManager.default.removeItem(at: executable)
+    _ = try makeCodexExecutable(at: executable, counter: counter)
+    XCTAssertEqual(try locator.locate(), executable)
+
+    XCTAssertEqual(try validationCount(at: counter), 2)
+  }
+
+  func testExecutableLocatorFallsThroughAfterCachedExecutableIsDeleted() throws {
+    let directory = temporaryURL("locator-fallback")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let counter = directory.appendingPathComponent("validations")
+    let first = try makeCodexExecutable(
+      at: directory.appendingPathComponent("first"), counter: counter)
+    let second = try makeCodexExecutable(
+      at: directory.appendingPathComponent("second"), counter: counter)
+    let locator = CodexExecutableLocator(candidates: [first, second])
+
+    XCTAssertEqual(try locator.locate(), first)
+    try FileManager.default.removeItem(at: first)
+
+    XCTAssertEqual(try locator.locate(), second)
+    XCTAssertEqual(try validationCount(at: counter), 2)
+  }
+
+  func testExecutableLocatorStillPrefersNewHigherPriorityCandidate() throws {
+    let directory = temporaryURL("locator-priority")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let counter = directory.appendingPathComponent("validations")
+    let first = directory.appendingPathComponent("first")
+    let second = try makeCodexExecutable(
+      at: directory.appendingPathComponent("second"), counter: counter)
+    let locator = CodexExecutableLocator(candidates: [first, second])
+
+    XCTAssertEqual(try locator.locate(), second)
+    _ = try makeCodexExecutable(at: first, counter: counter)
+
+    XCTAssertEqual(try locator.locate(), first)
+    XCTAssertEqual(try validationCount(at: counter), 2)
+  }
+
+  func testExecutableLocatorDoesNotCacheCustomValidatorResults() throws {
+    let directory = temporaryURL("locator-custom-validator")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let executable = directory.appendingPathComponent("codex")
+    let marker = directory.appendingPathComponent("valid")
+    XCTAssertTrue(FileManager.default.createFile(atPath: executable.path, contents: Data()))
+    XCTAssertTrue(FileManager.default.createFile(atPath: marker.path, contents: Data()))
+    let locator = CodexExecutableLocator(
+      candidates: [executable],
+      validator: { _ in FileManager.default.fileExists(atPath: marker.path) }
+    )
+
+    XCTAssertEqual(try locator.locate(), executable)
+    try FileManager.default.removeItem(at: marker)
+
+    XCTAssertThrowsError(try locator.locate()) { error in
+      XCTAssertEqual(error as? CodexExecutableLocatorError, .notFound)
+    }
+  }
+
   func testExecutableLocatorPrefersRunningApplicationThenNewestInstalledApplication() throws {
     let running = URL(fileURLWithPath: "/Applications/ChatGPT.app")
     let installed = URL(fileURLWithPath: "/Applications/Codex.app")
@@ -296,6 +384,21 @@ final class CodexUsageTests: XCTestCase {
     )
     try info.write(to: contents.appendingPathComponent("Info.plist"))
     return application
+  }
+
+  private func makeCodexExecutable(at url: URL, counter: URL) throws -> URL {
+    let script = """
+      #!/bin/sh
+      printf '1\\n' >> '\(counter.path)'
+      printf 'codex-cli 1.0.0\\n'
+      """
+    try Data(script.utf8).write(to: url)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+    return url
+  }
+
+  private func validationCount(at url: URL) throws -> Int {
+    try String(contentsOf: url, encoding: .utf8).split(separator: "\n").count
   }
 
   private func temporaryURL(_ name: String) -> URL {
