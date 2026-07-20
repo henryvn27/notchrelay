@@ -1026,6 +1026,7 @@ grep -Fq 'old-helper-before-legacy-cleanup' \
     -name 'Cowlick.app.backup-*' -print -quit)" ]]
 
 release_workflow="$project_root/.github/workflows/release.yml"
+ci_workflow="$project_root/.github/workflows/ci.yml"
 provenance_script="$script_dir/verify_release_provenance.sh"
 package_script="$script_dir/package_release.sh"
 artifact_verifier="$script_dir/verify_release_artifacts.sh"
@@ -1038,7 +1039,14 @@ grep -Fq -- '-derivedDataPath "$derived_data"' "$package_script"
 grep -Fq '"$script_dir/verify_release_artifacts.sh" "$version" "$output"' \
   "$create_release_script"
 grep -Fq 'workflow_dispatch:' "$release_workflow"
-grep -Fq 'workflow_call:' "$project_root/.github/workflows/ci.yml"
+grep -Fq 'workflow_call:' "$ci_workflow"
+awk '
+  /^  build-test:/ { in_build_test = 1; next }
+  /^  secret-scan:/ { in_build_test = 0 }
+  in_build_test && /fetch-depth: 0/ { found = 1 }
+  END { exit found ? 0 : 1 }
+' "$ci_workflow" \
+  || { print -u2 -- "build-test must fetch full history for asset provenance"; exit 1; }
 if grep -Fq "tags: ['v*']" "$release_workflow"; then
   print -u2 -- "release workflow still trusts a tag-supplied workflow definition"
   exit 1
