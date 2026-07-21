@@ -64,7 +64,7 @@ jobs:
           ref: ${{ needs.provenance.outputs.release_sha }}
           fetch-depth: 0
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: ./Scripts/install_ci_xcodegen.sh
       - name: Validate release inputs
         env:
           APPLE_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_BASE64 }}

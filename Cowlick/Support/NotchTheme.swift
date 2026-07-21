@@ -16,8 +16,8 @@ enum NotchTheme {
   static let hairline = Color.white.opacity(0.12)
 
   static let compactSize = CGSize(width: 170, height: 34)
-  static let maximumApprovalSize = CGSize(width: 380, height: 164)
-  static let attachedWingWidth: CGFloat = 82
+  static let maximumApprovalSize = CGSize(width: 380, height: 140)
+  static let attachedWingWidth: CGFloat = 72
   static let compactRadius: CGFloat = 14
   static let expandedBottomRadius: CGFloat = 22
   static let floatingRadius: CGFloat = 12
@@ -25,9 +25,9 @@ enum NotchTheme {
   static let panelCollapseDuration = 0.18
   static let reducedMotionFadeDuration = 0.12
   static let hoverFeedbackDuration = 0.12
-  static let hoverOpenDelay = 0.14
-  static let hoverCloseDelay = 0.34
-  static let contentSpring = Animation.spring(response: 0.24, dampingFraction: 0.90)
+  static let hoverOpenDelay = 0.20
+  static let hoverCloseDelay = 0.40
+  static let contentSpring = Animation.spring(response: 0.28, dampingFraction: 1.0)
   static let contentCollapse = Animation.timingCurve(
     0.42,
     0.00,
@@ -62,15 +62,17 @@ enum NotchTheme {
   }
 
   static func sessionListSize(sessionCount: Int) -> CGSize {
-    CGSize(width: 360, height: 76 + CGFloat(min(5, max(1, sessionCount))) * 32)
+    let visibleCount = sessionCount > 3 ? 2 : min(3, max(1, sessionCount))
+    let overflowHeight: CGFloat = sessionCount > visibleCount ? 20 : 0
+    return CGSize(width: 360, height: 20 + CGFloat(visibleCount) * 28 + overflowHeight)
   }
 
   static func approvalSize(for request: ApprovalRequest) -> CGSize {
-    var height: CGFloat = 116
-    if request.reasonPreview.count > 64 { height += 15 }
+    var height: CGFloat = 96
+    if request.reasonPreview.count > 64 { height += 14 }
     if request.showsDistinctOperation {
-      height += 25
-      if request.operationPreview.count > 48 { height += 14 }
+      height += 20
+      if request.operationPreview.count > 48 { height += 10 }
     }
     return CGSize(
       width: maximumApprovalSize.width,

@@ -39,6 +39,87 @@ assert_invalid_hooks_rejected_without_residue() {
 
 assert_invalid_hooks_rejected_without_residue malformed '{'
 assert_invalid_hooks_rejected_without_residue non-object '[]'
+assert_invalid_hooks_rejected_without_residue non-object-hooks '{"hooks":[]}'
+assert_invalid_hooks_rejected_without_residue event-object \
+  '{"hooks":{"Stop":{"future":true}}}'
+assert_invalid_hooks_rejected_without_residue mixed-groups \
+  '{"hooks":{"Stop":[{"hooks":[]},42]}}'
+assert_invalid_hooks_rejected_without_residue missing-handlers \
+  '{"hooks":{"Stop":[{"matcher":"future"}]}}'
+assert_invalid_hooks_rejected_without_residue mixed-handlers \
+  '{"hooks":{"Stop":[{"hooks":[{"type":"command"},42]}]}}'
+
+symlink_home="$temporary_directory/symlink-hooks-home"
+symlink_target="$temporary_directory/foreign-hooks.json"
+symlink_hooks="$symlink_home/.codex/hooks.json"
+mkdir -p "${symlink_hooks:h}"
+print -n -- '{"foreign":{"preserve":true},"hooks":{}}' > "$symlink_target"
+ln -s "$symlink_target" "$symlink_hooks"
+symlink_target_hash="$(shasum -a 256 "$symlink_target" | awk '{print $1}')"
+for symlink_command in 'status' 'install --helper '$helper 'remove'; do
+  if COWLICK_HOME="$symlink_home" swift "$script_dir/install_hooks.swift" \
+    ${(z)symlink_command} >/dev/null 2>&1; then
+    print -u2 "symlinked hooks unexpectedly accepted by: $symlink_command"
+    exit 1
+  fi
+  [[ -L "$symlink_hooks" && "$(readlink "$symlink_hooks")" == "$symlink_target" ]]
+  [[ "$(shasum -a 256 "$symlink_target" | awk '{print $1}')" == "$symlink_target_hash" ]]
+done
+[[ ! -e "$symlink_home/.local/bin/cowlick-hook" \
+  && ! -L "$symlink_home/.local/bin/cowlick-hook" ]]
+[[ ! -e "$symlink_home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
+
+directory_home="$temporary_directory/directory-hooks-home"
+directory_hooks="$directory_home/.codex/hooks.json"
+mkdir -p "$directory_hooks"
+for directory_command in 'status' 'install --helper '$helper 'remove'; do
+  if COWLICK_HOME="$directory_home" swift "$script_dir/install_hooks.swift" \
+    ${(z)directory_command} >/dev/null 2>&1; then
+    print -u2 "directory hooks unexpectedly accepted by: $directory_command"
+    exit 1
+  fi
+  [[ -d "$directory_hooks" && ! -L "$directory_hooks" ]]
+done
+
+if [[ "$(id -u)" == 0 ]]; then
+  foreign_owner_home="$temporary_directory/foreign-owner-home"
+  foreign_owner_hooks="$foreign_owner_home/.codex/hooks.json"
+  mkdir -p "${foreign_owner_hooks:h}"
+  print -n -- '{"hooks":{}}' > "$foreign_owner_hooks"
+  chown 1 "$foreign_owner_hooks"
+  foreign_owner_hash="$(shasum -a 256 "$foreign_owner_hooks" | awk '{print $1}')"
+  for foreign_owner_command in 'status' 'install --helper '$helper 'remove'; do
+    if COWLICK_HOME="$foreign_owner_home" swift "$script_dir/install_hooks.swift" \
+      ${(z)foreign_owner_command} >/dev/null 2>&1; then
+      print -u2 "foreign-owned hooks unexpectedly accepted by: $foreign_owner_command"
+      exit 1
+    fi
+    [[ "$(shasum -a 256 "$foreign_owner_hooks" | awk '{print $1}')" \
+      == "$foreign_owner_hash" ]]
+  done
+fi
+
+future_home="$temporary_directory/future-shape-home"
+future_hooks="$future_home/.codex/hooks.json"
+mkdir -p "${future_hooks:h}"
+print -n -- '{"future":{"preserve":true},"hooks":{"FutureEvent":{"schema":2}}}' \
+  > "$future_hooks"
+COWLICK_HOME="$future_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" >/dev/null
+future_first_hash="$(shasum -a 256 "$future_hooks" | awk '{print $1}')"
+COWLICK_HOME="$future_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" >/dev/null
+[[ "$(shasum -a 256 "$future_hooks" | awk '{print $1}')" == "$future_first_hash" ]]
+COWLICK_HOME="$future_home" swift "$script_dir/install_hooks.swift" remove >/dev/null
+COWLICK_TEST_HOOKS="$future_hooks" swift -e '
+  import Foundation
+  let path = ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!
+  let root = try JSONSerialization.jsonObject(
+    with: Data(contentsOf: URL(fileURLWithPath: path))) as! [String: Any]
+  precondition((root["future"] as? [String: Any])?["preserve"] as? Bool == true)
+  let hooks = root["hooks"] as! [String: Any]
+  precondition((hooks["FutureEvent"] as? [String: Any])?["schema"] as? Int == 2)
+'
 
 nested_helper_home="$temporary_directory/nested-helper-home"
 nested_helper="$nested_helper_home/Library/Application Support/Cowlick/bin/cowlick-hook"
@@ -146,6 +227,11 @@ COWLICK_TEST_HOME="$migration_home" COWLICK_TEST_HOOKS="$migration_hooks" swift 
 '
 chmod 600 "$migration_hooks"
 
+migration_status_before="$(COWLICK_HOME="$migration_home" \
+  swift "$script_dir/install_hooks.swift" status)"
+[[ "$migration_status_before" == missing:* ]] \
+  || { print -u2 "stale four-event integration was reported healthy"; exit 1; }
+
 COWLICK_HOME="$migration_home" swift "$script_dir/install_hooks.swift" install \
   --helper "$helper" >/dev/null
 migration_first_hash="$(shasum -a 256 "$migration_hooks" | awk '{print $1}')"
@@ -154,6 +240,9 @@ COWLICK_HOME="$migration_home" swift "$script_dir/install_hooks.swift" install \
 migration_second_hash="$(shasum -a 256 "$migration_hooks" | awk '{print $1}')"
 [[ "$migration_first_hash" == "$migration_second_hash" ]] \
   || { print -u2 "four-event repair is not idempotent"; exit 1; }
+[[ "$(COWLICK_HOME="$migration_home" swift "$script_dir/install_hooks.swift" status)" \
+    == "healthy" ]] \
+  || { print -u2 "repaired four-event integration was not reported healthy"; exit 1; }
 
 COWLICK_TEST_HOOKS="$migration_hooks" swift -e '
   import Foundation
@@ -175,6 +264,13 @@ COWLICK_TEST_HOOKS="$migration_hooks" swift -e '
       ($0["cowlick"] as? [String: Any])?["product"] as? String == "Cowlick"
     }
     precondition(owned.count == 1)
+    let handler = owned[0]
+    precondition(handler["type"] as? String == "command")
+    precondition((handler["command"] as? String)?.contains("cowlick-hook") == true)
+    precondition(handler["timeout"] as? Int == (event == "PermissionRequest" ? 75 : 5))
+    precondition(handler["statusMessage"] as? String == "Cowlick")
+    precondition(
+      (handler["cowlick"] as? [String: Any])?["protocol"] as? Int == 2)
   }
 '
 
@@ -271,6 +367,12 @@ COWLICK_TEST_HOOKS="$hooks_directory/hooks.json" swift -e '
     let handlers = groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
     let owned = handlers.filter { ($0["cowlick"] as? [String: Any])?["product"] as? String == "Cowlick" }
     precondition(owned.count == 1)
+    let handler = owned[0]
+    precondition(handler["type"] as? String == "command")
+    precondition(handler["timeout"] as? Int == (event == "PermissionRequest" ? 75 : 5))
+    precondition(handler["statusMessage"] as? String == "Cowlick")
+    precondition(
+      (handler["cowlick"] as? [String: Any])?["protocol"] as? Int == 2)
     precondition(!handlers.contains { ($0["command"] as? String)?.contains("notchrelay-hook") == true })
   }
 '

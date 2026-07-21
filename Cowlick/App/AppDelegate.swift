@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private static let automaticTerminationReason = "Listening for local Codex hook events"
+  private static let automaticTerminationReason = "Listening for local Codex activity"
   private var socketServer: LocalSocketServer?
   private var terminating = false
   private var sleepObservers: [NSObjectProtocol] = []
@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       services.eventLogger.error("Socket startup failed: \(error.localizedDescription)")
     }
     installSleepObservers(services)
+    services.localLifecycleObserver.start()
     services.usageStore.refreshIfNeeded()
     Task {
       let recovered = await Task.detached(priority: .utility) {
@@ -95,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       await AppServices.shared.capsLockService.cancelAndRestore()
       AppServices.shared.approvalCoordinator.deferAll()
       socketServer?.stop()
+      AppServices.shared.localLifecycleObserver.stop()
       sender.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater
@@ -102,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     socketServer?.stop()
+    AppServices.shared.localLifecycleObserver.stop()
     let processInfo = ProcessInfo.processInfo
     processInfo.enableAutomaticTermination(Self.automaticTerminationReason)
     processInfo.enableSuddenTermination()
@@ -170,6 +173,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     sleepObservers.append(
       center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
         Task { @MainActor in
+          services.localLifecycleObserver.stop()
+          services.localLifecycleObserver.start()
           if services.settings.capsLockEnabled, services.sessionStore.currentApproval != nil {
             await services.capsLockService.start(.approval)
           }

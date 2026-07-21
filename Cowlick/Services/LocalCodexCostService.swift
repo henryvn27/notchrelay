@@ -17,13 +17,14 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
   static let pricingAsOf = Date(timeIntervalSince1970: 1_784_505_600)
 
   private static let defaultParserPricingFingerprint =
-    "codex-jsonl-v2-openai-standard-2026-07-20"
+    "codex-jsonl-v3-openai-standard-priority-2026-07-20"
   private static let readChunkSize = 256 * 1_024
   private static let probeSize = 4 * 1_024
 
   private let roots: [URL]
   private let now: @Sendable () -> Date
   private let parserPricingFingerprint: @Sendable () -> String
+  private var priorityTierReader: CodexPriorityTierReader?
   private var decoder = JSONDecoder()
   private var cache: [InodeIdentity: CachedFile] = [:]
   private var metrics = LocalCodexCostScanMetrics()
@@ -31,6 +32,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
   init(
     roots: [URL]? = nil,
     now: @escaping @Sendable () -> Date = { Date() },
+    priorityTierReader: CodexPriorityTierReader? = CodexPriorityTierReader(),
     parserPricingFingerprint: @escaping @Sendable () -> String = {
       LocalCodexCostService.defaultParserPricingFingerprint
     }
@@ -45,6 +47,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       ]
     }
     self.now = now
+    self.priorityTierReader = priorityTierReader
     self.parserPricingFingerprint = parserPricingFingerprint
   }
 
@@ -99,7 +102,8 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
     }
     cache = cache.filter { retainedCacheInodes.contains($0.key) }
 
-    let aggregation = try aggregate(summaries)
+    let prioritySnapshot = priorityTierReader?.snapshot(for: interval) ?? .standardOnly
+    let aggregation = try aggregate(summaries, prioritySnapshot: prioritySnapshot)
     let estimate = LocalCodexCostEstimate(
       measurement: CostMeasurement(
         kind: .apiEquivalentEstimate,
@@ -121,6 +125,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
 
   func resetCache() async {
     cache.removeAll(keepingCapacity: false)
+    priorityTierReader?.reset()
     metrics = LocalCodexCostScanMetrics()
   }
 
@@ -466,6 +471,9 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
         record.payload?.forkedFromID ?? record.payload?.parentThreadID
     case "turn_context":
       state.currentModel = record.payload?.model
+      if let turnID = record.payload?.turnID, !turnID.isEmpty { state.currentTurnID = turnID }
+    case "event_msg" where record.payload?.type == "task_started":
+      if let turnID = record.payload?.turnID, !turnID.isEmpty { state.currentTurnID = turnID }
     case "event_msg" where record.payload?.type == "token_count":
       guard let timestamp = parsedDate(record.timestamp), let info = record.payload?.info else {
         state.summary.reasons.insert(.malformedRecord)
@@ -478,6 +486,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       consumeTokenEvent(
         timestamp: timestamp,
         model: state.currentModel,
+        turnID: record.payload?.turnID ?? state.currentTurnID,
         total: total,
         last: info.lastTokenUsage,
         state: &state
@@ -490,6 +499,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
   private func consumeTokenEvent(
     timestamp: Date,
     model: String?,
+    turnID: String?,
     total: TokenUsage,
     last: TokenUsage?,
     state: inout FileParserState
@@ -502,6 +512,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       state.summary.firstObservation = FirstObservation(
         usage: total,
         model: model,
+        turnID: turnID,
         disposition: pricingDisposition(for: total, last: last, reasons: &state.summary.reasons),
         includedInInterval: state.includes(timestamp)
       )
@@ -526,6 +537,7 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
 
     let key = ContributionKey(
       model: model,
+      turnID: turnID,
       disposition: pricingDisposition(
         for: contribution,
         last: last,
@@ -678,10 +690,14 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
     return Int64(era * 146_097 + dayOfEra - 719_468)
   }
 
-  private func aggregate(_ summaries: [FileSummary]) throws -> Aggregation {
+  private func aggregate(
+    _ summaries: [FileSummary],
+    prioritySnapshot: CodexPriorityTierSnapshot
+  ) throws -> Aggregation {
     var reasons = summaries.reduce(into: Set<LocalCodexCostExclusionReason>()) {
       $0.formUnion($1.reasons)
     }
+    if !prioritySnapshot.isComplete { reasons.insert(.priorityMetadataUnavailable) }
     var filesByRollout: [String: FileSummary] = [:]
 
     for (index, file) in summaries.enumerated() {
@@ -734,7 +750,11 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
       } else {
         lineageResolved = true
         if let first = file.firstObservation, first.includedInInterval, !first.usage.isZero {
-          let key = ContributionKey(model: first.model, disposition: first.disposition)
+          let key = ContributionKey(
+            model: first.model,
+            turnID: first.turnID,
+            disposition: first.disposition
+          )
           contributions[key, default: .zero].formSaturatedAddition(first.usage)
         }
       }
@@ -768,15 +788,33 @@ actor LocalCodexCostService: LocalCodexCostEstimating {
         }
 
         let longContext = key.disposition == .longContext
+        let priority: Bool
+        if let turnID = key.turnID {
+          priority = prioritySnapshot.priorityTurnIDs.contains(turnID)
+        } else if prioritySnapshot.supportsTurnCorrelation {
+          priority = false
+          reasons.insert(.missingTurnIdentifier)
+        } else {
+          priority = false
+        }
+        if priority, longContext { reasons.insert(.ambiguousPriorityPricing) }
         guard usage.hasValidInputPartition else {
-          amount += prices.outputCost(for: usage, longContext: longContext)
+          amount += prices.outputCost(
+            for: usage,
+            longContext: longContext,
+            priority: priority && !longContext
+          )
           pricedTokens = pricedTokens.saturatedAdding(usage.outputTokens)
           unpricedTokens = unpricedTokens.saturatedAdding(usage.inputTokens)
           reasons.insert(.invalidTokenPartition)
           continue
         }
 
-        amount += prices.cost(for: usage, longContext: longContext)
+        amount += prices.cost(
+          for: usage,
+          longContext: longContext,
+          priority: priority && !longContext
+        )
         pricedTokens = pricedTokens.saturatedAdding(billableTokens)
       }
     }
@@ -845,6 +883,7 @@ private struct ParsedScan {
 private struct FileParserState {
   var interval: DateInterval
   var currentModel: String?
+  var currentTurnID: String?
   var highWatermark: TokenUsage?
   var earliestExcludedAfterEnd: Date?
   var latestIncluded: Date?
@@ -892,6 +931,7 @@ private struct FileSummary {
 private struct FirstObservation {
   let usage: TokenUsage
   let model: String?
+  let turnID: String?
   let disposition: PricingDisposition
   let includedInInterval: Bool
 }
@@ -904,6 +944,7 @@ private enum PricingDisposition: Hashable {
 
 private struct ContributionKey: Hashable {
   let model: String?
+  let turnID: String?
   let disposition: PricingDisposition
 }
 
@@ -927,46 +968,102 @@ private struct Aggregation {
 }
 
 private struct Prices {
-  let ordinaryInput: Decimal
-  let cachedInput: Decimal
-  let cacheWriteInput: Decimal
-  let output: Decimal
+  let standard: Rates
+  let priority: Rates
 
   init?(model: String) {
-    switch model {
-    case "gpt-5.6-sol", "gpt-5.6":
-      (ordinaryInput, cachedInput, cacheWriteInput, output) = (5, 0.5, 6.25, 30)
+    switch Self.normalizedModel(model) {
+    case "gpt-5.6-sol":
+      standard = Rates(ordinaryInput: 5, cachedInput: 0.5, cacheWriteInput: 6.25, output: 30)
+      priority = Rates(ordinaryInput: 10, cachedInput: 1, cacheWriteInput: 12.5, output: 60)
     case "gpt-5.6-terra":
-      (ordinaryInput, cachedInput, cacheWriteInput, output) = (2.5, 0.25, 3.125, 15)
+      standard = Rates(ordinaryInput: 2.5, cachedInput: 0.25, cacheWriteInput: 3.125, output: 15)
+      priority = Rates(ordinaryInput: 5, cachedInput: 0.5, cacheWriteInput: 6.25, output: 30)
     case "gpt-5.6-luna":
-      (ordinaryInput, cachedInput, cacheWriteInput, output) = (1, 0.1, 1.25, 6)
+      standard = Rates(ordinaryInput: 1, cachedInput: 0.1, cacheWriteInput: 1.25, output: 6)
+      priority = Rates(ordinaryInput: 2, cachedInput: 0.2, cacheWriteInput: 2.5, output: 12)
     default:
       return nil
     }
   }
 
-  func cost(for usage: TokenUsage, longContext: Bool) -> Decimal {
-    inputCost(for: usage, longContext: longContext)
-      + outputCost(for: usage, longContext: longContext)
+  private static func normalizedModel(_ raw: String) -> String {
+    var model = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    if model.hasPrefix("openai/") { model.removeFirst("openai/".count) }
+    if let canonical = canonicalModel(model) { return canonical }
+
+    guard model.count > 11 else { return model }
+    let suffix = String(model.suffix(11))
+    guard validDateSuffix(suffix) else { return model }
+    return canonicalModel(String(model.dropLast(11))) ?? model
   }
 
-  func outputCost(for usage: TokenUsage, longContext: Bool) -> Decimal {
-    unitCost(tokens: usage.outputTokens, rate: output)
+  private static func canonicalModel(_ model: String) -> String? {
+    switch model {
+    case "gpt-5.6": "gpt-5.6-sol"
+    case "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna": model
+    default: nil
+    }
+  }
+
+  private static func validDateSuffix(_ suffix: String) -> Bool {
+    let bytes = Array(suffix.utf8)
+    guard
+      bytes.count == 11,
+      bytes[0] == 0x2D,
+      bytes[5] == 0x2D,
+      bytes[8] == 0x2D,
+      bytes.enumerated().allSatisfy({ index, byte in
+        [0, 5, 8].contains(index) || (0x30...0x39).contains(byte)
+      }),
+      let year = Int(String(suffix.dropFirst().prefix(4))),
+      let month = Int(String(suffix.dropFirst(6).prefix(2))),
+      let day = Int(String(suffix.suffix(2)))
+    else { return false }
+
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    guard
+      let date = calendar.date(from: DateComponents(year: year, month: month, day: day))
+    else { return false }
+    let components = calendar.dateComponents([.year, .month, .day], from: date)
+    return components.year == year && components.month == month && components.day == day
+  }
+
+  func cost(for usage: TokenUsage, longContext: Bool, priority: Bool) -> Decimal {
+    let rates = priority ? self.priority : standard
+    return inputCost(for: usage, rates: rates, longContext: longContext)
+      + outputCost(for: usage, rates: rates, longContext: longContext)
+  }
+
+  func outputCost(for usage: TokenUsage, longContext: Bool, priority: Bool) -> Decimal {
+    outputCost(for: usage, rates: priority ? self.priority : standard, longContext: longContext)
+  }
+
+  private func outputCost(for usage: TokenUsage, rates: Rates, longContext: Bool) -> Decimal {
+    unitCost(tokens: usage.outputTokens, rate: rates.output)
       * (longContext ? Decimal(string: "1.5")! : 1)
   }
 
-  private func inputCost(for usage: TokenUsage, longContext: Bool) -> Decimal {
+  private func inputCost(for usage: TokenUsage, rates: Rates, longContext: Bool) -> Decimal {
     let ordinary = usage.inputTokens - usage.cachedInputTokens - usage.cacheWriteInputTokens
     let base =
-      unitCost(tokens: ordinary, rate: ordinaryInput)
-      + unitCost(tokens: usage.cachedInputTokens, rate: cachedInput)
-      + unitCost(tokens: usage.cacheWriteInputTokens, rate: cacheWriteInput)
+      unitCost(tokens: ordinary, rate: rates.ordinaryInput)
+      + unitCost(tokens: usage.cachedInputTokens, rate: rates.cachedInput)
+      + unitCost(tokens: usage.cacheWriteInputTokens, rate: rates.cacheWriteInput)
     return base * (longContext ? 2 : 1)
   }
 
   private func unitCost(tokens: Int64, rate: Decimal) -> Decimal {
     Decimal(tokens) * rate / 1_000_000
   }
+}
+
+private struct Rates {
+  let ordinaryInput: Decimal
+  let cachedInput: Decimal
+  let cacheWriteInput: Decimal
+  let output: Decimal
 }
 
 private struct TokenUsage: Decodable, Equatable {
@@ -1070,6 +1167,7 @@ private struct LogRecord: Decodable {
     let forkedFromID: String?
     let parentThreadID: String?
     let model: String?
+    let turnID: String?
     let type: String?
     let info: TokenInfo?
 
@@ -1078,6 +1176,7 @@ private struct LogRecord: Decodable {
       case forkedFromID = "forked_from_id"
       case parentThreadID = "parent_thread_id"
       case model
+      case turnID = "turn_id"
       case type
       case info
     }

@@ -15,6 +15,9 @@ enum LocalCodexCostExclusionReason: String, CaseIterable, Equatable, Sendable {
   case counterDiscontinuity
   case inconsistentTokenCounters
   case ambiguousLongContextPricing
+  case priorityMetadataUnavailable
+  case missingTurnIdentifier
+  case ambiguousPriorityPricing
   case invalidTokenPartition
   case fileChangedDuringScan
   case duplicateRollout

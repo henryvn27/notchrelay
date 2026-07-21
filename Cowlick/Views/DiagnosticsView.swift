@@ -55,7 +55,8 @@ struct DiagnosticsView: View {
     report = await DiagnosticsService(
       store: services.sessionStore,
       usageStore: services.usageStore,
-      hookInstaller: services.hookInstaller
+      hookInstaller: services.hookInstaller,
+      localLifecycleObserver: services.localLifecycleObserver
     ).report()
   }
 

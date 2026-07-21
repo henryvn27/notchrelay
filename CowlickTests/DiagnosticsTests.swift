@@ -1109,14 +1109,14 @@ final class DiagnosticsTests: XCTestCase {
         trustState: .needsReview,
         bridgeIsListening: true
       ),
-      "BLOCKED until Cowlick is reviewed in Codex /hooks; existing tasks are not backfilled"
+      "STATUS READY through local observation; APPROVAL ACTIONS BLOCKED until review in Codex /hooks"
     )
 
     let guidance = CodexIntegrationPresentation.guidance(for: .needsReview)
     XCTAssertTrue(guidance.contains("Codex CLI"), guidance)
     XCTAssertTrue(guidance.contains("enter /hooks"), guidance)
-    XCTAssertTrue(guidance.contains("Tasks already running cannot be backfilled"), guidance)
-    XCTAssertTrue(guidance.contains("Send a new prompt or start a new task"), guidance)
+    XCTAssertTrue(guidance.contains("Local observation can show current activity"), guidance)
+    XCTAssertTrue(guidance.contains("approval actions begin after Codex trusts"), guidance)
   }
 
   func testIntegrationPresentationNeverReportsUnknownTrustAsReady() {
@@ -1210,14 +1210,15 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertEqual(OnboardingView.finishTitle(trustState: .trusted), "You're ready.")
   }
 
-  func testDeferredOnboardingExplainsLiveSessionsRemainUnavailable() {
+  func testDeferredOnboardingExplainsLocalStatusAndApprovalBoundary() {
     let detail = OnboardingView.finishDetail(
       trustState: .needsReview,
       integrationDeferred: true
     )
 
     XCTAssertTrue(detail.contains("finish later"), detail)
-    XCTAssertTrue(detail.contains("live sessions will not appear"), detail)
+    XCTAssertTrue(detail.contains("show local activity now"), detail)
+    XCTAssertTrue(detail.contains("approval actions remain in Codex"), detail)
     XCTAssertFalse(detail.contains("ready"), detail)
   }
 

@@ -8,6 +8,7 @@ Report suspected vulnerabilities through a private [GitHub security advisory](ht
 - Approval decisions match one unexpired request UUID and cannot be reused.
 - IPC is a private current-user Unix-domain socket authenticated by a random owner-only token.
 - Bridge tool input is untrusted display data and is never executed.
+- Local Codex lifecycle observation is untrusted and display-only; it cannot create an approval request or decision.
 - Hook stdout contains only the official Codex-compatible decision shape or a neutral Stop object.
 - Existing Codex hooks and unknown fields survive install and removal.
 - Organization billing credentials remain in macOS Keychain; owner-only account metadata contains only aliases and opaque references.

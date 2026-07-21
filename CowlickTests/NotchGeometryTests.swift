@@ -28,9 +28,11 @@ final class NotchGeometryTests: XCTestCase {
       expiresAt: .now.addingTimeInterval(60)
     )
     let approvalSize = NotchTheme.approvalSize(for: request)
-    let content = ApprovalView(request: request, allow: {}, deny: {}, openCodex: {})
-      .frame(width: approvalSize.width)
-      .background(Color.black)
+    let content = ApprovalView(
+      request: request, isAttached: false, allow: {}, deny: {}, openCodex: {}
+    )
+    .frame(width: approvalSize.width)
+    .background(Color.black)
     let hostingView = NSHostingView(rootView: content)
     let requiredHeight = ceil(hostingView.fittingSize.height)
 
@@ -56,7 +58,9 @@ final class NotchGeometryTests: XCTestCase {
     )
     try attachPNG(
       of:
-        content
+        ApprovalView(
+          request: request, isAttached: true, allow: {}, deny: {}, openCodex: {}
+        )
         .padding(.top, 38)
         .frame(width: attachedSize.width, height: attachedSize.height, alignment: .top),
       size: attachedSize,
@@ -79,17 +83,16 @@ final class NotchGeometryTests: XCTestCase {
       expiresAt: .now.addingTimeInterval(60)
     )
 
-    XCTAssertEqual(NotchTheme.approvalSize(for: request), CGSize(width: 380, height: 141))
+    XCTAssertEqual(NotchTheme.approvalSize(for: request), CGSize(width: 380, height: 116))
   }
 
-  func testApprovalFocusActivatesOnlyWhenEnteringApproval() {
-    var tracker = ApprovalFocusTracker()
-
-    XCTAssertFalse(tracker.shouldActivate(isApproval: false))
-    XCTAssertTrue(tracker.shouldActivate(isApproval: true))
-    XCTAssertFalse(tracker.shouldActivate(isApproval: true))
-    XCTAssertFalse(tracker.shouldActivate(isApproval: false))
-    XCTAssertTrue(tracker.shouldActivate(isApproval: true))
+  func testApprovalPresentationNeverActivatesUntilUserInteracts() {
+    XCTAssertFalse(
+      NotchPanelInteractionPolicy.shouldActivate(isApproval: true, initiatedByUser: false))
+    XCTAssertFalse(
+      NotchPanelInteractionPolicy.shouldActivate(isApproval: false, initiatedByUser: true))
+    XCTAssertTrue(
+      NotchPanelInteractionPolicy.shouldActivate(isApproval: true, initiatedByUser: true))
   }
 
   @MainActor
@@ -101,6 +104,20 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(
       CollapsedIslandView.accessibilityHint(for: .working(prompt: nil)),
       "Expand the status island"
+    )
+    let session = AgentSession(
+      id: "session",
+      turnID: "turn",
+      projectName: "Scoutly",
+      workingDirectory: "/tmp/Scoutly",
+      model: nil,
+      status: .working(prompt: nil),
+      updatedAt: .now
+    )
+    XCTAssertEqual(
+      CollapsedIslandView.accessibilityLabel(
+        session: session, activeCount: 3, activeSubagentCount: 2),
+      "Scoutly, Working, 3 active sessions, 2 active agents"
     )
   }
 
@@ -132,7 +149,7 @@ final class NotchGeometryTests: XCTestCase {
       expanded: false
     )
 
-    XCTAssertEqual(size.width, 376)
+    XCTAssertEqual(size.width, 356)
     XCTAssertEqual(size.height, 38)
   }
 
@@ -156,7 +173,7 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(expanded.panelFrame.maxY, compact.panelFrame.maxY)
     XCTAssertGreaterThanOrEqual(expanded.panelFrame.width, compact.panelFrame.width)
     XCTAssertLessThan(expanded.panelFrame.minY, compact.panelFrame.minY)
-    XCTAssertEqual(expanded.panelFrame.height, 202)
+    XCTAssertEqual(expanded.panelFrame.height, 178)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {

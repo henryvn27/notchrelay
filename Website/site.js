@@ -9,7 +9,7 @@ const previews = {
   approval: {
     src: "./assets/approval.png",
     width: 760,
-    height: 282,
+    height: 232,
     alt: "Cowlick showing a request-matched Bash approval with explicit Deny and Allow once actions",
     caption: "Approval. Enough context to decide.",
   },

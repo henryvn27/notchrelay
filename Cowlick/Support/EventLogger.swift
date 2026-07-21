@@ -10,7 +10,6 @@ struct SanitizedBridgeRecord: Identifiable, Equatable, Sendable {
   let outcome: String
 }
 
-@MainActor
 @Observable
 final class EventLogger {
   private struct CanonicalInput {
@@ -55,11 +54,11 @@ final class EventLogger {
   private static let maximumCredentialLabelWords = maximumSensitiveIdentifierScalars
   private static let maximumErrorScalars = 400
 
-  private(set) var recentEvents: [SanitizedBridgeRecord] = []
-  private(set) var recentErrors: [String] = []
+  @MainActor private(set) var recentEvents: [SanitizedBridgeRecord] = []
+  @MainActor private(set) var recentErrors: [String] = []
 
   #if DEBUG
-    static private(set) var credentialLabelScanCountForTesting = 0
+    nonisolated(unsafe) static private(set) var credentialLabelScanCountForTesting = 0
 
     static func resetCredentialLabelScanCountForTesting() {
       credentialLabelScanCountForTesting = 0
@@ -69,6 +68,10 @@ final class EventLogger {
   private let logger = Logger(subsystem: "com.henryvn27.Cowlick", category: "Bridge")
   private let maximumRecords = 10
 
+  @MainActor
+  init() {}
+
+  @MainActor
   func record(event: BridgeEventName, project: String, outcome: String = "accepted") {
     let record = SanitizedBridgeRecord(
       id: UUID(),
@@ -84,6 +87,7 @@ final class EventLogger {
     )
   }
 
+  @MainActor
   func error(_ message: String) {
     let sanitized = Self.sanitizeError(message)
     recentErrors.append(sanitized)
@@ -91,6 +95,7 @@ final class EventLogger {
     logger.error("\(sanitized, privacy: .public)")
   }
 
+  @MainActor
   func reset() {
     recentEvents.removeAll()
     recentErrors.removeAll()

@@ -24,17 +24,9 @@ final class NotchPanel: NSPanel {
   override var canBecomeMain: Bool { false }
 }
 
-struct ApprovalFocusTracker {
-  private var hasPresentedApproval = false
-
-  mutating func shouldActivate(isApproval: Bool) -> Bool {
-    guard isApproval else {
-      hasPresentedApproval = false
-      return false
-    }
-    guard !hasPresentedApproval else { return false }
-    hasPresentedApproval = true
-    return true
+enum NotchPanelInteractionPolicy {
+  static func shouldActivate(isApproval: Bool, initiatedByUser: Bool) -> Bool {
+    isApproval && initiatedByUser
   }
 }
 
@@ -45,7 +37,6 @@ final class NotchPanelController {
   private let presentation = NotchPanelPresentation()
   private var observers: [NSObjectProtocol] = []
   private var presentationUpdateScheduled = false
-  private var approvalFocusTracker = ApprovalFocusTracker()
   private(set) var currentGeometry: ResolvedNotchGeometry?
 
   init(store: SessionStore) {
@@ -75,6 +66,9 @@ final class NotchPanelController {
       }
       return true
     }
+    hostingView.handlePointerDown = { [weak self] in
+      self?.activateApprovalForUserInteraction()
+    }
     panel.contentView = hostingView
     installObservers()
     store.presentationDidChange = { [weak self] in self?.schedulePresentationUpdate() }
@@ -82,9 +76,6 @@ final class NotchPanelController {
 
   func updatePresentation() {
     let interactiveApproval = store.currentApproval != nil && store.isExpanded
-    if !interactiveApproval {
-      _ = approvalFocusTracker.shouldActivate(isApproval: false)
-    }
 
     let baseSize: CGSize
     if interactiveApproval, let approval = store.currentApproval {
@@ -129,9 +120,7 @@ final class NotchPanelController {
     panel.hasShadow = !geometry.hasNotch
     panel.permitsKeyInteraction = interactiveApproval
     panel.ignoresMouseEvents = false
-    if interactiveApproval {
-      panel.styleMask.remove(.nonactivatingPanel)
-    } else {
+    if !interactiveApproval || !panel.isKeyWindow {
       panel.styleMask.insert(.nonactivatingPanel)
     }
 
@@ -164,14 +153,7 @@ final class NotchPanelController {
     }
 
     let wasVisible = panel.isVisible
-    let shouldActivateApproval =
-      interactiveApproval && approvalFocusTracker.shouldActivate(isApproval: true)
-    if shouldActivateApproval {
-      NSApp.activate(ignoringOtherApps: true)
-      panel.makeKeyAndOrderFront(nil)
-    } else {
-      panel.orderFrontRegardless()
-    }
+    panel.orderFrontRegardless()
     if !wasVisible, !reduceMotion {
       panel.alphaValue = 0
       NSAnimationContext.runAnimationGroup { context in
@@ -188,6 +170,20 @@ final class NotchPanelController {
     guard !store.sessionSummaries.isEmpty else { return }
     store.isExpanded = true
     schedulePresentationUpdate()
+  }
+
+  private func activateApprovalForUserInteraction() {
+    let isApproval = store.currentApproval != nil && store.isExpanded
+    guard
+      NotchPanelInteractionPolicy.shouldActivate(
+        isApproval: isApproval,
+        initiatedByUser: true
+      )
+    else { return }
+    panel.permitsKeyInteraction = true
+    panel.styleMask.remove(.nonactivatingPanel)
+    NSApp.activate(ignoringOtherApps: true)
+    panel.makeKeyAndOrderFront(nil)
   }
 
   private func schedulePresentationUpdate() {

@@ -35,7 +35,7 @@ struct UsageSectionView: View {
         VStack(alignment: .leading, spacing: 1) {
           Text("API-price equivalent")
             .font(.caption.weight(.semibold))
-          Text("This Mac · month to date")
+          Text("This Mac · \(store.settings.apiCostWindow.label.lowercased())")
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
@@ -52,7 +52,7 @@ struct UsageSectionView: View {
           .font(.title3.weight(.semibold).monospacedDigit())
           Spacer()
           VStack(alignment: .trailing, spacing: 1) {
-            Text("OpenAI Standard rates")
+            Text("Reviewed OpenAI rates")
             if let pricingAsOf = estimate.measurement.pricingAsOf {
               Text("as of \(pricingAsOf.formatted(date: .abbreviated, time: .omitted))")
             }

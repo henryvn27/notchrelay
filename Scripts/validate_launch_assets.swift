@@ -190,7 +190,7 @@ private func validateImages() {
       minimumSize: CGSize(width: 300, height: 60), requiredText: ["Scoutly"]),
     ImageExpectation(
       path: "Assets/Screenshots/approval.png", exactSize: nil,
-      minimumSize: CGSize(width: 740, height: 260),
+      minimumSize: CGSize(width: 740, height: 220),
       requiredText: ["ActivityPilot", "Deny", "Open Codex", "Allow once"]),
     ImageExpectation(
       path: "Assets/Screenshots/completed.png", exactSize: nil,
@@ -200,10 +200,10 @@ private func validateImages() {
       minimumSize: CGSize(width: 300, height: 60), requiredText: ["Scoutly"]),
     ImageExpectation(
       path: "Assets/Screenshots/failed-expanded.png", exactSize: nil,
-      minimumSize: CGSize(width: 680, height: 220), requiredText: ["Scoutly", "Open Diagnostics"]),
+      minimumSize: CGSize(width: 680, height: 180), requiredText: ["Scoutly", "Open Diagnostics"]),
     ImageExpectation(
       path: "Assets/Screenshots/multi-session.png", exactSize: nil,
-      minimumSize: CGSize(width: 680, height: 280), requiredText: ["ActivityPilot", "Scoutly"]),
+      minimumSize: CGSize(width: 680, height: 200), requiredText: ["ActivityPilot", "Scoutly"]),
     ImageExpectation(
       path: "Assets/Screenshots/settings.png", exactSize: nil,
       minimumSize: CGSize(width: 1_100, height: 850),

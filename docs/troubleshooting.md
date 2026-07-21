@@ -8,7 +8,7 @@ Use the menu-bar icon and choose Test State → Working. Enable “Show on displ
 
 Read the Integration status before treating the socket as the problem. Cowlick installs its hook entries automatically during onboarding. If the status says review is required, start the Codex CLI, open `/hooks`, and trust the Cowlick commands once. This is a Codex security review, not manual hook configuration, and Codex does not run newly installed commands before it. If the integration is incomplete, choose Settings → Integration → Install or Repair, then review it in the Codex CLI `/hooks`. Codex may need a restart after a new command hook is installed.
 
-Cowlick counts sessions from verified lifecycle hooks. Tasks that were already working before Cowlick's hooks were installed cannot be backfilled safely; they appear after their next submitted prompt, permission request, or subagent start. After a Cowlick restart, ledger entries are shown as “Unconfirmed after restart,” but do not count as active or reopen the passive island until a new hook confirms them. Their matching Stop hook removes them, and the 24-hour safety ceiling removes abandoned entries.
+Cowlick observes Working, Completed, Failed, and multiple-session state from bounded local Codex lifecycle records, so current activity can appear even before hook review. Trusted Codex hooks are the only input Cowlick accepts for exact permission requests; the local observer cannot approve, deny, or infer one. If activity remains absent, check “Local activity observation” in Diagnostics. Codex surfaces that do not write the current local session-record format still require trusted hooks. After a Cowlick restart, older ledger-only entries are shown as “Unconfirmed after restart” until local observation or a hook confirms them; the 24-hour safety ceiling removes abandoned entries.
 
 ## Approval also appears in Codex
 
@@ -28,7 +28,7 @@ The time-to-empty estimate needs a valid reset window, at least 3% of that windo
 
 ## The API-price equivalent is partial or unavailable
 
-Cowlick prices only local Codex token counters with an exact supported model name. Unknown models, unresolved fork lineages, malformed or oversized records, and tool-call fees are excluded instead of guessed. “Partial” means the displayed amount is a conservative subtotal for this Mac, not that excluded work cost zero. Refresh from the menu or Settings → Quota after the current Codex turn records its next token-count event.
+Cowlick prices only local Codex token counters with a supported exact or reviewed alias model name. It uses bounded local `logs_2.sqlite` metadata only when an exact turn is marked `service_tier: priority`; missing or unreadable Priority metadata falls back to Standard rates and marks coverage partial. Unknown models, unresolved fork lineages, malformed or oversized records, and tool-call fees are excluded instead of guessed. “Partial” means the displayed amount is a conservative subtotal for this Mac, not that excluded work cost zero. Refresh from the menu or Settings → Quota after the current Codex turn records its next token-count event.
 
 ## Organization billing is unavailable
 

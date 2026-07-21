@@ -132,8 +132,14 @@ enum NotchSwipeEventNormalizer {
 final class NotchHostingView<Content: View>: NSHostingView<Content> {
   var canInterpretSwipe: () -> Bool = { false }
   var handleSwipeAction: (NotchSwipeAction) -> Bool = { _ in false }
+  var handlePointerDown: () -> Void = {}
 
   private var swipeInterpreter = NotchSwipeInterpreter()
+
+  override func mouseDown(with event: NSEvent) {
+    handlePointerDown()
+    super.mouseDown(with: event)
+  }
 
   override func scrollWheel(with event: NSEvent) {
     guard event.hasPreciseScrollingDeltas, canInterpretSwipe() else {

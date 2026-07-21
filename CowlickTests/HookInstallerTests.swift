@@ -22,6 +22,60 @@ final class HookInstallerTests: XCTestCase {
     XCTAssertEqual(first, second)
   }
 
+  func testMergeRepairsNonCanonicalOwnedHandlersAndPreservesUnrelatedConfiguration() throws {
+    let invalidHandlers: [[String: Any]] = [
+      canonicalHandler(event: "Stop", replacing: ["command": "/tmp/wrong-hook hook"]),
+      canonicalHandler(event: "Stop", replacing: ["type": "prompt"]),
+      canonicalHandler(
+        event: "Stop",
+        replacing: [
+          "cowlick": ["product": "Cowlick", "protocol": ProductVersion.bridgeProtocol - 1]
+        ]),
+      canonicalHandler(event: "Stop", replacing: ["timeout": 75]),
+      canonicalHandler(event: "Stop", replacing: ["statusMessage": "Working"]),
+    ]
+    let foreignHandler: [String: Any] = [
+      "type": "command", "command": "/usr/local/bin/unrelated", "foreign": true,
+    ]
+    let original = try JSONSerialization.data(withJSONObject: [
+      "future": ["preserve": true],
+      "hooks": [
+        "Stop": [
+          [
+            "matcher": "keep",
+            "unknownGroupField": 42,
+            "hooks": invalidHandlers + [foreignHandler],
+          ]
+        ]
+      ],
+    ])
+
+    let repaired = try HookInstaller.merging(original, command: command)
+    XCTAssertEqual(repaired, try HookInstaller.merging(repaired, command: command))
+
+    let root = try XCTUnwrap(JSONSerialization.jsonObject(with: repaired) as? [String: Any])
+    XCTAssertEqual((root["future"] as? [String: Any])?["preserve"] as? Bool, true)
+    let hooks = try XCTUnwrap(root["hooks"] as? [String: Any])
+    let groups = try XCTUnwrap(hooks["Stop"] as? [[String: Any]])
+    let preservedGroup = try XCTUnwrap(groups.first)
+    XCTAssertEqual(preservedGroup["matcher"] as? String, "keep")
+    XCTAssertEqual(preservedGroup["unknownGroupField"] as? Int, 42)
+    let handlers = groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+    XCTAssertEqual(
+      handlers.filter { $0["command"] as? String == "/usr/local/bin/unrelated" }.count, 1)
+    let owned = handlers.filter {
+      ($0["cowlick"] as? [String: Any])?["product"] as? String == "Cowlick"
+    }
+    XCTAssertEqual(owned.count, 1)
+    XCTAssertEqual(owned.first?["type"] as? String, "command")
+    XCTAssertEqual(owned.first?["command"] as? String, command)
+    XCTAssertEqual(owned.first?["timeout"] as? Int, 5)
+    XCTAssertEqual(owned.first?["statusMessage"] as? String, "Cowlick")
+    XCTAssertEqual(
+      (owned.first?["cowlick"] as? [String: Any])?["protocol"] as? Int,
+      ProductVersion.bridgeProtocol)
+  }
+
   func testRepairMigratesFourEventInstallToSixAndRemovalPreservesForeignConfiguration() throws {
     let formerEvents = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop"]
     let ownedHandler: [String: Any] = [
@@ -141,6 +195,49 @@ final class HookInstallerTests: XCTestCase {
     XCTAssertThrowsError(try HookInstaller.merging(Data("[]".utf8), command: command))
   }
 
+  func testMergeAndRemovalRejectUnsupportedSupportedEventShapes() throws {
+    let invalidValues: [Any] = [
+      ["future": true],
+      [42],
+      [["matcher": "missing-handlers"]],
+      [["hooks": ["future": true]]],
+      [["hooks": [["type": "command"], 42]]],
+    ]
+
+    for invalidValue in invalidValues {
+      let original = try JSONSerialization.data(withJSONObject: [
+        "preserve": true,
+        "hooks": ["Stop": invalidValue],
+      ])
+      XCTAssertThrowsError(try HookInstaller.merging(original, command: command)) { error in
+        guard case HookInstallerError.invalidHooksObject = error else {
+          return XCTFail("Expected unsupported shape rejection, got \(error)")
+        }
+      }
+      XCTAssertThrowsError(try HookInstaller.removing(original, command: command)) { error in
+        guard case HookInstallerError.invalidHooksObject = error else {
+          return XCTFail("Expected unsupported shape rejection, got \(error)")
+        }
+      }
+    }
+  }
+
+  func testUnknownEventShapeIsPreservedAcrossIdempotentMergeAndRemoval() throws {
+    let original = try JSONSerialization.data(withJSONObject: [
+      "future": ["preserve": true],
+      "hooks": ["FutureEvent": ["schema": 2]],
+    ])
+
+    let merged = try HookInstaller.merging(original, command: command)
+    XCTAssertEqual(merged, try HookInstaller.merging(merged, command: command))
+    let removed = try HookInstaller.removing(merged, command: command)
+    let root = try XCTUnwrap(JSONSerialization.jsonObject(with: removed) as? [String: Any])
+    let hooks = try XCTUnwrap(root["hooks"] as? [String: Any])
+
+    XCTAssertEqual((root["future"] as? [String: Any])?["preserve"] as? Bool, true)
+    XCTAssertEqual((hooks["FutureEvent"] as? [String: Any])?["schema"] as? Int, 2)
+  }
+
   func testRemovalDoesNotClaimCompoundForeignCommand() throws {
     let original = Data(
       """
@@ -199,6 +296,78 @@ final class HookInstallerTests: XCTestCase {
     try installOwnedHelper(fixture.installer, contents: "pre-ack-helper")
 
     XCTAssertFalse(fixture.installer.status().helperInstalled)
+  }
+
+  func testStatusRejectsEveryNonCanonicalFieldAndOwnedDuplicates() throws {
+    let fixture = try makeInstaller(bundledContents: "current-helper")
+    defer { try? FileManager.default.removeItem(at: fixture.home) }
+    try installOwnedHelper(fixture.installer, contents: "current-helper")
+    try FileManager.default.createDirectory(
+      at: fixture.installer.hooksURL.deletingLastPathComponent(),
+      withIntermediateDirectories: true)
+    let installedCommand = "'\(fixture.installer.shimURL.path)' hook"
+    let invalidStopHandlers: [[[String: Any]]] = [
+      [
+        canonicalHandler(
+          event: "Stop",
+          replacing: [
+            "command": installedCommand, "type": "prompt",
+          ])
+      ],
+      [
+        canonicalHandler(
+          event: "Stop",
+          replacing: [
+            "command": "/tmp/wrong-hook hook"
+          ])
+      ],
+      [
+        canonicalHandler(
+          event: "Stop",
+          replacing: [
+            "command": installedCommand,
+            "cowlick": ["product": "Cowlick", "protocol": ProductVersion.bridgeProtocol - 1],
+          ])
+      ],
+      [
+        canonicalHandler(
+          event: "Stop",
+          replacing: [
+            "command": installedCommand, "timeout": 75,
+          ])
+      ],
+      [
+        canonicalHandler(
+          event: "Stop",
+          replacing: [
+            "command": installedCommand, "statusMessage": "Working",
+          ])
+      ],
+      [
+        canonicalHandler(event: "Stop", replacing: ["command": installedCommand]),
+        canonicalHandler(event: "Stop", replacing: ["command": installedCommand]),
+      ],
+    ]
+
+    for invalidStop in invalidStopHandlers {
+      let hooks = Dictionary(
+        uniqueKeysWithValues: HookInstaller.supportedEvents.map { event in
+          let handlers =
+            event == "Stop"
+            ? invalidStop
+            : [canonicalHandler(event: event, replacing: ["command": installedCommand])]
+          return (event, [["hooks": handlers]])
+        })
+      try JSONSerialization.data(withJSONObject: ["hooks": hooks])
+        .write(to: fixture.installer.hooksURL)
+
+      let status = fixture.installer.status()
+      XCTAssertFalse(status.isHealthy)
+      XCTAssertFalse(status.installedEvents.contains("Stop"))
+      XCTAssertEqual(
+        status.installedEvents,
+        Set(HookInstaller.supportedEvents).subtracting(["Stop"]))
+    }
   }
 
   func testRefreshAtomicallyUpgradesHelperWithoutChangingHooksOrSettings() throws {
@@ -436,6 +605,67 @@ final class HookInstallerTests: XCTestCase {
         try FileManager.default.destinationOfSymbolicLink(atPath: fixture.installer.shimURL.path),
         originalShimDestination)
     }
+  }
+
+  func testStatusInstallRepairAndRemovalRejectSymlinkedHooksWithoutChangingTarget() throws {
+    let fixture = try makeInstaller(bundledContents: "current-helper")
+    defer { try? FileManager.default.removeItem(at: fixture.home) }
+    try installOwnedHelper(fixture.installer, contents: "current-helper")
+    try FileManager.default.createDirectory(
+      at: fixture.installer.hooksURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let target = fixture.home.appendingPathComponent("foreign-hooks.json")
+    let targetData = Data(#"{"foreign":{"preserve":true},"hooks":{}}"#.utf8)
+    try targetData.write(to: target)
+    try FileManager.default.createSymbolicLink(
+      at: fixture.installer.hooksURL, withDestinationURL: target)
+
+    let status = fixture.installer.status()
+    XCTAssertFalse(status.isHealthy)
+    XCTAssertNotNil(status.error)
+    XCTAssertThrowsError(try fixture.installer.installOrRepair()) { error in
+      guard case HookInstallerError.unsafeHooksFile = error else {
+        return XCTFail("Expected symlink rejection, got \(error)")
+      }
+    }
+    XCTAssertThrowsError(try fixture.installer.removeHooks()) { error in
+      guard case HookInstallerError.unsafeHooksFile = error else {
+        return XCTFail("Expected symlink rejection, got \(error)")
+      }
+    }
+    XCTAssertThrowsError(
+      try fixture.installer.repairExistingIntegrationIfNeeded(intentionallyRemoved: false))
+
+    XCTAssertEqual(try Data(contentsOf: target), targetData)
+    XCTAssertEqual(
+      try FileManager.default.destinationOfSymbolicLink(atPath: fixture.installer.hooksURL.path),
+      target.path)
+    XCTAssertEqual(
+      try Data(contentsOf: fixture.installer.installedHelperURL), Data("current-helper".utf8))
+    XCTAssertEqual(
+      try FileManager.default.destinationOfSymbolicLink(atPath: fixture.installer.shimURL.path),
+      fixture.installer.installedHelperURL.path)
+  }
+
+  func testStatusInstallAndRemovalRejectNonRegularHooks() throws {
+    let fixture = try makeInstaller(bundledContents: "current-helper")
+    defer { try? FileManager.default.removeItem(at: fixture.home) }
+    try FileManager.default.createDirectory(
+      at: fixture.installer.hooksURL, withIntermediateDirectories: true)
+
+    XCTAssertNotNil(fixture.installer.status().error)
+    XCTAssertThrowsError(try fixture.installer.installOrRepair()) { error in
+      guard case HookInstallerError.unsafeHooksFile = error else {
+        return XCTFail("Expected non-regular file rejection, got \(error)")
+      }
+    }
+    XCTAssertThrowsError(try fixture.installer.removeHooks()) { error in
+      guard case HookInstallerError.unsafeHooksFile = error else {
+        return XCTFail("Expected non-regular file rejection, got \(error)")
+      }
+    }
+    var information = stat()
+    XCTAssertEqual(lstat(fixture.installer.hooksURL.path, &information), 0)
+    XCTAssertEqual(information.st_mode & S_IFMT, S_IFDIR)
   }
 
   func testRefreshReplacesSymlinkedHelperWithoutChangingItsTarget() throws {
@@ -688,6 +918,21 @@ final class HookInstallerTests: XCTestCase {
       at: installer.shimURL.deletingLastPathComponent(), withIntermediateDirectories: true)
     try FileManager.default.createSymbolicLink(
       at: installer.shimURL, withDestinationURL: installer.installedHelperURL)
+  }
+
+  private func canonicalHandler(
+    event: String,
+    replacing replacements: [String: Any] = [:]
+  ) -> [String: Any] {
+    var handler: [String: Any] = [
+      "type": "command",
+      "command": command,
+      "timeout": event == "PermissionRequest" ? 75 : 5,
+      "statusMessage": "Cowlick",
+      "cowlick": ["product": "Cowlick", "protocol": ProductVersion.bridgeProtocol],
+    ]
+    for (key, value) in replacements { handler[key] = value }
+    return handler
   }
 }
 

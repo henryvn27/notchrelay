@@ -14,6 +14,15 @@ struct IntegrationSelfTestLease: Equatable {
 @MainActor
 @Observable
 final class SessionStore {
+  private static let authoritativeSequenceBit: UInt64 = 1 << 63
+
+  private struct ParentEventOrder {
+    let turnID: String?
+    let timestamp: Date
+    let origin: BridgeEventOrigin
+    let deliverySequence: UInt64
+  }
+
   private struct SubagentOrderingKey: Hashable {
     let sessionID: String
     let agentID: String
@@ -29,9 +38,11 @@ final class SessionStore {
   private var integrationSelfTestLease: IntegrationSelfTestLease?
   private var integrationSelfTestCancelled = false
   private var nextLocalDeliverySequence: UInt64 = 0
-  private var latestParentEventSequence: [String: UInt64] = [:]
+  private var nextHookDeliverySequence: UInt64 = 0
+  private var latestParentEventOrder: [String: ParentEventOrder] = [:]
   private var latestSubagentBoundarySequence: [String: UInt64] = [:]
   private var latestSubagentEventSequence: [SubagentOrderingKey: UInt64] = [:]
+  private var locallyObservedTurns: [String: String] = [:]
   var isExpanded = false
   var presentationDidChange: (() -> Void)?
 
@@ -110,7 +121,7 @@ final class SessionStore {
   }
 
   func receive(_ event: BridgeEvent) async -> ApprovalDecision? {
-    let deliverySequence = registerDeliverySequence(event.deliverySequence)
+    let deliverySequence = registerDeliverySequence(for: event)
     let projectName = await Task.detached(priority: .utility) {
       ProjectNameResolver.resolve(workingDirectory: event.cwd)
     }.value
@@ -118,7 +129,6 @@ final class SessionStore {
     let isIntegrationDemo = integrationDemoSessionIDs.contains(event.sessionId)
     if isIntegrationDemo, !localDemoSessionIDs.contains(event.sessionId) { return nil }
     clearLocalDemoState(preservingSessionID: isIntegrationDemo ? event.sessionId : nil)
-
     switch event.event {
     case .ping:
       eventLogger.record(event: .ping, project: projectName)
@@ -190,17 +200,34 @@ final class SessionStore {
         recordIgnored(event, projectName: projectName)
         return nil
       }
-      complete(event, projectName: projectName, deliverySequence: deliverySequence)
+      let shouldSignal = !matchesTerminalState(event, completed: true)
+      complete(
+        event,
+        projectName: projectName,
+        deliverySequence: deliverySequence,
+        shouldSignal: shouldSignal
+      )
       if isIntegrationDemo { integrationDemoSessionIDs.remove(event.sessionId) }
     case .failed:
       guard acceptParentEvent(event, deliverySequence: deliverySequence) else {
         recordIgnored(event, projectName: projectName)
         return nil
       }
-      fail(event, projectName: projectName, deliverySequence: deliverySequence)
+      let shouldSignal = !matchesTerminalState(event, completed: false)
+      fail(
+        event,
+        projectName: projectName,
+        deliverySequence: deliverySequence,
+        shouldSignal: shouldSignal
+      )
     }
 
-    eventLogger.record(event: event.event, project: projectName)
+    updateLocalObservationOwnership(for: event)
+    eventLogger.record(
+      event: event.event,
+      project: projectName,
+      outcome: event.origin == .localObservation ? "observed" : "accepted"
+    )
     notifyPresentationChanged()
     return nil
   }
@@ -261,13 +288,28 @@ final class SessionStore {
     integrationDemoSessionIDs.removeAll()
     integrationSelfTestCancelled = integrationSelfTestLease != nil
     sessions.removeAll()
-    latestParentEventSequence.removeAll()
+    latestParentEventOrder.removeAll()
     latestSubagentBoundarySequence.removeAll()
     latestSubagentEventSequence.removeAll()
+    locallyObservedTurns.removeAll()
     isExpanded = false
     eventLogger.reset()
     Task.detached(priority: .utility) { LifecycleLedger.clear() }
     Task { await capsLockService.cancelAndRestore() }
+    notifyPresentationChanged()
+  }
+
+  func expireLocalObservation(sessionID: String, turnID: String?) {
+    let key = turnID ?? ""
+    guard locallyObservedTurns[sessionID] == key,
+      let session = sessions[sessionID],
+      session.turnID == turnID,
+      session.subagents.isEmpty,
+      case .working = session.presentationStatus
+    else { return }
+    locallyObservedTurns.removeValue(forKey: sessionID)
+    sessions.removeValue(forKey: sessionID)
+    latestParentEventOrder.removeValue(forKey: sessionID)
     notifyPresentationChanged()
   }
 
@@ -533,7 +575,8 @@ final class SessionStore {
   private func complete(
     _ event: BridgeEvent,
     projectName: String,
-    deliverySequence: UInt64
+    deliverySequence: UInt64,
+    shouldSignal: Bool = true
   ) {
     deferApprovals(for: event.sessionId)
     let message = settings.showResultPreviews ? event.lastAssistantMessage : nil
@@ -554,7 +597,9 @@ final class SessionStore {
     session.completionVisibleUntil = visibleUntil
     sessions[event.sessionId] = session
     isExpanded = false
-    if settings.capsLockEnabled { Task { await capsLockService.start(.completion) } }
+    if shouldSignal, settings.capsLockEnabled {
+      Task { await capsLockService.start(.completion) }
+    }
 
     if let visibility {
       Task { [weak self] in
@@ -575,7 +620,8 @@ final class SessionStore {
   private func fail(
     _ event: BridgeEvent,
     projectName: String,
-    deliverySequence: UInt64
+    deliverySequence: UInt64,
+    shouldSignal: Bool = true
   ) {
     deferApprovals(for: event.sessionId)
     upsertSession(
@@ -589,7 +635,9 @@ final class SessionStore {
     )
     clearSubagents(
       in: event.sessionId, throughDeliverySequence: deliverySequence)
-    if settings.capsLockEnabled { Task { await capsLockService.start(.failure) } }
+    if shouldSignal, settings.capsLockEnabled {
+      Task { await capsLockService.start(.failure) }
+    }
     scheduleStaleRemoval(
       sessionID: event.sessionId,
       updatedAt: sessions[event.sessionId]?.updatedAt ?? event.timestamp)
@@ -627,6 +675,11 @@ final class SessionStore {
     projectName: String,
     deliverySequence: UInt64
   ) -> Bool {
+    if event.origin == .localObservation,
+      sessions[event.sessionId]?.status.isAwaitingApproval == true
+    {
+      return false
+    }
     guard let agentID = event.agentId, !agentID.isEmpty,
       let agentType = event.agentType, !agentType.isEmpty,
       let turnID = event.turnId, !turnID.isEmpty
@@ -660,6 +713,11 @@ final class SessionStore {
 
   @discardableResult
   private func stopSubagent(_ event: BridgeEvent, deliverySequence: UInt64) -> Bool {
+    if event.origin == .localObservation,
+      sessions[event.sessionId]?.status.isAwaitingApproval == true
+    {
+      return false
+    }
     guard let agentID = event.agentId,
       let turnID = event.turnId
     else { return false }
@@ -686,20 +744,57 @@ final class SessionStore {
     return true
   }
 
-  private func registerDeliverySequence(_ acceptedSequence: UInt64?) -> UInt64 {
-    if let acceptedSequence {
-      nextLocalDeliverySequence = max(nextLocalDeliverySequence, acceptedSequence)
-      return acceptedSequence
+  private func registerDeliverySequence(for event: BridgeEvent) -> UInt64 {
+    if event.origin == .hook {
+      let acceptedSequence: UInt64
+      if let deliverySequence = event.deliverySequence {
+        nextHookDeliverySequence = max(nextHookDeliverySequence, deliverySequence)
+        acceptedSequence = deliverySequence
+      } else {
+        nextHookDeliverySequence = min(
+          nextHookDeliverySequence + 1,
+          Self.authoritativeSequenceBit - 1
+        )
+        acceptedSequence = nextHookDeliverySequence
+      }
+      return Self.authoritativeSequenceBit
+        | min(acceptedSequence, Self.authoritativeSequenceBit - 1)
     }
-    nextLocalDeliverySequence &+= 1
+    nextLocalDeliverySequence =
+      (nextLocalDeliverySequence + 1)
+      & (Self.authoritativeSequenceBit - 1)
+    if nextLocalDeliverySequence == 0 { nextLocalDeliverySequence = 1 }
     return nextLocalDeliverySequence
   }
 
   private func acceptParentEvent(_ event: BridgeEvent, deliverySequence: UInt64) -> Bool {
-    guard deliverySequence > latestParentEventSequence[event.sessionId, default: 0] else {
+    if event.origin == .localObservation,
+      sessions[event.sessionId]?.status.isAwaitingApproval == true
+    {
       return false
     }
-    latestParentEventSequence[event.sessionId] = deliverySequence
+    if let latest = latestParentEventOrder[event.sessionId] {
+      if latest.turnID == event.turnId {
+        if latest.origin == .hook, event.origin == .localObservation { return false }
+        if latest.origin == event.origin,
+          deliverySequence <= latest.deliverySequence
+        {
+          return false
+        }
+      } else {
+        guard event.timestamp >= latest.timestamp else { return false }
+        resetOrderingForNewTurn(sessionID: event.sessionId)
+      }
+    }
+    latestParentEventOrder[event.sessionId] = ParentEventOrder(
+      turnID: event.turnId,
+      timestamp: event.timestamp,
+      origin: event.origin,
+      deliverySequence: deliverySequence
+    )
+    if event.origin == .hook {
+      locallyObservedTurns.removeValue(forKey: event.sessionId)
+    }
     return true
   }
 
@@ -725,6 +820,40 @@ final class SessionStore {
     eventLogger.record(event: event.event, project: projectName, outcome: "ignored")
   }
 
+  private func updateLocalObservationOwnership(for event: BridgeEvent) {
+    guard event.agentId == nil else { return }
+    guard event.origin == .localObservation else { return }
+    switch event.event {
+    case .working:
+      locallyObservedTurns[event.sessionId] = event.turnId ?? ""
+    case .completed, .failed:
+      locallyObservedTurns.removeValue(forKey: event.sessionId)
+    case .sessionStart, .approvalRequested, .subagentStarted, .subagentStopped, .ping:
+      break
+    }
+  }
+
+  private func resetOrderingForNewTurn(sessionID: String) {
+    latestParentEventOrder.removeValue(forKey: sessionID)
+    latestSubagentBoundarySequence.removeValue(forKey: sessionID)
+    latestSubagentEventSequence = latestSubagentEventSequence.filter {
+      $0.key.sessionID != sessionID
+    }
+    if var session = sessions[sessionID] {
+      session.subagents.removeAll()
+      sessions[sessionID] = session
+    }
+  }
+
+  private func matchesTerminalState(_ event: BridgeEvent, completed: Bool) -> Bool {
+    guard let session = sessions[event.sessionId], session.turnID == event.turnId else {
+      return false
+    }
+    if completed, case .completed = session.status { return true }
+    if !completed, case .failed = session.status { return true }
+    return false
+  }
+
   private func deferApprovals(for sessionID: String) {
     let requestIDs = approvalQueue.filter { $0.sessionID == sessionID }.map(\.id)
     for requestID in requestIDs {
@@ -738,7 +867,7 @@ final class SessionStore {
       try? await Task.sleep(for: .seconds(15 * 60))
       guard let self, self.sessions[sessionID]?.updatedAt == updatedAt else { return }
       self.sessions.removeValue(forKey: sessionID)
-      self.latestParentEventSequence.removeValue(forKey: sessionID)
+      self.latestParentEventOrder.removeValue(forKey: sessionID)
       self.latestSubagentBoundarySequence.removeValue(forKey: sessionID)
       self.latestSubagentEventSequence = self.latestSubagentEventSequence.filter {
         $0.key.sessionID != sessionID

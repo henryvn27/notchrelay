@@ -28,10 +28,7 @@ struct ApprovalRequest: Identifiable, Equatable, Sendable {
   }
 
   private static func preview(_ value: String, limit: Int) -> String {
-    let singleLine =
-      value
-      .split(whereSeparator: \Character.isWhitespace)
-      .joined(separator: " ")
+    let singleLine = EventLogger.sanitizeError(value)
     guard singleLine.count > limit else { return singleLine }
     return String(singleLine.prefix(limit - 1)) + "…"
   }

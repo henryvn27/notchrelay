@@ -29,6 +29,8 @@ targets:
       - package: Sparkle
         product: Sparkle
       - sdk: Security.framework
+      - sdk: CoreServices.framework
+      - sdk: libsqlite3.tbd
       - target: CowlickHook
         embed: false
         link: false

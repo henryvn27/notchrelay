@@ -8,11 +8,13 @@ flowchart LR
     Helper -->|minimal current working state| Ledger[Owner-only lifecycle ledger]
     Helper -->|authenticated NDJSON over Unix socket| Server[LocalSocketServer]
     Server --> Store[MainActor SessionStore]
+    LocalSessions[~/.codex/sessions JSONL] -->|FSEvents and bounded lifecycle decoding| Observer[CodexSessionObserver]
+    Observer --> Store
     Ledger -->|restart recovery, 24h ceiling| Store
     Store --> Panel[Notch NSPanel and SwiftUI]
     Store --> Menu[MenuBarExtra]
     LocalCodex[Installed Codex app-server] -->|account/rateLimits/read| Usage[MainActor UsageStore]
-    LocalLogs[Local Codex token counters] -->|bounded allowlisted scan| Cost[LocalCodexCostService actor]
+    LocalLogs[Local Codex token counters and Priority metadata] -->|bounded allowlisted scan| Cost[LocalCodexCostService actor]
     Cost --> Usage
     Accounts[ProviderAccountsController] --> AccountMetadata[Owner-only account metadata]
     Accounts --> Credentials[macOS Keychain]
@@ -29,7 +31,9 @@ flowchart LR
 
 All session mutations run on the main actor. Socket work uses a dedicated queue. Project-name resolution runs off-main without a Git subprocess. The overlay is ordered out with no animation loop while idle.
 
-Sessions are keyed by Codex `session_id`. Priority is approval, failed, working, recently completed, idle. Only the first unexpired approval UUID can be decided. Completed sessions leave presentation after the configured interval and are removed after 15 minutes. Before socket delivery, the helper atomically updates a minimal owner-only ledger for working and Stop lifecycle events. Cowlick restores those entries as **unconfirmed after restart** and ignores ledger entries older than 24 hours. Recovered entries appear in session summaries, but do not increment the active count or open the passive island until a new lifecycle hook confirms them. Prompt and operation content never enters the ledger.
+Sessions are keyed by Codex `session_id`. Priority is approval, failed, working, recently completed, idle. Only the first unexpired approval UUID can be decided. Completed sessions leave presentation after the configured interval and are removed after 15 minutes. Before socket delivery, the helper atomically updates a minimal owner-only ledger for working and Stop lifecycle events. Cowlick restores those entries as **unconfirmed after restart** and ignores ledger entries older than 24 hours. Recovered entries appear in session summaries, but do not increment the active count or open the passive island until fresh local observation or a trusted hook confirms them. Prompt and operation content never enters the ledger.
+
+`CodexSessionObserver` runs on a utility queue with no idle polling loop. It watches current Codex session files, performs a bounded initial tail of recently modified records, and incrementally processes appended bytes. It recognizes only session metadata, turn context, and the `task_started`, `task_complete`, and `turn_aborted` lifecycle markers. Locally observed Working state expires after ten minutes without file activity. A trusted hook owns the same session and turn when both paths report it, so observer staleness cannot remove hook-owned state. Local observation is display-only and cannot construct `approvalRequested`.
 
 Quota and billing work are outside the hook bridge. `CodexUsageService` starts the selected installed Codex executable ephemerally and calls only `account/rateLimits/read`; it never requests account identity or reads Codex authentication files. The locator prefers an explicit `COWLICK_CODEX_PATH`, then a running Codex app, installed Codex or ChatGPT app bundles, and finally known CLI locations. Every candidate must be a regular executable that answers a bounded `--version` probe before Cowlick uses it. This represents the single Codex subscription identity already active in that selected installation; Cowlick does not manage or combine Codex subscription logins.
 

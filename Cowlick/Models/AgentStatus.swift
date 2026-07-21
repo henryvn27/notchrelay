@@ -27,3 +27,10 @@ enum AgentStatus: Equatable, Sendable {
     }
   }
 }
+
+extension AgentStatus {
+  var isAwaitingApproval: Bool {
+    if case .awaitingApproval = self { return true }
+    return false
+  }
+}

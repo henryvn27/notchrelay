@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: ./Scripts/install_ci_xcodegen.sh
       - name: Generate project
         run: xcodegen generate
       - name: Formatting

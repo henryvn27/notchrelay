@@ -19,6 +19,7 @@ final class AppServices {
   let hookInstaller: HookInstaller
   let hookTrustService: CodexHookTrustService
   let updateService: UpdateService
+  let localLifecycleObserver: CodexSessionObserver
 
   private init() {
     LegacyMigrationService.migratePreferencesIfNeeded()
@@ -26,12 +27,22 @@ final class AppServices {
     eventLogger = EventLogger()
     approvalCoordinator = ApprovalCoordinator()
     capsLockService = NativeCapsLockSignalService()
-    sessionStore = SessionStore(
+    let store = SessionStore(
       settings: settings,
       eventLogger: eventLogger,
       approvalCoordinator: approvalCoordinator,
       capsLockService: capsLockService
     )
+    sessionStore = store
+    localLifecycleObserver = CodexSessionObserver { event in
+      Task { @MainActor in
+        if event.kind == .stale, event.parentSessionID == nil {
+          store.expireLocalObservation(sessionID: event.sessionID, turnID: event.turnID)
+        } else if let bridgeEvent = event.bridgeEvent {
+          _ = await store.receive(bridgeEvent)
+        }
+      }
+    }
     if CommandLine.arguments.contains("--usage-demo") {
       usageStore = UsageStore(
         settings: settings,

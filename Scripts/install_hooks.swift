@@ -6,6 +6,7 @@ enum InstallerFailure: LocalizedError {
   case usage
   case invalidRoot
   case invalidHooks
+  case unsafeHooksFile
   case helperMissing
   case shimConflict
   case helperConflict
@@ -18,7 +19,10 @@ enum InstallerFailure: LocalizedError {
     case .usage:
       "usage: install_hooks.swift <install --helper /path/to/cowlick-hook [--snapshot /path]|remove|status|restore --snapshot /path>"
     case .invalidRoot: "hooks.json must contain a JSON object."
-    case .invalidHooks: "The existing hooks field must be a JSON object."
+    case .invalidHooks:
+      "A supported hook event uses an unsupported group or handler container shape."
+    case .unsafeHooksFile:
+      "hooks.json must be a regular file owned by the current user, not a symbolic link."
     case .helperMissing: "The specified Cowlick helper does not exist."
     case .shimConflict: "~/.local/bin/cowlick-hook exists and is not Cowlick's symlink."
     case .helperConflict:
@@ -104,7 +108,7 @@ func handlerCommand(_ handler: [String: Any]) -> String? {
   (handler["command"] as? String).map(normalized)
 }
 
-func isCurrent(_ handler: [String: Any]) -> Bool {
+func isCurrentOwned(_ handler: [String: Any]) -> Bool {
   if let marker = handler["cowlick"] as? [String: Any],
     marker["product"] as? String == "Cowlick"
   {
@@ -123,25 +127,87 @@ func isLegacy(_ handler: [String: Any]) -> Bool {
 }
 
 func isOurs(_ handler: [String: Any]) -> Bool {
-  isCurrent(handler) || isLegacy(handler)
+  isCurrentOwned(handler) || isLegacy(handler)
 }
 
 func root(from data: Data) throws -> [String: Any] {
   guard let value = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
     throw InstallerFailure.invalidRoot
   }
+  try validateSupportedHookShapes(in: value)
   return value
 }
 
-func containsCommand(_ root: [String: Any], event: String) -> Bool {
+func validateSupportedHookShapes(in root: [String: Any]) throws {
+  guard root["hooks"] == nil || root["hooks"] is [String: Any] else {
+    throw InstallerFailure.invalidHooks
+  }
+  guard let hooks = root["hooks"] as? [String: Any] else { return }
+  for event in events where hooks[event] != nil {
+    guard let groups = hooks[event] as? [Any] else { throw InstallerFailure.invalidHooks }
+    for rawGroup in groups {
+      guard let group = rawGroup as? [String: Any],
+        let handlers = group["hooks"] as? [Any],
+        handlers.allSatisfy({ $0 is [String: Any] })
+      else { throw InstallerFailure.invalidHooks }
+    }
+  }
+}
+
+func readHooksDataIfPresent(at url: URL = hooksURL) throws -> Data? {
+  var pathInformation = stat()
+  guard lstat(url.path, &pathInformation) == 0 else {
+    if errno == ENOENT { return nil }
+    throw InstallerFailure.unsafeHooksFile
+  }
+  guard pathInformation.st_mode & S_IFMT == S_IFREG,
+    pathInformation.st_uid == getuid()
+  else { throw InstallerFailure.unsafeHooksFile }
+
+  let descriptor = Darwin.open(url.path, O_RDONLY | O_NOFOLLOW)
+  guard descriptor >= 0 else { throw InstallerFailure.unsafeHooksFile }
+  defer { Darwin.close(descriptor) }
+  var descriptorInformation = stat()
+  guard fstat(descriptor, &descriptorInformation) == 0,
+    descriptorInformation.st_mode & S_IFMT == S_IFREG,
+    descriptorInformation.st_uid == getuid(),
+    descriptorInformation.st_dev == pathInformation.st_dev,
+    descriptorInformation.st_ino == pathInformation.st_ino
+  else { throw InstallerFailure.unsafeHooksFile }
+  return FileHandle(fileDescriptor: descriptor, closeOnDealloc: false).readDataToEndOfFile()
+}
+
+func timeout(for event: String) -> Int {
+  event == "PermissionRequest" ? 75 : 5
+}
+
+func isCanonical(_ handler: [String: Any], event: String) -> Bool {
+  guard handler["type"] as? String == "command",
+    handlerCommand(handler) == normalized(hookCommand),
+    handler["timeout"] as? Int == timeout(for: event),
+    handler["statusMessage"] as? String == "Cowlick",
+    let marker = handler["cowlick"] as? [String: Any],
+    marker["product"] as? String == "Cowlick",
+    marker["protocol"] as? Int == bridgeProtocolVersion
+  else { return false }
+  return true
+}
+
+func handlerCount(
+  _ root: [String: Any], event: String, where matches: ([String: Any]) -> Bool
+) -> Int {
   guard let hooks = root["hooks"] as? [String: Any],
     let groups = hooks[event] as? [[String: Any]]
-  else { return false }
-  return groups.contains { group in
-    (group["hooks"] as? [[String: Any]])?.contains {
-      isCurrent($0)
-    } == true
+  else { return 0 }
+  return groups.reduce(into: 0) { count, group in
+    count += (group["hooks"] as? [[String: Any]])?.count(where: matches) ?? 0
   }
+}
+
+func containsCanonicalHandler(_ root: [String: Any], event: String) -> Bool {
+  let canonicalCount = handlerCount(root, event: event) { isCanonical($0, event: event) }
+  let ownedCount = handlerCount(root, event: event, where: isCurrentOwned)
+  return canonicalCount == 1 && ownedCount == 1
 }
 
 func encoded(_ root: [String: Any]) throws -> Data {
@@ -155,11 +221,12 @@ func encoded(_ root: [String: Any]) throws -> Data {
 
 func removingHandlers(
   from original: [String: Any],
+  events selectedEvents: [String] = events,
   where shouldRemove: ([String: Any]) -> Bool
 ) -> [String: Any] {
   var value = original
   guard var hooks = value["hooks"] as? [String: Any] else { return value }
-  for event in events {
+  for event in selectedEvents {
     guard let groups = hooks[event] as? [[String: Any]] else { continue }
     let updated: [[String: Any]] = groups.compactMap { group in
       guard let handlers = group["hooks"] as? [[String: Any]] else { return group }
@@ -181,23 +248,28 @@ func merge(_ original: Data) throws -> Data {
     throw InstallerFailure.invalidHooks
   }
   value = removingHandlers(from: value, where: isLegacy)
-  var hooks = value["hooks"] as? [String: Any] ?? [:]
-  for event in events where !containsCommand(value, event: event) {
+  for event in events {
+    let canonicalCount = handlerCount(value, event: event) { isCanonical($0, event: event) }
+    let ownedCount = handlerCount(value, event: event, where: isCurrentOwned)
+    guard canonicalCount != 1 || ownedCount != 1 else { continue }
+
+    value = removingHandlers(from: value, events: [event], where: isCurrentOwned)
+    var hooks = value["hooks"] as? [String: Any] ?? [:]
     var groups = hooks[event] as? [[String: Any]] ?? []
     groups.append([
       "hooks": [
         [
           "type": "command",
           "command": hookCommand,
-          "timeout": event == "PermissionRequest" ? 75 : 5,
+          "timeout": timeout(for: event),
           "statusMessage": "Cowlick",
           "cowlick": ["product": "Cowlick", "protocol": bridgeProtocolVersion],
         ]
       ]
     ])
     hooks[event] = groups
+    value["hooks"] = hooks
   }
-  value["hooks"] = hooks
   return try encoded(value)
 }
 
@@ -273,10 +345,10 @@ func replaceHooks(with data: Data, expected original: Data?) throws {
   defer { try? fileManager.removeItem(at: temporary) }
   _ = try root(from: Data(contentsOf: temporary))
   if let original {
-    guard (try? Data(contentsOf: hooksURL)) == original else {
+    guard try readHooksDataIfPresent() == original else {
       throw InstallerFailure.configurationChanged
     }
-  } else if fileManager.fileExists(atPath: hooksURL.path) {
+  } else if try readHooksDataIfPresent() != nil {
     throw InstallerFailure.configurationChanged
   }
   guard rename(temporary.path, hooksURL.path) == 0 else {
@@ -400,8 +472,8 @@ func removeOwnedHelper(shim helperShim: URL, installedHelper helper: URL) throws
 func snapshotIntegration(to directory: URL) throws {
   try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
   try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
-  if fileManager.fileExists(atPath: hooksURL.path) {
-    try fileManager.copyItem(at: hooksURL, to: directory.appendingPathComponent("hooks.json"))
+  if let hooksData = try readHooksDataIfPresent() {
+    try writePrivateFile(hooksData, to: directory.appendingPathComponent("hooks.json"))
   }
   let helpers = [
     (shim, installedHelper, "cowlick-hook"),
@@ -434,9 +506,7 @@ func restoreIntegration(from directory: URL) throws {
   let hooksSnapshot = directory.appendingPathComponent("hooks.json")
   let helperSnapshot = directory.appendingPathComponent("cowlick-hook")
   let legacyHelperSnapshot = directory.appendingPathComponent("notchrelay-hook")
-  let savedHooks =
-    fileManager.fileExists(atPath: hooksSnapshot.path)
-    ? try Data(contentsOf: hooksSnapshot) : nil
+  let savedHooks = try readHooksDataIfPresent(at: hooksSnapshot)
   for source in [helperSnapshot, legacyHelperSnapshot]
   where fileManager.fileExists(atPath: source.path)
     && !fileManager.isExecutableFile(atPath: source.path)
@@ -444,9 +514,10 @@ func restoreIntegration(from directory: URL) throws {
     throw InstallerFailure.helperMissing
   }
 
-  let hooksExist = fileManager.fileExists(atPath: hooksURL.path)
-  let existing = hooksExist ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
-  let hookRestoration = Result { try restoringOwnedHandlers(in: existing, from: savedHooks) }
+  let existingData = try readHooksDataIfPresent()
+  let hooksExist = existingData != nil
+  let existing = existingData ?? Data("{}".utf8)
+  let restoredHooks = try restoringOwnedHandlers(in: existing, from: savedHooks)
 
   try validateHelperRemoval(shim: shim, installedHelper: installedHelper)
   try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
@@ -460,16 +531,8 @@ func restoreIntegration(from directory: URL) throws {
       from: legacyHelperSnapshot, shim: legacyShim, installedHelper: legacyInstalledHelper)
   }
 
-  switch hookRestoration {
-  case .success(let restored):
-    if restored != existing {
-      try replaceHooks(with: restored, expected: hooksExist ? existing : nil)
-    }
-  case .failure(let error):
-    if let stripped = try? restoringOwnedHandlers(in: existing, from: nil), stripped != existing {
-      try replaceHooks(with: stripped, expected: hooksExist ? existing : nil)
-    }
-    throw error
+  if restoredHooks != existing {
+    try replaceHooks(with: restoredHooks, expected: hooksExist ? existing : nil)
   }
 }
 
@@ -482,8 +545,9 @@ do {
     try withConfigurationLock {
       try validateHelperInstallation(from: source)
       try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
-      let existed = fileManager.fileExists(atPath: hooksURL.path)
-      let existing = existed ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
+      let existingData = try readHooksDataIfPresent()
+      let existed = existingData != nil
+      let existing = existingData ?? Data("{}".utf8)
       let updated = try merge(existing)
       if let snapshot { try snapshotIntegration(to: snapshot) }
       do {
@@ -502,8 +566,7 @@ do {
     try withConfigurationLock {
       try validateHelperRemoval(shim: shim, installedHelper: installedHelper)
       try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
-      if fileManager.fileExists(atPath: hooksURL.path) {
-        let existing = try Data(contentsOf: hooksURL)
+      if let existing = try readHooksDataIfPresent() {
         let updated = try remove(existing)
         if updated != existing { try replaceHooks(with: updated, expected: existing) }
       } else {
@@ -514,11 +577,9 @@ do {
     }
     print("Removed only Cowlick and legacy NotchRelay hook handlers.")
   case .status:
-    let existing =
-      fileManager.fileExists(atPath: hooksURL.path)
-      ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
+    let existing = try readHooksDataIfPresent() ?? Data("{}".utf8)
     let value = try root(from: existing)
-    let installed = events.filter { containsCommand(value, event: $0) }
+    let installed = events.filter { containsCanonicalHandler(value, event: $0) }
     print(
       installed.count == events.count
         ? "healthy"

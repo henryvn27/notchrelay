@@ -4,17 +4,25 @@ struct NotchRootView: View {
   let store: SessionStore
   let presentation: NotchPanelPresentation
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Namespace private var islandMorph
   @State private var hoverIntent: Task<Void, Never>?
   @State private var pullDownTriggered = false
 
   var body: some View {
     ZStack(alignment: .top) {
-      surfaceShape.fill(NotchTheme.island)
+      if presentation.isAttached {
+        surfaceShape.fill(NotchTheme.island)
+      } else {
+        surfaceShape.fill(.regularMaterial)
+      }
 
       Group {
         if isExpanded {
-          ExpandedIslandView(store: store)
-            .padding(.top, presentation.isAttached ? presentation.safeAreaTop : 0)
+          ExpandedIslandView(
+            store: store,
+            presentation: presentation,
+            namespace: islandMorph
+          )
         } else if let session = store.displaySession {
           CollapsedIslandView(
             session: session,
@@ -22,7 +30,8 @@ struct NotchRootView: View {
             activeSubagentCount: store.activeSubagentCount,
             notchGapWidth: presentation.isAttached ? presentation.notchGapWidth : nil,
             isAttached: presentation.isAttached,
-            reducedAnimation: store.settings.reducedAnimation
+            reducedAnimation: store.settings.reducedAnimation,
+            namespace: islandMorph
           ) {
             if case .completed = session.presentationStatus {
               store.dismissCompletion(sessionID: session.id)
@@ -33,7 +42,6 @@ struct NotchRootView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      .id(layoutMode)
       .transition(contentTransition)
     }
     .overlay {
@@ -51,7 +59,7 @@ struct NotchRootView: View {
       pullDownTriggered = false
     }
     .onExitCommand { store.collapse() }
-    .preferredColorScheme(.dark)
+    .preferredColorScheme(presentation.isAttached ? .dark : nil)
   }
 
   private var isExpanded: Bool {
@@ -89,7 +97,7 @@ struct NotchRootView: View {
   }
 
   private var contentTransition: AnyTransition {
-    motionReduced ? .opacity : .move(edge: .top).combined(with: .opacity)
+    .opacity
   }
 
   private var pullDownGesture: some Gesture {

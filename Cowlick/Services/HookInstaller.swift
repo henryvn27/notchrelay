@@ -22,6 +22,7 @@ struct HookInstallationStatus: Equatable, Sendable {
 enum HookInstallerError: LocalizedError {
   case invalidRoot
   case invalidHooksObject
+  case unsafeHooksFile
   case bundledHelperMissing
   case installedHelperUnavailable
   case automaticHelperRefreshUnavailable
@@ -36,7 +37,10 @@ enum HookInstallerError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .invalidRoot: "hooks.json must contain a JSON object at its root."
-    case .invalidHooksObject: "The existing hooks field is not a JSON object."
+    case .invalidHooksObject:
+      "A supported hook event uses an unsupported group or handler container shape."
+    case .unsafeHooksFile:
+      "hooks.json must be a regular file owned by the current user, not a symbolic link."
     case .bundledHelperMissing: "The bundled Cowlick hook helper is missing."
     case .installedHelperUnavailable:
       "The installed Cowlick helper is unavailable. Repair Codex integration first."
@@ -105,12 +109,13 @@ struct HookInstaller {
   }
 
   func status() -> HookInstallationStatus {
-    guard fileManager.fileExists(atPath: hooksURL.path) else {
-      return HookInstallationStatus(
-        installedEvents: [], helperInstalled: helperExists, configurationExists: false, error: nil)
-    }
     do {
-      let root = try Self.decodeRoot(Data(contentsOf: hooksURL))
+      guard let data = try readHooksDataIfPresent() else {
+        return HookInstallationStatus(
+          installedEvents: [], helperInstalled: helperExists, configurationExists: false,
+          error: nil)
+      }
+      let root = try Self.decodeRoot(data)
       let events = Set(
         Self.supportedEvents.filter {
           Self.containsEquivalentCommand(
@@ -132,8 +137,9 @@ struct HookInstaller {
     }
     try withIntegrationLock {
       try validateLegacyHelperRemoval()
-      let existed = fileManager.fileExists(atPath: hooksURL.path)
-      let originalData = existed ? try Data(contentsOf: hooksURL) : Data("{}".utf8)
+      let existingData = try readHooksDataIfPresent()
+      let existed = existingData != nil
+      let originalData = existingData ?? Data("{}".utf8)
       let mergedData = try Self.merging(
         originalData,
         command: Self.hookCommand(for: shimURL),
@@ -245,29 +251,30 @@ struct HookInstaller {
     root = removeHandlers(in: root) { handler in
       isLegacyHandler(handler, expectedCommands: legacyCommands)
     }
-    var hooks = root["hooks"] as? [String: Any] ?? [:]
     if root["hooks"] != nil, !(root["hooks"] is [String: Any]) {
       throw HookInstallerError.invalidHooksObject
     }
 
-    for event in supportedEvents
-    where !containsEquivalentCommand(in: root, event: event, command: command) {
+    for event in supportedEvents {
+      let canonicalCount = handlerCount(in: root, event: event) {
+        isCanonicalHandler($0, event: event, expectedCommand: command)
+      }
+      let ownedCount = handlerCount(in: root, event: event) {
+        isCurrentOwnedHandler($0, expectedCommand: command)
+      }
+      guard canonicalCount != 1 || ownedCount != 1 else { continue }
+
+      root = removeHandlers(in: root, events: [event]) { handler in
+        isCurrentOwnedHandler(handler, expectedCommand: command)
+      }
+      var hooks = root["hooks"] as? [String: Any] ?? [:]
       var groups = hooks[event] as? [[String: Any]] ?? []
-      let timeout = event == "PermissionRequest" ? 75 : 5
       groups.append([
-        "hooks": [
-          [
-            "type": "command",
-            "command": command,
-            "timeout": timeout,
-            "statusMessage": "Cowlick",
-            "cowlick": ["product": "Cowlick", "protocol": ProductVersion.bridgeProtocol],
-          ]
-        ]
+        "hooks": [canonicalHandler(event: event, command: command)]
       ])
       hooks[event] = groups
+      root["hooks"] = hooks
     }
-    root["hooks"] = hooks
     return try encodeAndValidate(root)
   }
 
@@ -410,11 +417,11 @@ struct HookInstaller {
       throw HookInstallerError.atomicWriteFailed(errno)
     }
     if let expectedOriginal {
-      guard (try? Data(contentsOf: destination)) == expectedOriginal else {
+      guard try readHooksDataIfPresent() == expectedOriginal else {
         unlink(temporary.path)
         throw HookInstallerError.configurationChanged
       }
-    } else if fileManager.fileExists(atPath: destination.path) {
+    } else if try readHooksDataIfPresent() != nil {
       unlink(temporary.path)
       throw HookInstallerError.configurationChanged
     }
@@ -429,7 +436,26 @@ struct HookInstaller {
     guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       throw HookInstallerError.invalidRoot
     }
+    try validateSupportedHookShapes(in: root)
     return root
+  }
+
+  private static func validateSupportedHookShapes(in root: [String: Any]) throws {
+    guard root["hooks"] == nil || root["hooks"] is [String: Any] else {
+      throw HookInstallerError.invalidHooksObject
+    }
+    guard let hooks = root["hooks"] as? [String: Any] else { return }
+    for event in supportedEvents where hooks[event] != nil {
+      guard let groups = hooks[event] as? [Any] else {
+        throw HookInstallerError.invalidHooksObject
+      }
+      for rawGroup in groups {
+        guard let group = rawGroup as? [String: Any],
+          let handlers = group["hooks"] as? [Any],
+          handlers.allSatisfy({ $0 is [String: Any] })
+        else { throw HookInstallerError.invalidHooksObject }
+      }
+    }
   }
 
   private static func encodeAndValidate(_ root: [String: Any]) throws -> Data {
@@ -437,33 +463,44 @@ struct HookInstaller {
       try JSONSerialization.data(
         withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
       + Data([0x0A])
-    guard (try? JSONSerialization.jsonObject(with: data)) is [String: Any] else {
-      throw HookInstallerError.validationFailed
-    }
+    do { _ = try decodeRoot(data) } catch { throw HookInstallerError.validationFailed }
     return data
   }
 
   private static func containsEquivalentCommand(
     in root: [String: Any], event: String, command: String
   ) -> Bool {
+    let canonicalCount = handlerCount(in: root, event: event) {
+      isCanonicalHandler($0, event: event, expectedCommand: command)
+    }
+    let ownedCount = handlerCount(in: root, event: event) {
+      isCurrentOwnedHandler($0, expectedCommand: command)
+    }
+    return canonicalCount == 1 && ownedCount == 1
+  }
+
+  private static func handlerCount(
+    in root: [String: Any],
+    event: String,
+    where matches: ([String: Any]) -> Bool
+  ) -> Int {
     guard let hooks = root["hooks"] as? [String: Any],
       let groups = hooks[event] as? [[String: Any]]
-    else { return false }
-    return groups.contains { group in
-      (group["hooks"] as? [[String: Any]])?.contains { handler in
-        isCurrentHandler(handler, expectedCommand: command)
-      } == true
+    else { return 0 }
+    return groups.reduce(into: 0) { count, group in
+      count += (group["hooks"] as? [[String: Any]])?.count(where: matches) ?? 0
     }
   }
 
   private static func removeHandlers(
     in root: [String: Any],
+    events: [String] = supportedEvents,
     where shouldRemove: ([String: Any]) -> Bool
   ) -> [String: Any] {
     var updatedRoot = root
     guard var hooks = updatedRoot["hooks"] as? [String: Any] else { return root }
 
-    for event in supportedEvents {
+    for event in events {
       guard let groups = hooks[event] as? [[String: Any]] else { continue }
       let filteredGroups: [[String: Any]] = groups.compactMap { group in
         guard let handlers = group["hooks"] as? [[String: Any]] else { return group }
@@ -483,7 +520,21 @@ struct HookInstaller {
     return updatedRoot
   }
 
-  private static func isCurrentHandler(
+  private static func isCanonicalHandler(
+    _ handler: [String: Any], event: String, expectedCommand: String
+  ) -> Bool {
+    guard handler["type"] as? String == "command",
+      command(in: handler) == normalized(expectedCommand),
+      handler["timeout"] as? Int == timeout(for: event),
+      handler["statusMessage"] as? String == "Cowlick",
+      let marker = handler["cowlick"] as? [String: Any],
+      marker["product"] as? String == "Cowlick",
+      marker["protocol"] as? Int == ProductVersion.bridgeProtocol
+    else { return false }
+    return true
+  }
+
+  private static func isCurrentOwnedHandler(
     _ handler: [String: Any], expectedCommand: String
   ) -> Bool {
     if let marker = handler["cowlick"] as? [String: Any],
@@ -514,9 +565,28 @@ struct HookInstaller {
     {
       return true
     }
+    if expectedCommands.contains(where: {
+      isCurrentOwnedHandler(handler, expectedCommand: $0)
+    }) {
+      return true
+    }
     if isLegacyHandler(handler, expectedCommands: expectedCommands) { return true }
     guard let actual = command(in: handler) else { return false }
     return Set(expectedCommands.map(normalized)).contains(actual)
+  }
+
+  private static func canonicalHandler(event: String, command: String) -> [String: Any] {
+    [
+      "type": "command",
+      "command": command,
+      "timeout": timeout(for: event),
+      "statusMessage": "Cowlick",
+      "cowlick": ["product": "Cowlick", "protocol": ProductVersion.bridgeProtocol],
+    ]
+  }
+
+  private static func timeout(for event: String) -> Int {
+    event == "PermissionRequest" ? 75 : 5
   }
 
   private static func command(in handler: [String: Any]) -> String? {
@@ -555,8 +625,7 @@ struct HookInstaller {
   }
 
   private func removeHooksLocked() throws {
-    guard fileManager.fileExists(atPath: hooksURL.path) else { return }
-    let originalData = try Data(contentsOf: hooksURL)
+    guard let originalData = try readHooksDataIfPresent() else { return }
     let updatedData = try Self.removing(
       originalData,
       command: Self.hookCommand(for: shimURL),
@@ -588,6 +657,29 @@ struct HookInstaller {
       unlink(backupURL.path)
       throw HookInstallerError.atomicWriteFailed(errno)
     }
+  }
+
+  private func readHooksDataIfPresent() throws -> Data? {
+    var pathInformation = stat()
+    guard lstat(hooksURL.path, &pathInformation) == 0 else {
+      if errno == ENOENT { return nil }
+      throw HookInstallerError.unsafeHooksFile
+    }
+    guard pathInformation.st_mode & S_IFMT == S_IFREG,
+      pathInformation.st_uid == getuid()
+    else { throw HookInstallerError.unsafeHooksFile }
+
+    let descriptor = Darwin.open(hooksURL.path, O_RDONLY | O_NOFOLLOW)
+    guard descriptor >= 0 else { throw HookInstallerError.unsafeHooksFile }
+    defer { Darwin.close(descriptor) }
+    var descriptorInformation = stat()
+    guard fstat(descriptor, &descriptorInformation) == 0,
+      descriptorInformation.st_mode & S_IFMT == S_IFREG,
+      descriptorInformation.st_uid == getuid(),
+      descriptorInformation.st_dev == pathInformation.st_dev,
+      descriptorInformation.st_ino == pathInformation.st_ino
+    else { throw HookInstallerError.unsafeHooksFile }
+    return FileHandle(fileDescriptor: descriptor, closeOnDealloc: false).readDataToEndOfFile()
   }
 
   private static func timestamp() -> String {

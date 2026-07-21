@@ -146,6 +146,7 @@ struct OnboardingView: View {
           if integrationTrust.state == .needsReview {
             Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
           }
+          Button("Open Codex") { CodexActivationService.openCodex(fallbackDirectory: nil) }
           Button("Check Again") { Task { await checkIntegrationTrust() } }
         }
         Button("Finish Setup Later") {
@@ -216,6 +217,7 @@ struct OnboardingView: View {
           if integrationTrust.state == .needsReview {
             Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
           }
+          Button("Open Codex") { CodexActivationService.openCodex(fallbackDirectory: nil) }
           Button("Check Again") { Task { await checkIntegrationTrust() } }
         }
       }
@@ -424,10 +426,10 @@ struct OnboardingView: View {
   ) -> String {
     if trustState == .trusted {
       return
-        "Cowlick will show lifecycle activity from your next prompt or new task. Tasks that were already running cannot be backfilled."
+        "Cowlick observes current and future activity locally. Trusted hooks add exact approval actions and higher-fidelity lifecycle delivery."
     }
     return integrationDeferred
-      ? "Cowlick can stay installed while you finish later, but live sessions will not appear until Codex trusts the hooks."
-      : "Live sessions will not appear until Codex trusts the hooks."
+      ? "You can finish later. Cowlick can show local activity now; approval actions remain in Codex until you review Cowlick's hooks."
+      : "Local activity is available now; review Cowlick's hooks to approve or deny from the island."
   }
 }

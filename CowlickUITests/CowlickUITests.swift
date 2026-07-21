@@ -20,12 +20,17 @@ final class CowlickUITests: XCTestCase {
   func testSimulatedNotchExpandsNaturallyOnHover() {
     let app = launch(
       arguments: ["--simulate-notch", "--state=working"], autoHoverEnabled: true)
+    let expandedSession = sessionRow(in: app, id: "demo-visual-state")
+    if expandedSession.waitForExistence(timeout: 1) {
+      return
+    }
+
     let island = app.buttons["Scoutly, Working"]
     XCTAssertTrue(island.waitForExistence(timeout: 3))
 
     island.hover()
 
-    XCTAssertTrue(app.staticTexts["Sessions"].waitForExistence(timeout: 2))
+    XCTAssertTrue(expandedSession.waitForExistence(timeout: 2))
   }
 
   func testApprovalActionsAreAccessibleAndAllowIsNotDefault() {

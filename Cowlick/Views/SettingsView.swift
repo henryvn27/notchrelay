@@ -150,9 +150,24 @@ struct SettingsView: View {
                 services.usageStore.settingsDidChange()
               }
             ))
+          Picker(
+            "Estimate window",
+            selection: Binding(
+              get: { settings.apiCostWindow },
+              set: { value in
+                settings.apiCostWindow = value
+                services.usageStore.settingsDidChange()
+              }
+            )
+          ) {
+            ForEach(APICostWindow.allCases) { window in
+              Text(window.label).tag(window)
+            }
+          }
+          .disabled(!settings.showAPICostEstimate)
           LabeledContent("Status", value: services.usageStore.apiCostStatus)
           Text(
-            "Cowlick scans local Codex session files, but retains or logs only model names and numeric token counters. It applies published OpenAI Standard rates. The result covers this Mac only and is not your subscription charge or an actual bill."
+            "Cowlick scans local Codex session files, but retains or logs only model names, turn IDs, and numeric token counters. It applies reviewed OpenAI Standard rates and confirmed Priority rates. The result covers this Mac only and is not your subscription charge or an actual bill."
           )
           .font(.caption)
           .foregroundStyle(.secondary)

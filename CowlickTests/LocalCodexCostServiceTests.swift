@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import XCTest
 
 @testable import Cowlick
@@ -27,16 +28,99 @@ final class LocalCodexCostServiceTests: XCTestCase {
     try writeRollout(id: "terra", model: "gpt-5.6-terra", input: 100_000)
     try writeRollout(id: "luna", model: "gpt-5.6-luna", input: 100_000)
     try writeRollout(id: "unknown", model: "gpt-5.6-solitude", input: 100_000)
+    try writeRollout(id: "prefixed", model: "openai/gpt-5.6-sol", input: 100_000)
+    try writeRollout(id: "dated", model: "gpt-5.6-terra-2026-07-20", input: 100_000)
+    try writeRollout(id: "dated-alias", model: "gpt-5.6-2026-07-20", input: 100_000)
+    try writeRollout(id: "invalid-date", model: "gpt-5.6-sol-2026-02-30", input: 100_000)
+    try writeRollout(id: "double-prefix", model: "openai/openai/gpt-5.6-sol", input: 100_000)
 
     let estimate = try await makeService().estimate(interval: interval)
 
-    XCTAssertEqual(estimate.measurement.amount, Decimal(string: "1.35"))
-    XCTAssertEqual(estimate.pricedTokenCount, 400_000)
-    XCTAssertEqual(estimate.unpricedTokenCount, 100_000)
+    XCTAssertEqual(estimate.measurement.amount, Decimal(string: "2.6"))
+    XCTAssertEqual(estimate.pricedTokenCount, 700_000)
+    XCTAssertEqual(estimate.unpricedTokenCount, 300_000)
     XCTAssertEqual(estimate.measurement.coverage, .partial)
     XCTAssertTrue(estimate.exclusionReasons.contains(.unknownModel))
     XCTAssertEqual(estimate.measurement.pricingAsOf, LocalCodexCostService.pricingAsOf)
     XCTAssertTrue(estimate.excludedToolFees)
+  }
+
+  func testConfirmedPriorityTurnUsesExplicitShortContextRates() async throws {
+    let priorityDatabase = temporaryDirectory.appendingPathComponent("logs_2.sqlite")
+    try createPriorityDatabase(
+      at: priorityDatabase,
+      body: "turn.id=priority-turn: websocket request: "
+        + #"{"type":"response.create","service_tier":"priority"}"#
+    )
+    try write(
+      lines: [
+        metadata(id: "priority"),
+        context(model: "gpt-5.6-sol"),
+        taskStarted(turnID: "priority-turn"),
+        token(
+          total: usage(input: 100_000, output: 10_000),
+          last: usage(input: 100_000, output: 10_000)
+        ),
+      ],
+      to: sessions.appendingPathComponent("priority.jsonl")
+    )
+    let service = makeService(
+      priorityTierReader: CodexPriorityTierReader(databaseURL: priorityDatabase))
+
+    let estimate = try await service.estimate(interval: interval)
+
+    XCTAssertEqual(estimate.measurement.amount, Decimal(string: "1.6"))
+    XCTAssertEqual(estimate.measurement.coverage, .thisMac)
+  }
+
+  func testPriorityMetadataFailureUsesStandardRatesAndMarksPartial() async throws {
+    try write(
+      lines: [
+        metadata(id: "fallback"),
+        context(model: "gpt-5.6-sol"),
+        taskStarted(turnID: "fallback-turn"),
+        token(total: usage(input: 100_000), last: usage(input: 100_000)),
+      ],
+      to: sessions.appendingPathComponent("fallback.jsonl")
+    )
+    let missingDatabase = temporaryDirectory.appendingPathComponent("missing.sqlite")
+    let service = makeService(
+      priorityTierReader: CodexPriorityTierReader(databaseURL: missingDatabase))
+
+    let estimate = try await service.estimate(interval: interval)
+
+    XCTAssertEqual(estimate.measurement.amount, Decimal(string: "0.5"))
+    XCTAssertEqual(estimate.measurement.coverage, .partial)
+    XCTAssertTrue(estimate.exclusionReasons.contains(.priorityMetadataUnavailable))
+  }
+
+  func testConfirmedPriorityTurnDoesNotCombinePriorityAndLongContextRates() async throws {
+    let priorityDatabase = temporaryDirectory.appendingPathComponent("logs_2.sqlite")
+    try createPriorityDatabase(
+      at: priorityDatabase,
+      body: "turn.id=long-priority-turn: websocket request: "
+        + #"{"type":"response.create","service_tier":"priority"}"#
+    )
+    try write(
+      lines: [
+        metadata(id: "long-priority"),
+        context(model: "gpt-5.6-sol"),
+        taskStarted(turnID: "long-priority-turn"),
+        token(
+          total: usage(input: 300_000, output: 10_000),
+          last: usage(input: 300_000, output: 10_000)
+        ),
+      ],
+      to: sessions.appendingPathComponent("long-priority.jsonl")
+    )
+    let service = makeService(
+      priorityTierReader: CodexPriorityTierReader(databaseURL: priorityDatabase))
+
+    let estimate = try await service.estimate(interval: interval)
+
+    XCTAssertEqual(estimate.measurement.amount, Decimal(string: "3.45"))
+    XCTAssertEqual(estimate.measurement.coverage, .partial)
+    XCTAssertTrue(estimate.exclusionReasons.contains(.ambiguousPriorityPricing))
   }
 
   func testPartitionsCachedAndCacheWriteInputWithoutDoubleCounting() async throws {
@@ -614,11 +698,13 @@ final class LocalCodexCostServiceTests: XCTestCase {
   }
 
   private func makeService(
+    priorityTierReader: CodexPriorityTierReader? = nil,
     parserPricingFingerprint: @escaping @Sendable () -> String = { "test-v1" }
   ) -> LocalCodexCostService {
     LocalCodexCostService(
       roots: [sessions, archived],
       now: { Date(timeIntervalSince1970: 1_784_509_000) },
+      priorityTierReader: priorityTierReader,
       parserPricingFingerprint: parserPricingFingerprint
     )
   }
@@ -678,6 +764,32 @@ final class LocalCodexCostServiceTests: XCTestCase {
 
   private func context(model: String) -> String {
     #"{"type":"turn_context","timestamp":"2026-07-20T00:02:00Z","payload":{"model":"\#(model)"}}"#
+  }
+
+  private func taskStarted(turnID: String) -> String {
+    #"{"type":"event_msg","timestamp":"2026-07-20T00:03:00Z","payload":{"type":"task_started","turn_id":"\#(turnID)"}}"#
+  }
+
+  private func createPriorityDatabase(at url: URL, body: String) throws {
+    var database: OpaquePointer?
+    guard sqlite3_open(url.path, &database) == SQLITE_OK, let database else {
+      sqlite3_close(database)
+      throw SQLiteFixtureError.openFailed
+    }
+    defer { sqlite3_close(database) }
+    let escapedBody = body.replacingOccurrences(of: "'", with: "''")
+    let sql = """
+      CREATE TABLE logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts INTEGER NOT NULL,
+        feedback_log_body TEXT
+      );
+      CREATE INDEX idx_logs_ts ON logs(ts DESC, id DESC);
+      INSERT INTO logs(ts, feedback_log_body) VALUES (1784509000, '\(escapedBody)');
+      """
+    guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
+      throw SQLiteFixtureError.writeFailed
+    }
   }
 
   private func token(

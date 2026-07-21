@@ -30,6 +30,17 @@ final class ApprovalRequestTests: XCTestCase {
     XCTAssertFalse(request.showsDistinctOperation)
   }
 
+  func testGlanceablePreviewsRedactCredentialsButCopyValueRemainsComplete() {
+    let secret = "sk-sensitive-value"
+    let operation = "curl -H 'Authorization: Bearer \(secret)' https://example.com"
+    let request = makeRequest(reason: "Use token=\(secret)", operation: operation)
+
+    XCTAssertFalse(request.reasonPreview.contains(secret))
+    XCTAssertFalse(request.operationPreview.contains(secret))
+    XCTAssertTrue(request.reasonPreview.contains("<redacted>"))
+    XCTAssertEqual(request.fullOperation, operation)
+  }
+
   private func makeRequest(reason: String, operation: String) -> ApprovalRequest {
     ApprovalRequest(
       id: UUID(),

@@ -11,18 +11,21 @@ struct DiagnosticsService {
   let store: SessionStore
   let usageStore: UsageStore
   let hookInstaller: HookInstaller
+  let localLifecycleObserver: CodexSessionObserver
   let mode: ReportMode
 
   init(
     store: SessionStore,
     usageStore: UsageStore,
     hookInstaller: HookInstaller,
+    localLifecycleObserver: CodexSessionObserver,
     arguments: [String] = CommandLine.arguments,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) {
     self.store = store
     self.usageStore = usageStore
     self.hookInstaller = hookInstaller
+    self.localLifecycleObserver = localLifecycleObserver
     mode = Self.reportMode(arguments: arguments, environment: environment)
   }
 
@@ -50,6 +53,7 @@ struct DiagnosticsService {
         )
       ),
       ("Helper installed", String(hook.helperInstalled)),
+      ("Local activity observation", localLifecycleObserver.statusSummary),
       (
         "Local bridge socket",
         Self.bridgeSocketStatus(isListening: bridgeIsListening)
@@ -107,6 +111,7 @@ struct DiagnosticsService {
     Hook status: Installed (demo)
     Codex hook trust: Trusted (demo)
     Helper installed: true
+    Local activity observation: Monitoring (demo)
     Socket status: listening
     Codex quota: Ready for live account data
     API-price equivalent: Local estimate is labeled and separate from billing
@@ -150,12 +155,12 @@ enum CodexIntegrationPresentation {
     "In the Codex CLI, enter /hooks and review the Cowlick lifecycle hooks."
 
   static let futureEventsNote =
-    "Tasks already running cannot be backfilled. Send a new prompt or start a new task after review."
+    "Local observation can show current activity; exact approval actions begin after Codex trusts the hooks."
 
   static func guidance(for state: CodexHookTrustState) -> String {
     switch state {
     case .trusted:
-      "Cowlick is trusted. Tasks that started before trust cannot be backfilled. Send a new prompt or start a new task to see live activity."
+      "Cowlick is trusted for approval actions. Local observation also keeps current activity visible."
     case .needsReview:
       "Codex is skipping Cowlick until you review it. \(reviewInstruction) \(futureEventsNote)"
     case .incomplete:
@@ -180,9 +185,9 @@ enum CodexIntegrationPresentation {
     }
     return switch trustState {
     case .trusted:
-      "READY for new prompts and new tasks; existing tasks are not backfilled"
+      "READY for lifecycle observation and approval actions"
     case .needsReview:
-      "BLOCKED until Cowlick is reviewed in Codex /hooks; existing tasks are not backfilled"
+      "STATUS READY through local observation; APPROVAL ACTIONS BLOCKED until review in Codex /hooks"
     case .incomplete:
       "NOT READY; Cowlick hooks are missing or disabled"
     case .notChecked:

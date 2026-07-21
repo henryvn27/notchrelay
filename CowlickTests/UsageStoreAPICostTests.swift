@@ -130,7 +130,7 @@ final class UsageStoreAPICostTests: XCTestCase {
     XCTAssertEqual(try XCTUnwrap(priorities.first), .utility)
   }
 
-  func testActivityRefreshesCostWithoutOfficialQuotaAndUsesCurrentMonth() async throws {
+  func testActivityRefreshesCostWithoutOfficialQuotaAndUsesInclusiveLast30Days() async throws {
     let settings = makeTestSettings()
     settings.showCodexUsage = false
     settings.showAPICostEstimate = true
@@ -149,10 +149,32 @@ final class UsageStoreAPICostTests: XCTestCase {
     let recordedIntervals = await recorder.recordedIntervals()
     let interval = try XCTUnwrap(recordedIntervals.first)
     XCTAssertEqual(interval.end, now)
-    XCTAssertEqual(Calendar.current.component(.day, from: interval.start), 1)
+    let expectedStart = Calendar.current.date(
+      byAdding: .day,
+      value: -29,
+      to: Calendar.current.startOfDay(for: now)
+    )
+    XCTAssertEqual(interval.start, expectedStart)
     XCTAssertEqual(store.apiCostEstimate?.measurement.amount, Decimal(string: "4.25"))
     XCTAssertNil(store.snapshot)
     XCTAssertNil(store.forecast)
+  }
+
+  func testSelectedCostWindowUsesTodayAndMonthToDateBoundaries() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let now = calendar.date(
+      from: DateComponents(year: 2026, month: 7, day: 20, hour: 12, minute: 30))!
+
+    let today = APICostWindow.today.interval(endingAt: now, calendar: calendar)
+    let month = APICostWindow.monthToDate.interval(endingAt: now, calendar: calendar)
+
+    XCTAssertEqual(
+      calendar.dateComponents([.year, .month, .day, .hour], from: today.start),
+      DateComponents(year: 2026, month: 7, day: 20, hour: 0))
+    XCTAssertEqual(
+      calendar.dateComponents([.year, .month, .day, .hour], from: month.start),
+      DateComponents(year: 2026, month: 7, day: 1, hour: 0))
   }
 
   func testActivityCostRefreshIsThrottledForOneMinute() async throws {

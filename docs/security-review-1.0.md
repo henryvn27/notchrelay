@@ -1,6 +1,6 @@
 # Cowlick 1.0 security review
 
-This review covers the public v1 source tree. It treats hook input, tool input, prompts, local IPC clients, existing hook configuration, update metadata, and release workflow inputs as security-sensitive boundaries.
+This review covers the public v1 source tree. It treats local Codex rollout files, hook input, tool input, prompts, local IPC clients, existing hook configuration, update metadata, and release workflow inputs as security-sensitive boundaries.
 
 ## Validation rubric
 
@@ -21,6 +21,10 @@ This review covers the public v1 source tree. It treats hook input, tool input, 
 | Oversized input allocation or newline bypass | Hook stdin or socket bytes / incremental bounded reads / JSON decoding | Boundary tests at and beyond 1 MiB | Remediated |
 | Hook installer over-removal or stale overwrite | Existing `hooks.json` / marker-or-exact-command ownership, lock, optimistic re-read / atomic replace | Merge, removal, unrelated-field, and idempotency tests | Remediated |
 | Diagnostics disclosure or log injection | Untrusted paths/errors / credential, path, and control-character sanitization / retained diagnostics and Logger | Focused unit tests | Remediated |
+| Local rollout spoofing or private-content retention | Same-user JSONL / owner and containment checks, immutable envelope identity, allowlisted lifecycle decoding, 1 MiB lines, bounded tail, transient buffers / display-only state | Observer and mixed-source arbitration tests | Remediated |
+| Observer overrides an exact approval | Independent local event clock / authoritative hook ordering domain and same-turn ownership / SessionStore | Mixed-source approval test | Remediated |
+| Stale marked hook remains trusted | Existing hook marker / strict command, type, protocol, timeout, and status equivalence / merged hooks | Installer table tests | Remediated |
+| Metadata publication leaves an orphan listener | Private runtime file failure / checked permissions and startup cleanup / Unix socket | Socket restart and permission tests | Remediated |
 
 No candidate survived validation as a known launch-blocking vulnerability. The relevant residual boundary is deliberate: another process already running as the same macOS user may be able to read that user's files and operate granted UI permissions.
 

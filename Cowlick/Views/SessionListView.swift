@@ -4,21 +4,25 @@ struct SessionListView: View {
   let sessions: [AgentSession]
   let showPromptPreviews: Bool
   let showResultPreviews: Bool
+  let isAttached: Bool
   let openDiagnostics: () -> Void
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text("Sessions")
-        .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(.white.opacity(0.62))
-      ForEach(sessions.prefix(5)) { session in
+    VStack(alignment: .leading, spacing: 4) {
+      if !isAttached {
+        Text("Sessions")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundStyle(secondaryTextColor)
+          .padding(.bottom, 2)
+      }
+      ForEach(sessions.prefix(visibleSessionLimit)) { session in
         HStack(spacing: 10) {
           statusIcon(for: session)
             .frame(width: 16)
           VStack(alignment: .leading, spacing: 2) {
             Text(session.projectName)
               .font(.system(size: 12.5, weight: .medium))
-              .foregroundStyle(.white.opacity(0.92))
+              .foregroundStyle(primaryTextColor)
             Text(
               Self.secondaryText(
                 for: session,
@@ -26,7 +30,7 @@ struct SessionListView: View {
                 showResultPreviews: showResultPreviews)
             )
             .font(.system(size: 10.5))
-            .foregroundStyle(.white.opacity(0.55))
+            .foregroundStyle(secondaryTextColor)
             .lineLimit(1)
           }
           Spacer()
@@ -40,6 +44,14 @@ struct SessionListView: View {
         )
         .accessibilityIdentifier("session-row-\(session.id)")
       }
+      if sessions.count > visibleSessionLimit {
+        Text("\(sessions.count - visibleSessionLimit) more in the menu bar")
+          .font(.system(size: 10.5, weight: .medium))
+          .foregroundStyle(secondaryTextColor)
+          .padding(.leading, 26)
+          .accessibilityLabel(
+            "\(sessions.count - visibleSessionLimit) more sessions in the menu bar")
+      }
       if sessions.contains(where: { session in
         if case .failed = session.presentationStatus { return true }
         return false
@@ -50,7 +62,20 @@ struct SessionListView: View {
           .accessibilityHint("Open sanitized Cowlick errors and bridge health")
       }
     }
-    .padding(16)
+    .padding(.horizontal, 14)
+    .padding(.vertical, 10)
+  }
+
+  private var visibleSessionLimit: Int {
+    sessions.count > 3 ? 2 : min(3, sessions.count)
+  }
+
+  private var primaryTextColor: Color {
+    isAttached ? .white.opacity(0.94) : .primary
+  }
+
+  private var secondaryTextColor: Color {
+    isAttached ? .white.opacity(0.60) : .secondary
   }
 
   @ViewBuilder
@@ -59,7 +84,8 @@ struct SessionListView: View {
       Image(systemName: "clock.arrow.circlepath").foregroundStyle(.secondary)
     } else {
       switch session.presentationStatus {
-      case .working: ProgressView().controlSize(.mini).tint(.white.opacity(0.68))
+      case .working:
+        ProgressView().controlSize(.mini).tint(isAttached ? .white.opacity(0.72) : .secondary)
       case .awaitingApproval:
         Image(systemName: "exclamationmark").foregroundStyle(NotchTheme.warning)
       case .completed: Image(systemName: "checkmark").foregroundStyle(NotchTheme.success)

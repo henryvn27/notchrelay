@@ -69,7 +69,7 @@ private let specifications = [
     minimumLogicalSize: CGSize(width: 140, height: 28), settleDelay: 0.25),
   CaptureSpec(
     filename: "approval.png", arguments: ["--state=approvalRequested"],
-    minimumLogicalSize: CGSize(width: 340, height: 130), settleDelay: 0.35),
+    minimumLogicalSize: CGSize(width: 340, height: 110), settleDelay: 0.35),
   CaptureSpec(
     filename: "completed.png", arguments: ["--state=completed"],
     minimumLogicalSize: CGSize(width: 140, height: 28), settleDelay: 0.2),
@@ -78,10 +78,10 @@ private let specifications = [
     minimumLogicalSize: CGSize(width: 140, height: 28), settleDelay: 0.2),
   CaptureSpec(
     filename: "failed-expanded.png", arguments: ["--state=failed", "--expanded"],
-    minimumLogicalSize: CGSize(width: 320, height: 110), settleDelay: 0.3),
+    minimumLogicalSize: CGSize(width: 320, height: 90), settleDelay: 0.3),
   CaptureSpec(
     filename: "multi-session.png", arguments: ["--state=multiple"],
-    minimumLogicalSize: CGSize(width: 320, height: 130), settleDelay: 0.35),
+    minimumLogicalSize: CGSize(width: 320, height: 100), settleDelay: 0.35),
   CaptureSpec(
     filename: "onboarding.png", arguments: ["--open-onboarding"],
     minimumLogicalSize: CGSize(width: 500, height: 400), settleDelay: 0.5),

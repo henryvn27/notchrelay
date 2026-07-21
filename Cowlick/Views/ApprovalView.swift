@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ApprovalView: View {
   let request: ApprovalRequest
+  let isAttached: Bool
   let allow: () -> Void
   let deny: () -> Void
   let openCodex: () -> Void
@@ -10,36 +11,43 @@ struct ApprovalView: View {
   @State private var copyResetTask: Task<Void, Never>?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack(spacing: 8) {
-        Image(systemName: "exclamationmark")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundStyle(NotchTheme.warning)
-        Text(request.projectName)
-          .font(.system(size: 14, weight: .semibold))
-        Spacer()
+    VStack(alignment: .leading, spacing: 8) {
+      if isAttached {
         Text(request.toolName)
-          .font(.system(size: 11, weight: .medium))
-          .foregroundStyle(.white.opacity(0.52))
+          .font(.system(size: 10.5, weight: .semibold))
+          .foregroundStyle(secondaryTextColor)
+      } else {
+        HStack(spacing: 8) {
+          Image(systemName: "exclamationmark")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(NotchTheme.warning)
+          Text(request.projectName)
+            .font(.system(size: 13, weight: .semibold))
+          Spacer()
+          Text(request.toolName)
+            .font(.system(size: 10.5, weight: .medium))
+            .foregroundStyle(secondaryTextColor)
+        }
       }
 
       Text(request.reasonPreview)
         .font(.system(size: 12, weight: .regular))
-        .foregroundStyle(.white.opacity(0.76))
+        .foregroundStyle(primaryTextColor.opacity(isAttached ? 0.82 : 0.92))
         .lineLimit(2)
         .accessibilityLabel("Reason: \(request.reasonPreview)")
 
       if request.showsDistinctOperation {
         Text(request.operationPreview)
           .font(.system(size: 11.5, weight: .regular, design: .monospaced))
-          .foregroundStyle(.white.opacity(0.58))
+          .foregroundStyle(secondaryTextColor)
           .lineLimit(2)
           .textSelection(.enabled)
           .accessibilityLabel("Operation: \(request.operationPreview)")
       }
 
       HStack(spacing: 8) {
-        Button("Deny", role: .destructive, action: deny)
+        Button("Deny", action: deny)
+          .buttonStyle(.bordered)
           .keyboardShortcut("d", modifiers: [.command])
           .accessibilityHint("Reject this exact approval request")
         Button("Open Codex", action: openCodex)
@@ -54,6 +62,7 @@ struct ApprovalView: View {
         }
         .help(copied ? "Full operation copied" : "Copy full operation")
         .accessibilityLabel(copied ? "Full operation copied" : "Copy full operation")
+        .frame(minWidth: 28, minHeight: 24)
         Spacer()
         Button("Allow once", action: allow)
           .buttonStyle(.bordered)
@@ -61,8 +70,15 @@ struct ApprovalView: View {
       }
       .controlSize(.small)
     }
-    .padding(14)
+    .padding(.horizontal, 14)
+    .padding(.vertical, 9)
     .onDisappear { copyResetTask?.cancel() }
+  }
+
+  private var primaryTextColor: Color { isAttached ? .white : .primary }
+
+  private var secondaryTextColor: Color {
+    isAttached ? .white.opacity(0.60) : .secondary
   }
 
   private func copyOperation() {

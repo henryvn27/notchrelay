@@ -473,6 +473,19 @@ button {
   color: var(--muted-dark);
 }
 
+.usage-copy .forecast-attribution {
+  margin-top: var(--space-7);
+  font-size: var(--text-sm);
+}
+
+.forecast-attribution strong {
+  color: var(--paper-raised);
+}
+
+.forecast-attribution a {
+  color: var(--paper-raised);
+}
+
 .usage-points {
   display: grid;
   margin: var(--space-8) 0 0;

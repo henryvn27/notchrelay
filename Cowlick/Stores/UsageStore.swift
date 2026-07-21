@@ -187,7 +187,7 @@ final class UsageStore {
       let token = UUID()
       currentAPICostRefreshToken = token
       isAPICostRefreshing = true
-      let interval = Self.currentMonthInterval(now: now)
+      let interval = settings.apiCostWindow.interval(endingAt: now)
       let task = Task(priority: .utility) { [weak self] in
         defer { self?.finishAPICostRefresh(token: token) }
         let result: Result<LocalCodexCostEstimate, Error>
@@ -363,13 +363,6 @@ final class UsageStore {
     }
     pendingAPICostRefreshEnd = nil
     startRefresh(official: false, apiCost: true, forecast: false, now: pendingEnd)
-  }
-
-  private static func currentMonthInterval(now: Date, calendar: Calendar = .current)
-    -> DateInterval
-  {
-    let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
-    return DateInterval(start: start, end: now)
   }
 
   private func isStale(_ date: Date?, interval: TimeInterval, now: Date) -> Bool {

@@ -19,6 +19,8 @@ enum SocketServerError: LocalizedError {
   case bind(Int32)
   case listen(Int32)
   case insecureTokenFile
+  case insecureRuntimeMetadataFile
+  case permissions(Int32)
   case alreadyRunning
   case unsafeExistingSocketPath
 
@@ -29,11 +31,27 @@ enum SocketServerError: LocalizedError {
     case .bind(let code): "Could not bind the local socket (errno \(code))."
     case .listen(let code): "Could not listen on the local socket (errno \(code))."
     case .insecureTokenFile: "The authentication token file is not a regular owner-only file."
+    case .insecureRuntimeMetadataFile:
+      "The runtime metadata file is not a regular owner-only file."
+    case .permissions(let code):
+      "Could not secure a private bridge file (errno \(code))."
     case .alreadyRunning: "Another Cowlick instance is already serving bridge requests."
     case .unsafeExistingSocketPath:
       "The bridge socket path is occupied by an unexpected file or cannot be verified."
     }
   }
+}
+
+struct LocalSocketServerPaths: Sendable {
+  let tokenURL: URL
+  let runtimeMetadataURL: URL
+  let socketURL: URL
+
+  static let applicationSupport = LocalSocketServerPaths(
+    tokenURL: AppSupportPaths.tokenURL,
+    runtimeMetadataURL: AppSupportPaths.runtimeMetadataURL,
+    socketURL: AppSupportPaths.socketURL
+  )
 }
 
 final class LocalSocketServer: @unchecked Sendable {
@@ -47,6 +65,8 @@ final class LocalSocketServer: @unchecked Sendable {
     attributes: .concurrent)
   private let eventHandler: @Sendable (BridgeEvent) async -> ApprovalDecision?
   private let approvalTimeout: () -> TimeInterval
+  private let paths: LocalSocketServerPaths
+  private let prepareDirectories: () throws -> Void
   private let stateLock = NSLock()
 
   private var listeningFileDescriptor: Int32 = -1
@@ -56,17 +76,21 @@ final class LocalSocketServer: @unchecked Sendable {
 
   init(
     approvalTimeout: @escaping () -> TimeInterval,
+    paths: LocalSocketServerPaths = .applicationSupport,
+    prepareDirectories: @escaping () throws -> Void = AppSupportPaths.prepareDirectories,
     eventHandler: @escaping @Sendable (BridgeEvent) async -> ApprovalDecision?
   ) {
     self.approvalTimeout = approvalTimeout
+    self.paths = paths
+    self.prepareDirectories = prepareDirectories
     self.eventHandler = eventHandler
   }
 
   func start() throws {
-    try AppSupportPaths.prepareDirectories()
+    try prepareDirectories()
     authenticationToken = try loadOrCreateToken()
 
-    let socketPath = AppSupportPaths.socketURL.path
+    let socketPath = paths.socketURL.path
     guard
       socketPath.utf8CString.count <= MemoryLayout<sockaddr_un>.size
         - MemoryLayout<sa_family_t>.size
@@ -77,6 +101,18 @@ final class LocalSocketServer: @unchecked Sendable {
     try Self.recoverStaleSocket(at: socketPath)
     let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
     guard descriptor >= 0 else { throw SocketServerError.socketCreation(errno) }
+    var startupCommitted = false
+    var socketBound = false
+    var metadataPublicationAttempted = false
+    defer {
+      if !startupCommitted {
+        Darwin.close(descriptor)
+        if socketBound { unlink(socketPath) }
+        if metadataPublicationAttempted {
+          Self.removeOwnedRegularFileIfPresent(at: paths.runtimeMetadataURL)
+        }
+      }
+    }
 
     var noSigPipe: Int32 = 1
     setsockopt(
@@ -99,30 +135,28 @@ final class LocalSocketServer: @unchecked Sendable {
     }
     guard bindResult == 0 else {
       let code = errno
-      close(descriptor)
       throw SocketServerError.bind(code)
     }
+    socketBound = true
 
     guard chmod(socketPath, 0o600) == 0 else {
       let code = errno
-      close(descriptor)
-      unlink(socketPath)
-      throw SocketServerError.bind(code)
+      throw SocketServerError.permissions(code)
     }
 
     guard Darwin.listen(descriptor, 16) == 0 else {
       let code = errno
-      close(descriptor)
-      unlink(socketPath)
       throw SocketServerError.listen(code)
     }
 
+    metadataPublicationAttempted = true
+    try publishRuntimeMetadata()
     stateLock.withLock {
       listeningFileDescriptor = descriptor
       running = true
       nextDeliverySequence = 0
     }
-    try publishRuntimeMetadata()
+    startupCommitted = true
     logger.info("Socket server started")
     acceptQueue.async { [weak self] in self?.acceptLoop() }
   }
@@ -178,8 +212,8 @@ final class LocalSocketServer: @unchecked Sendable {
       Darwin.shutdown(descriptor, SHUT_RDWR)
       Darwin.close(descriptor)
     }
-    unlink(AppSupportPaths.socketURL.path)
-    try? FileManager.default.removeItem(at: AppSupportPaths.runtimeMetadataURL)
+    unlink(paths.socketURL.path)
+    Self.removeOwnedRegularFileIfPresent(at: paths.runtimeMetadataURL)
     logger.info("Socket server stopped")
   }
 
@@ -313,14 +347,8 @@ final class LocalSocketServer: @unchecked Sendable {
   }
 
   private func loadOrCreateToken() throws -> String {
-    let url = AppSupportPaths.tokenURL
-    if FileManager.default.fileExists(atPath: url.path) {
-      var info = stat()
-      guard lstat(url.path, &info) == 0,
-        (info.st_mode & S_IFMT) == S_IFREG,
-        info.st_uid == getuid()
-      else { throw SocketServerError.insecureTokenFile }
-      chmod(url.path, 0o600)
+    let url = paths.tokenURL
+    if try Self.secureExistingRegularFile(at: url, invalid: .insecureTokenFile) {
       let token = try String(contentsOf: url, encoding: .utf8).trimmingCharacters(
         in: .whitespacesAndNewlines)
       guard Data(base64Encoded: token)?.count == 32 else {
@@ -335,23 +363,62 @@ final class LocalSocketServer: @unchecked Sendable {
     }
     let token = Data(bytes).base64EncodedString()
     try Data(token.utf8).write(to: url, options: .atomic)
-    chmod(url.path, 0o600)
+    try Self.secureRegularFile(at: url, invalid: .insecureTokenFile)
     return token
   }
 
   private func publishRuntimeMetadata() throws {
+    let url = paths.runtimeMetadataURL
+    _ = try Self.secureExistingRegularFile(at: url, invalid: .insecureRuntimeMetadataFile)
     let metadata = RuntimeMetadata(
       version: BridgeEvent.currentVersion,
-      socketPath: AppSupportPaths.socketURL.path,
-      tokenPath: AppSupportPaths.tokenURL.path,
+      socketPath: paths.socketURL.path,
+      tokenPath: paths.tokenURL.path,
       pid: getpid(),
       uid: getuid(),
       appVersion: ProductVersion.marketing,
       approvalTimeout: approvalTimeout()
     )
     let data = try JSONEncoder.bridge.encode(metadata)
-    try data.write(to: AppSupportPaths.runtimeMetadataURL, options: .atomic)
-    chmod(AppSupportPaths.runtimeMetadataURL.path, 0o600)
+    try data.write(to: url, options: .atomic)
+    try Self.secureRegularFile(at: url, invalid: .insecureRuntimeMetadataFile)
+  }
+
+  private static func secureExistingRegularFile(
+    at url: URL, invalid: SocketServerError
+  ) throws -> Bool {
+    var info = stat()
+    guard lstat(url.path, &info) == 0 else {
+      if errno == ENOENT { return false }
+      throw invalid
+    }
+    try secureRegularFile(at: url, invalid: invalid)
+    return true
+  }
+
+  private static func secureRegularFile(at url: URL, invalid: SocketServerError) throws {
+    var initial = stat()
+    guard lstat(url.path, &initial) == 0,
+      (initial.st_mode & S_IFMT) == S_IFREG,
+      initial.st_uid == getuid()
+    else { throw invalid }
+    guard chmod(url.path, 0o600) == 0 else { throw SocketServerError.permissions(errno) }
+
+    var secured = stat()
+    guard lstat(url.path, &secured) == 0,
+      (secured.st_mode & S_IFMT) == S_IFREG,
+      secured.st_uid == getuid(),
+      secured.st_mode & 0o777 == 0o600
+    else { throw invalid }
+  }
+
+  private static func removeOwnedRegularFileIfPresent(at url: URL) {
+    var info = stat()
+    guard lstat(url.path, &info) == 0,
+      (info.st_mode & S_IFMT) == S_IFREG,
+      info.st_uid == getuid()
+    else { return }
+    unlink(url.path)
   }
 
   private func constantTimeEquals(_ lhs: String, _ rhs: String) -> Bool {

@@ -92,6 +92,11 @@ enum BridgeEventName: String, Codable, Sendable, Equatable {
   case ping
 }
 
+enum BridgeEventOrigin: Sendable, Equatable {
+  case hook
+  case localObservation
+}
+
 struct BridgeEvent: Codable, Equatable, Sendable {
   static let currentVersion = ProductVersion.bridgeProtocol
 
@@ -113,6 +118,7 @@ struct BridgeEvent: Codable, Equatable, Sendable {
   let humanDescription: String?
   let authToken: String
   var deliverySequence: UInt64?
+  var origin: BridgeEventOrigin = .hook
 
   private enum CodingKeys: String, CodingKey {
     case version
@@ -152,7 +158,8 @@ struct BridgeEvent: Codable, Equatable, Sendable {
     toolInput: JSONValue? = nil,
     humanDescription: String? = nil,
     authToken: String,
-    deliverySequence: UInt64? = nil
+    deliverySequence: UInt64? = nil,
+    origin: BridgeEventOrigin = .hook
   ) {
     self.version = version
     self.requestId = requestId
@@ -172,5 +179,6 @@ struct BridgeEvent: Codable, Equatable, Sendable {
     self.humanDescription = humanDescription
     self.authToken = authToken
     self.deliverySequence = deliverySequence
+    self.origin = origin
   }
 }
