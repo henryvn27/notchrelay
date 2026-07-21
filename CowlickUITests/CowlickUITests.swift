@@ -124,6 +124,19 @@ final class CowlickUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No billing accounts"].exists)
   }
 
+  func testSystemSettingsMakesUpdatesDiagnosticsAndSignalsDiscoverable() {
+    let app = launch(arguments: ["--open-settings"])
+    let systemTab = app.descendants(matching: .any).matching(identifier: "System").firstMatch
+    XCTAssertTrue(systemTab.waitForExistence(timeout: 3))
+
+    systemTab.click()
+
+    XCTAssertTrue(app.staticTexts["Caps Lock signal"].waitForExistence(timeout: 3))
+    XCTAssertTrue(app.staticTexts["Updates"].exists)
+    XCTAssertTrue(app.buttons["Run Diagnostics"].exists)
+    XCTAssertTrue(app.buttons["Reset App State"].exists)
+  }
+
   func testDiagnosticsOpens() {
     let app = launch(arguments: ["--open-diagnostics"])
     XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 3))

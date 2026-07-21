@@ -255,7 +255,7 @@ struct SettingsView: View {
         }
       }
       .formStyle(.grouped)
-      .tabItem { Label("Signals", systemImage: "light.beacon.max") }
+      .tabItem { Label("System", systemImage: "gearshape.2") }
     }
     .frame(width: 600, height: 460)
     .task { await refreshStatus() }

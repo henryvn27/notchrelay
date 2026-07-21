@@ -24,6 +24,10 @@ final class WindowCoordinator {
     notchPanelController?.open()
   }
 
+  func reviewCurrentApproval() {
+    notchPanelController?.openCurrentApproval()
+  }
+
   func openOnboarding() {
     guard let services else { return }
     if let window = onboardingWindowController?.window {

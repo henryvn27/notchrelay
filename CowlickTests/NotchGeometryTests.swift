@@ -95,6 +95,27 @@ final class NotchGeometryTests: XCTestCase {
       NotchPanelInteractionPolicy.shouldActivate(isApproval: true, initiatedByUser: true))
   }
 
+  func testApprovalAccessibilityAnnouncementContainsOnlyProjectAndTool() {
+    let request = ApprovalRequest(
+      id: UUID(),
+      sessionID: "session",
+      turnID: "turn",
+      projectName: "Scoutly",
+      workingDirectory: "/private/work/Scoutly",
+      toolName: "Bash",
+      operationDescription: "Publish the private release",
+      operationSummary: "secret-command --token private",
+      fullOperation: "secret-command --token private",
+      requestedAt: .now,
+      expiresAt: .now.addingTimeInterval(60)
+    )
+
+    let announcement = ApprovalAccessibilityPresentation.announcement(for: request)
+    XCTAssertEqual(announcement, "Approval requested for Scoutly, Bash")
+    XCTAssertFalse(announcement.contains("private"))
+    XCTAssertFalse(announcement.contains("secret-command"))
+  }
+
   @MainActor
   func testCollapsedAccessibilityHintMatchesItsAction() {
     XCTAssertEqual(

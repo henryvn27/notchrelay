@@ -3,7 +3,7 @@ const previews = {
     src: "./assets/working.png",
     width: 170,
     height: 34,
-    alt: "Cowlick showing the ActivityPilot project in its working state",
+    alt: "Cowlick showing the Scoutly project in its working state",
     caption: "Working. Quietly present.",
   },
   approval: {
@@ -17,7 +17,7 @@ const previews = {
     src: "./assets/completed.png",
     width: 170,
     height: 34,
-    alt: "Cowlick showing the ActivityPilot project as completed",
+    alt: "Cowlick showing the Meetly project as completed",
     caption: "Completed. Then out of the way.",
   },
 };

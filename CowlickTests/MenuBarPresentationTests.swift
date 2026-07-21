@@ -4,6 +4,36 @@ import XCTest
 
 @MainActor
 final class MenuBarPresentationTests: XCTestCase {
+  func testMenuBarArtworkIsAnAdaptiveTemplateWithVisibleAndTransparentPixels() throws {
+    let image = CowlickMenuBarArtwork.templateImage()
+    XCTAssertTrue(image.isTemplate)
+    XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
+
+    let data = try XCTUnwrap(image.tiffRepresentation)
+    let representation = try XCTUnwrap(NSBitmapImageRep(data: data))
+    var visiblePixelCount = 0
+    var transparentPixelCount = 0
+    for x in 0..<representation.pixelsWide {
+      for y in 0..<representation.pixelsHigh {
+        let alpha = representation.colorAt(x: x, y: y)?.alphaComponent ?? 0
+        if alpha > 0.1 {
+          visiblePixelCount += 1
+        } else {
+          transparentPixelCount += 1
+        }
+      }
+    }
+    XCTAssertGreaterThan(visiblePixelCount, 0)
+    XCTAssertGreaterThan(transparentPixelCount, 0)
+  }
+
+  func testMenuBarDetailHeightLeavesFixedActionsVisible() {
+    XCTAssertEqual(CowlickMenuBarLayout.maximumDetailHeight(visibleScreenHeight: 1_080), 480)
+    XCTAssertEqual(CowlickMenuBarLayout.maximumDetailHeight(visibleScreenHeight: 648), 328)
+    XCTAssertEqual(CowlickMenuBarLayout.maximumDetailHeight(visibleScreenHeight: 400), 80)
+    XCTAssertEqual(CowlickMenuBarLayout.maximumDetailHeight(visibleScreenHeight: 300), 0)
+  }
+
   func testIconAndDetailsShowsOnlyMultipleSessionCounts() {
     XCTAssertEqual(
       resolve(.iconAndDetails, activeSessionCount: 1, percentageText: "64%"),

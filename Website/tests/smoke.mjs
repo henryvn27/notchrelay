@@ -93,6 +93,7 @@ try {
 
   const preview = page.locator("#island-preview");
   await assertRenderedImageGeometry(preview, { expectedWidth: 170 });
+  assert.match(await preview.getAttribute("alt"), /Scoutly project.*working state/);
 
   const approval = page.getByRole("button", { name: "Approval" });
   await approval.click();
@@ -104,6 +105,7 @@ try {
   await completed.click();
   assert.equal(await completed.getAttribute("aria-pressed"), "true");
   assert.equal(await page.locator("#island-preview").getAttribute("src"), "./assets/completed.png");
+  assert.match(await preview.getAttribute("alt"), /Meetly project.*completed/);
 
   const copyButton = page.getByRole("button", { name: "Copy commands" });
   await copyButton.click();

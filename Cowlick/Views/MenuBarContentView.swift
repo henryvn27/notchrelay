@@ -1,25 +1,93 @@
 import AppKit
 import SwiftUI
 
-struct MenuBarLabelView: View {
-  private static let menuBarIcon: NSImage = {
-    let size = NSSize(width: 18, height: 18)
+enum CowlickMenuBarArtwork {
+  static func templateImage(size: NSSize = NSSize(width: 18, height: 18)) -> NSImage {
     let image = NSImage(size: size, flipped: false) { rect in
-      guard let source = NSApplication.shared.applicationIconImage else {
-        return false
-      }
-      NSGraphicsContext.current?.imageInterpolation = .high
-      source.draw(
-        in: rect,
-        from: NSRect(origin: .zero, size: source.size),
-        operation: .sourceOver,
-        fraction: 1
+      guard let context = NSGraphicsContext.current?.cgContext else { return false }
+      let sourceBounds = CGRect(x: 32, y: 32, width: 960, height: 639)
+      let scale = min(rect.width / sourceBounds.width, rect.height / sourceBounds.height)
+      let renderedSize = CGSize(
+        width: sourceBounds.width * scale,
+        height: sourceBounds.height * scale
       )
+
+      context.saveGState()
+      context.translateBy(
+        x: rect.midX - renderedSize.width / 2 - sourceBounds.minX * scale,
+        y: rect.midY + renderedSize.height / 2 + sourceBounds.minY * scale
+      )
+      context.scaleBy(x: scale, y: -scale)
+
+      let path = CGMutablePath()
+      path.move(to: CGPoint(x: 32, y: 256))
+      path.addCurve(
+        to: CGPoint(x: 256, y: 32),
+        control1: CGPoint(x: 32, y: 132),
+        control2: CGPoint(x: 132, y: 32)
+      )
+      path.addLine(to: CGPoint(x: 768, y: 32))
+      path.addCurve(
+        to: CGPoint(x: 992, y: 256),
+        control1: CGPoint(x: 892, y: 32),
+        control2: CGPoint(x: 992, y: 132)
+      )
+      path.addLine(to: CGPoint(x: 992, y: 421))
+      path.addCurve(
+        to: CGPoint(x: 765, y: 410),
+        control1: CGPoint(x: 905, y: 397),
+        control2: CGPoint(x: 829, y: 394)
+      )
+      path.addCurve(
+        to: CGPoint(x: 647, y: 512),
+        control1: CGPoint(x: 696, y: 427),
+        control2: CGPoint(x: 654, y: 463)
+      )
+      path.addCurve(
+        to: CGPoint(x: 741, y: 650),
+        control1: CGPoint(x: 639, y: 566),
+        control2: CGPoint(x: 671, y: 612)
+      )
+      path.addCurve(
+        to: CGPoint(x: 522, y: 604),
+        control1: CGPoint(x: 657, y: 671),
+        control2: CGPoint(x: 577, y: 654)
+      )
+      path.addCurve(
+        to: CGPoint(x: 477, y: 407),
+        control1: CGPoint(x: 462, y: 550),
+        control2: CGPoint(x: 447, y: 481)
+      )
+      path.addCurve(
+        to: CGPoint(x: 220, y: 449),
+        control1: CGPoint(x: 399, y: 444),
+        control2: CGPoint(x: 313, y: 458)
+      )
+      path.addCurve(
+        to: CGPoint(x: 32, y: 405),
+        control1: CGPoint(x: 153, y: 443),
+        control2: CGPoint(x: 90, y: 428)
+      )
+      path.closeSubpath()
+      context.addPath(path)
+      context.setFillColor(NSColor.black.cgColor)
+      context.fillPath()
+      context.restoreGState()
       return true
     }
-    image.isTemplate = false
+    image.isTemplate = true
     return image
-  }()
+  }
+}
+
+enum CowlickMenuBarLayout {
+  static func maximumDetailHeight(visibleScreenHeight: CGFloat) -> CGFloat {
+    max(0, min(480, visibleScreenHeight - 320))
+  }
+}
+
+struct MenuBarLabelView: View {
+  private static let menuBarIcon = CowlickMenuBarArtwork.templateImage()
 
   let store: SessionStore
   let usageStore: UsageStore
@@ -48,7 +116,7 @@ struct MenuBarLabelView: View {
     switch icon {
     case .app:
       Image(nsImage: Self.menuBarIcon)
-        .renderingMode(.original)
+        .renderingMode(.template)
     case .status(let systemName):
       Image(systemName: systemName)
         .font(.system(size: 13, weight: .semibold))
@@ -92,15 +160,41 @@ struct MenuBarContentView: View {
     VStack(alignment: .leading, spacing: 0) {
       header(store: store)
 
-      if hookTrust.state.requiresIntegrationAttention {
+      if hasScrollableDetails(store: store) {
         Divider()
+        ScrollView {
+          scrollableDetails(store: store)
+        }
+        .frame(
+          maxHeight: CowlickMenuBarLayout.maximumDetailHeight(
+            visibleScreenHeight: NSScreen.main?.visibleFrame.height ?? 720
+          )
+        )
+        .accessibilityIdentifier("menu-scroll-content")
+      }
+
+      Divider()
+      actionSection(store: store)
+    }
+    .frame(width: 328)
+    .onAppear {
+      services.usageStore.refreshForMenuPresentation()
+      Task { await refreshHookTrust() }
+      Task { await services.providerAccountsController.load() }
+    }
+  }
+
+  @ViewBuilder
+  private func scrollableDetails(store: SessionStore) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+      if hookTrust.state.requiresIntegrationAttention {
         integrationAttentionSection
       }
 
       if services.settings.showCodexUsage || services.settings.showAPICostEstimate
         || services.settings.showResetForecast
       {
-        Divider()
+        if hookTrust.state.requiresIntegrationAttention { Divider() }
         UsageSectionView(
           store: services.usageStore,
           showOfficialUsage: services.settings.showCodexUsage,
@@ -120,16 +214,16 @@ struct MenuBarContentView: View {
         Divider()
         sessionSection(store: store)
       }
+    }
+  }
 
-      Divider()
-      actionSection(store: store)
-    }
-    .frame(width: 328)
-    .onAppear {
-      services.usageStore.refreshForMenuPresentation()
-      Task { await refreshHookTrust() }
-      Task { await services.providerAccountsController.load() }
-    }
+  private func hasScrollableDetails(store: SessionStore) -> Bool {
+    hookTrust.state.requiresIntegrationAttention
+      || services.settings.showCodexUsage
+      || services.settings.showAPICostEstimate
+      || services.settings.showResetForecast
+      || !services.providerAccountsController.accounts.isEmpty
+      || !store.sessionSummaries.isEmpty
   }
 
   private var billingAccountSection: some View {
@@ -281,14 +375,21 @@ struct MenuBarContentView: View {
       }
       Spacer()
       Button {
-        WindowCoordinator.shared.openIsland()
+        if store.currentApproval != nil {
+          WindowCoordinator.shared.reviewCurrentApproval()
+        } else {
+          WindowCoordinator.shared.openIsland()
+        }
       } label: {
-        Image(systemName: "arrow.up.left.and.arrow.down.right")
+        Image(
+          systemName: store.currentApproval == nil
+            ? "arrow.up.left.and.arrow.down.right" : "exclamationmark.shield"
+        )
       }
       .buttonStyle(.plain)
       .disabled(store.sessionSummaries.isEmpty)
-      .help("Open Island")
-      .accessibilityLabel("Open Island")
+      .help(store.currentApproval == nil ? "Open Island" : "Review Approval")
+      .accessibilityLabel(store.currentApproval == nil ? "Open Island" : "Review Approval")
     }
     .padding(.horizontal, 14)
     .padding(.vertical, 12)
@@ -365,6 +466,11 @@ struct MenuBarContentView: View {
 
   private func actionSection(store: SessionStore) -> some View {
     VStack(spacing: 0) {
+      if store.currentApproval != nil {
+        actionButton("Review Approval", systemImage: "exclamationmark.shield") {
+          WindowCoordinator.shared.reviewCurrentApproval()
+        }
+      }
       actionButton("Open Codex", systemImage: "macwindow") {
         CodexActivationService.openCodex(fallbackDirectory: store.displaySession?.workingDirectory)
       }
