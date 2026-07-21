@@ -1,4 +1,4 @@
-# 003 — Make the notch morph as one surface
+# 005 — Make the notch morph as one surface
 
 - **Status**: TODO
 - **Commit**: a937b39
@@ -36,7 +36,7 @@ NSAnimationContext.runAnimationGroup { context in
 
 ## Target
 
-Drive compact, sessions, and approval from one explicit state transition. If plan 002 passes, the DynamicNotchKit adapter owns the shell state and Cowlick supplies these exact overrides. If plan 002 fails, add an interruptible Cowlick transition coordinator and use the same values:
+Drive compact, sessions, and approval from one explicit state transition. If plan 004 passes, the DynamicNotchKit adapter owns the shell state and Cowlick supplies these exact overrides. If plan 004 fails, add an interruptible Cowlick transition coordinator and use the same values:
 
 ```swift
 static let enter = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.24)
@@ -78,7 +78,7 @@ static let reducedMotion = Animation.easeOut(duration: 0.12)
 
 ## Verification
 
-- **Mechanical**: run strict Swift format and the full macOS test command from plan 001. Add a transition-state unit test that passes under 50 rapid reversals.
+- **Mechanical**: run strict Swift format and the full macOS test command from plan 003. Add a transition-state unit test that passes under 50 rapid reversals.
 - **Feel check**: record the debug fixture at 10% playback and confirm:
   - the lower notch edge, corner radii, header, and incoming content travel as one object;
   - no frame contains two fully readable content states;

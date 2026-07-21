@@ -1,4 +1,4 @@
-# 004 — Make direct manipulation feel physical
+# 006 — Make direct manipulation feel physical
 
 - **Status**: TODO
 - **Commit**: a937b39
@@ -60,11 +60,11 @@ func makeBody(configuration: Configuration) -> some View {
 - Do NOT use distance alone; velocity must be represented.
 - Do NOT move the notch shell under Reduce Motion.
 - Do NOT add hover scaling or haptic feedback; these are high-frequency and unnecessary for Cowlick.
-- If the final shell from plan 002/003 differs from the audited shell, adapt only the named gesture surface and re-check geometry before editing.
+- If the final shell from plan 004/005 differs from the audited shell, adapt only the named gesture surface and re-check geometry before editing.
 
 ## Verification
 
-- **Mechanical**: run strict Swift format, `CowlickTests/NotchSwipeInterpreterTests.swift`, the new gesture-policy tests, and the full macOS test command from plan 001.
+- **Mechanical**: run strict Swift format, `CowlickTests/NotchSwipeInterpreterTests.swift`, the new gesture-policy tests, and the full macOS test command from plan 003.
 - **Feel check**: at 10% playback confirm:
   - content follows the pointer for the first 24 points and resistance increases after that;
   - a quick short flick expands, while a slow short pull returns smoothly;

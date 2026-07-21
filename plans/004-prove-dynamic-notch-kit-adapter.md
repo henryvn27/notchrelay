@@ -1,4 +1,4 @@
-# 002 — Prove a safe DynamicNotchKit adapter
+# 004 — Prove a safe DynamicNotchKit adapter
 
 - **Status**: TODO
 - **Commit**: a937b39
@@ -55,7 +55,7 @@ Patch the fork or wrap the panel so `canBecomeKey` is false except when Cowlick 
 5. Supply Cowlick's exact transition configuration above and disable the package's default blur, bouncy, scale-zero, and haptic-hover effects.
 6. Preserve `preferredDisplay`, multi-display/Space behavior, accessibility announcements, click-to-activate approval, and swipe routing.
 7. Add adapter contract tests and a debug comparison harness that can run legacy and adapter shells separately with the same fixture state.
-8. Review the spike. Proceed to replacing `NotchPanelController` only if every gate below passes; otherwise keep the current shell and execute plan 003 directly.
+8. Review the spike. Proceed to replacing `NotchPanelController` only if every gate below passes; otherwise keep the current shell and execute plan 005 directly.
 
 ## Boundaries
 
@@ -68,7 +68,7 @@ Patch the fork or wrap the panel so `canBecomeKey` is false except when Cowlick 
 
 ## Verification
 
-- **Mechanical**: run `xcodegen generate`, strict Swift format, the full macOS test command from plan 001, and `./Scripts/test_release_scripts.sh`; all must exit 0 and package resolution must be reproducible from a clean cache.
+- **Mechanical**: run `xcodegen generate`, strict Swift format, the full macOS test command from plan 003, and `./Scripts/test_release_scripts.sh`; all must exit 0 and package resolution must be reproducible from a clean cache.
 - **Feel check**: record legacy and adapter shells at 120 fps if available, triggering working, expand, approval, completion, collapse, display switch, Space switch, and rapid expand/collapse. Confirm:
   - the adapter remains attached to the physical notch with no initial frame flash;
   - rapid reversal retargets from the current visual state and never hides between compact and expanded;

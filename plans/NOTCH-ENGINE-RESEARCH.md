@@ -26,4 +26,4 @@ Do not adopt its visual defaults wholesale. At reviewed commit `cd0b3e52d537db11
 
 ## Decision
 
-Run plan 001 regardless. Then run plan 002 as a bounded adapter spike. If the adapter passes focus, display, state-reversal, and Reduce Motion gates, use it as the shell and execute plan 003 on top. If it fails any gate, retain Cowlick's shell and execute plan 003 directly; the audit does not justify weakening approval safety merely to remove custom code.
+Run plan 003 regardless. Then run plan 004 as a bounded adapter spike. If the adapter passes focus, display, state-reversal, and Reduce Motion gates, use it as the shell and execute plan 005 on top. If it fails any gate, retain Cowlick's shell and execute plan 005 directly; the audit does not justify weakening approval safety merely to remove custom code.
