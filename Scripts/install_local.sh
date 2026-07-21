@@ -180,6 +180,8 @@ xcodebuild \
   -derivedDataPath "$derived_data" \
   -destination "platform=macOS,arch=$cowlick_build_architecture" \
   -jobs "$xcode_jobs" \
+  ARCHS="$cowlick_build_architecture" \
+  ONLY_ACTIVE_ARCH=YES \
   ENABLE_HARDENED_RUNTIME=NO \
   build
 

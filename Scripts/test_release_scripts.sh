@@ -1080,6 +1080,10 @@ grep -Fq -- '-derivedDataPath "$derived_data"' "$package_script"
 grep -Fq -- '-jobs "$xcode_jobs"' "$package_script"
 grep -Fq -- '-jobs "$xcode_jobs"' "$script_dir/build_and_run.sh"
 grep -Fq -- '-jobs "$xcode_jobs"' "$script_dir/install_local.sh"
+grep -Fq -- 'ARCHS="$cowlick_build_architecture"' "$script_dir/build_and_run.sh"
+grep -Fq -- 'ARCHS="$cowlick_build_architecture"' "$script_dir/install_local.sh"
+grep -Fq -- 'ONLY_ACTIVE_ARCH=YES' "$script_dir/build_and_run.sh"
+grep -Fq -- 'ONLY_ACTIVE_ARCH=YES' "$script_dir/install_local.sh"
 [[ "$(grep -Fc -- '-jobs "$COWLICK_XCODE_JOBS"' "$ci_workflow")" == 4 ]]
 grep -Fq '"$script_dir/verify_release_artifacts.sh" "$version" "$output"' \
   "$create_release_script"

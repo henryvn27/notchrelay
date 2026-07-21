@@ -59,6 +59,8 @@ xcodebuild \
   -derivedDataPath "$derived_data" \
   -destination "platform=macOS,arch=$cowlick_build_architecture" \
   -jobs "$xcode_jobs" \
+  ARCHS="$cowlick_build_architecture" \
+  ONLY_ACTIVE_ARCH=YES \
   build
 
 app_path="$derived_data/Build/Products/$configuration/Cowlick.app"
