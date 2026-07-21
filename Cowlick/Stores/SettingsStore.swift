@@ -54,7 +54,8 @@ final class SettingsStore {
     static let approvalTimeout = "approvalTimeout"
     static let autoExpandApprovals = "autoExpandApprovals"
     static let capsLockEnabled = "capsLockEnabled"
-    static let showOnNonNotch = "showOnNonNotch"
+    static let legacyShowOnNonNotch = "showOnNonNotch"
+    static let presentationPreference = "presentationPreference"
     static let preferredDisplay = "preferredDisplay"
     static let reducedAnimation = "reducedAnimation"
     static let automaticUpdateChecks = "automaticUpdateChecks"
@@ -73,7 +74,8 @@ final class SettingsStore {
   static let allKeys = [
     Key.showChatNames, Key.showPromptPreviews, Key.showResultPreviews, Key.completionVisibility,
     Key.approvalTimeout, Key.autoExpandApprovals, Key.capsLockEnabled,
-    Key.showOnNonNotch, Key.preferredDisplay, Key.reducedAnimation,
+    Key.legacyShowOnNonNotch, Key.presentationPreference, Key.preferredDisplay,
+    Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
     Key.showAPICostEstimate, Key.apiCostWindow, Key.showResetForecast, Key.usageMetricPreference,
     Key.menuBarPresentation,
@@ -103,7 +105,9 @@ final class SettingsStore {
   var capsLockEnabled: Bool {
     didSet { defaults.set(capsLockEnabled, forKey: Key.capsLockEnabled) }
   }
-  var showOnNonNotch: Bool { didSet { defaults.set(showOnNonNotch, forKey: Key.showOnNonNotch) } }
+  var presentationPreference: PresentationPreference {
+    didSet { defaults.set(presentationPreference.rawValue, forKey: Key.presentationPreference) }
+  }
   var preferredDisplay: PreferredDisplay {
     didSet { defaults.set(preferredDisplay.rawValue, forKey: Key.preferredDisplay) }
   }
@@ -162,7 +166,6 @@ final class SettingsStore {
       Key.approvalTimeout: 60.0,
       Key.autoExpandApprovals: true,
       Key.capsLockEnabled: false,
-      Key.showOnNonNotch: true,
       Key.preferredDisplay: PreferredDisplay.automatic.rawValue,
       Key.reducedAnimation: false,
       Key.automaticUpdateChecks: true,
@@ -172,7 +175,7 @@ final class SettingsStore {
       Key.apiCostWindow: APICostWindow.last30Days.rawValue,
       Key.showResetForecast: false,
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
-      Key.menuBarPresentation: MenuBarPresentation.iconAndDetails.rawValue,
+      Key.menuBarPresentation: MenuBarPresentation.percentageOnly.rawValue,
       Key.onboardingComplete: false,
       Key.integrationIntentionallyRemoved: false,
     ])
@@ -186,7 +189,11 @@ final class SettingsStore {
     approvalTimeout = max(5, min(60, defaults.double(forKey: Key.approvalTimeout)))
     autoExpandApprovals = defaults.bool(forKey: Key.autoExpandApprovals)
     capsLockEnabled = defaults.bool(forKey: Key.capsLockEnabled)
-    showOnNonNotch = defaults.bool(forKey: Key.showOnNonNotch)
+    let storedPresentation = defaults.string(forKey: Key.presentationPreference)
+      .flatMap(PresentationPreference.init(rawValue:))
+    let legacyShowOnNonNotch = defaults.object(forKey: Key.legacyShowOnNonNotch) as? Bool
+    presentationPreference =
+      storedPresentation ?? (legacyShowOnNonNotch == false ? .menuBar : .automatic)
     preferredDisplay =
       PreferredDisplay(rawValue: defaults.string(forKey: Key.preferredDisplay) ?? "") ?? .automatic
     reducedAnimation = defaults.bool(forKey: Key.reducedAnimation)
@@ -202,11 +209,12 @@ final class SettingsStore {
       ?? .remaining
     menuBarPresentation =
       MenuBarPresentation(rawValue: defaults.string(forKey: Key.menuBarPresentation) ?? "")
-      ?? .iconAndDetails
+      ?? .percentageOnly
     selectedProviderAccountID = defaults.string(forKey: Key.selectedProviderAccountID).flatMap(
       UUID.init)
     onboardingComplete = defaults.bool(forKey: Key.onboardingComplete)
     integrationIntentionallyRemoved = defaults.bool(forKey: Key.integrationIntentionallyRemoved)
+    defaults.set(presentationPreference.rawValue, forKey: Key.presentationPreference)
   }
 
   func reset() {
@@ -221,7 +229,7 @@ final class SettingsStore {
     approvalTimeout = replacement.approvalTimeout
     autoExpandApprovals = replacement.autoExpandApprovals
     capsLockEnabled = replacement.capsLockEnabled
-    showOnNonNotch = replacement.showOnNonNotch
+    presentationPreference = replacement.presentationPreference
     preferredDisplay = replacement.preferredDisplay
     reducedAnimation = replacement.reducedAnimation
     automaticUpdateChecks = replacement.automaticUpdateChecks

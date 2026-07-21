@@ -1,6 +1,6 @@
 # 003 — Route to exactly one presentation surface
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a937b39
 - **Severity**: HIGH
 - **Category**: Purpose & frequency
@@ -95,3 +95,7 @@ The coordinator resolves the route first, then applies it atomically: hide the o
   - menu-bar override hides the notch before the menu item appears;
   - percentage-unavailable state reads `--%` and never shows the app icon.
 - **Done when**: an automated routing test proves there is exactly one active presentation for every capability/preference pair, and a short recording demonstrates all three transitions without duplicate surfaces.
+
+## Implementation result
+
+Implemented on `audit/cs-2051-notch-presentation`. `PresentationCoordinator` now owns the single active route, `MenuBarExtra` is inserted only for the menu-bar route, and the notch panel is ordered out before that route becomes active. Automatic mode selects the physical notch when available and otherwise selects the menu bar; the explicit menu-bar override works on either display type. The unavailable default label is text-only `--%`. Routing, migration, and label behavior are covered by the 429-test unit suite. The rendered Settings proof records the resolved one-surface contract; OS-level status-item recording remains a host capture limitation in the current full-screen Space.

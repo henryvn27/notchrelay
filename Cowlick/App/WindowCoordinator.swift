@@ -17,6 +17,15 @@ final class WindowCoordinator {
   func configure(services: AppServices) {
     self.services = services
     notchPanelController = NotchPanelController(store: services.sessionStore)
+    services.presentationCoordinator.routeWillChange = { [weak self] previous, next in
+      guard case .notch = previous, case .menuBar = next else { return }
+      self?.notchPanelController?.setPresentationEnabled(false)
+    }
+    services.presentationCoordinator.routeDidChange = { [weak self] _, next in
+      self?.notchPanelController?.setPresentationEnabled(!next.usesMenuBar)
+    }
+    notchPanelController?.setPresentationEnabled(
+      !services.presentationCoordinator.activePresentation.usesMenuBar)
     notchPanelController?.updatePresentation()
   }
 

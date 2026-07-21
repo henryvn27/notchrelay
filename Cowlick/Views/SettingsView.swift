@@ -24,6 +24,16 @@ struct SettingsView: View {
 
     TabView {
       Form {
+        Section("Presentation") {
+          Picker("Show Cowlick in", selection: $settings.presentationPreference) {
+            ForEach(PresentationPreference.allCases) { preference in
+              Text(preference.label).tag(preference)
+            }
+          }
+          Text(services.presentationCoordinator.resolvedDescription)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
         Section("Menu bar") {
           Picker("Display", selection: $settings.menuBarPresentation) {
             ForEach(MenuBarPresentation.allCases) { presentation in
@@ -33,6 +43,11 @@ struct SettingsView: View {
           Text(settings.menuBarPresentation.guidance)
             .font(.caption)
             .foregroundStyle(.secondary)
+          Text(
+            "Used automatically on Macs without a notch, or whenever Menu bar is selected above."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
         }
         Section("Appearance") {
           Toggle(
@@ -63,7 +78,6 @@ struct SettingsView: View {
             ForEach(CompletionVisibility.allCases) { Text($0.label).tag($0) }
           }
           Toggle("Automatically expand approvals", isOn: $settings.autoExpandApprovals)
-          Toggle("Show on displays without a notch", isOn: $settings.showOnNonNotch)
           Picker("Preferred display", selection: $settings.preferredDisplay) {
             ForEach(PreferredDisplay.allCases) { Text($0.label).tag($0) }
           }

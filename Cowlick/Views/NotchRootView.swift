@@ -6,7 +6,7 @@ struct NotchRootView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Namespace private var islandMorph
   @State private var hoverIntent: Task<Void, Never>?
-  @State private var pullDownTriggered = false
+  @GestureState private var pullDistance: CGFloat = 0
 
   var body: some View {
     ZStack(alignment: .top) {
@@ -16,13 +16,14 @@ struct NotchRootView: View {
         surfaceShape.fill(NotchTheme.floatingSurface)
       }
 
-      Group {
+      ZStack(alignment: .top) {
         if isExpanded {
           ExpandedIslandView(
             store: store,
             presentation: presentation,
             namespace: islandMorph
           )
+          .transition(expandedTransition)
         } else if let session = store.displaySession {
           CollapsedIslandView(
             session: session,
@@ -39,10 +40,15 @@ struct NotchRootView: View {
               store.toggleExpanded()
             }
           }
+          .transition(compactTransition)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      .transition(contentTransition)
+      .scaleEffect(
+        x: 1,
+        y: motionReduced ? 1 : 1 + NotchPullGesturePolicy.progress(for: pullDistance) * 0.015,
+        anchor: .top
+      )
     }
     .overlay {
       if !presentation.isAttached {
@@ -56,7 +62,6 @@ struct NotchRootView: View {
     .simultaneousGesture(pullDownGesture)
     .onDisappear {
       hoverIntent?.cancel()
-      pullDownTriggered = false
     }
     .onExitCommand { store.collapse() }
     .preferredColorScheme(presentation.isAttached ? .dark : nil)
@@ -91,30 +96,45 @@ struct NotchRootView: View {
 
   private var contentAnimation: Animation {
     if motionReduced {
-      return .easeOut(duration: NotchTheme.reducedMotionFadeDuration)
+      return NotchTheme.reducedMotion
     }
-    return layoutMode == .compact ? NotchTheme.contentCollapse : NotchTheme.contentSpring
+    return layoutMode == .compact ? NotchTheme.contentExit : NotchTheme.contentMorph
   }
 
-  private var contentTransition: AnyTransition {
-    .opacity
+  private var expandedTransition: AnyTransition {
+    motionReduced
+      ? .opacity
+      : .asymmetric(
+        insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
+        removal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
+      )
+  }
+
+  private var compactTransition: AnyTransition {
+    motionReduced
+      ? .opacity
+      : .asymmetric(
+        insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
+        removal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
+      )
   }
 
   private var pullDownGesture: some Gesture {
-    DragGesture(minimumDistance: 8)
-      .onChanged { value in
-        guard !pullDownTriggered, presentation.isAttached, store.currentApproval == nil,
-          value.translation.height > 12
-        else { return }
-        pullDownTriggered = true
-        store.expand()
+    DragGesture(minimumDistance: 3)
+      .updating($pullDistance) { value, distance, _ in
+        guard presentation.isAttached, store.currentApproval == nil, !motionReduced else { return }
+        distance = max(0, value.translation.height)
       }
       .onEnded { value in
-        defer { pullDownTriggered = false }
-        guard !pullDownTriggered, presentation.isAttached, store.currentApproval == nil,
-          value.translation.height > 12
-        else { return }
-        store.expand()
+        guard presentation.isAttached, store.currentApproval == nil else { return }
+        if NotchPullGesturePolicy.shouldExpand(
+          distance: value.translation.height,
+          predictedDistance: value.predictedEndTranslation.height
+        ) {
+          withAnimation(motionReduced ? NotchTheme.reducedMotion : NotchTheme.dragRelease) {
+            store.expand()
+          }
+        }
       }
   }
 

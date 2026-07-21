@@ -112,7 +112,10 @@ try {
     await page.getByLabel("Supported systems").textContent(),
     /Universal Apple silicon \+ Intel build targets/
   );
-  assert.match(await page.getByLabel("Supported systems").textContent(), /fallback without a notch/);
+  assert.match(
+    await page.getByLabel("Supported systems").textContent(),
+    /One compact menu-bar item without a notch/
+  );
 
   const approval = page.getByRole("button", { name: "Approval" });
   await approval.click();

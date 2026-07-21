@@ -1,6 +1,6 @@
 # 004 — Prove a safe DynamicNotchKit adapter
 
-- **Status**: TODO
+- **Status**: DONE — RETAIN COWLICK SHELL
 - **Commit**: a937b39
 - **Severity**: HIGH
 - **Category**: Cohesion & tokens
@@ -75,3 +75,7 @@ Patch the fork or wrap the panel so `canBecomeKey` is false except when Cowlick 
   - clicking passive status never activates Cowlick; clicking an approval action activates only after the pointer-down policy runs;
   - Reduce Motion drops scale/position movement but preserves a 120 ms opacity transition.
 - **Done when**: the adapter passes all safety and visual gates and the diff review shows only MIT-compatible source and notices; otherwise the documented result is “retain Cowlick shell.”
+
+## Spike result
+
+The direct adapter was rejected before adding a dependency. DynamicNotchKit's reviewed MIT source provides useful state and transition structure, but its hosting-view ownership and unconditional key-window behavior cannot preserve Cowlick's scoped AppKit swipe path and passive approval-focus contract without maintaining a fork larger than Cowlick's existing shell. Per this plan's fallback, Cowlick retains its shell and applies the audited state, top-anchored transition, timing, Reduce Motion, and direct-manipulation structure locally. No third-party source or package was added.

@@ -75,7 +75,11 @@ private struct IslandPressButtonStyle: ButtonStyle {
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
-      .opacity(configuration.isPressed ? 0.82 : 1)
-      .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
+      .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1, anchor: .top)
+      .opacity(configuration.isPressed ? 0.90 : 1)
+      .animation(
+        reduceMotion ? NotchTheme.reducedMotion : NotchTheme.pressFeedback,
+        value: configuration.isPressed
+      )
   }
 }

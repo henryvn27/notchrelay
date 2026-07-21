@@ -4,13 +4,13 @@ Use the original files without altering the product name or implying OpenAI endo
 
 ## Publication status
 
-The artwork and screenshots in this directory use the Cowlick name and current icon. The UI captures were made from the exact candidate identified in [capture-provenance.json](capture-provenance.json) on a 2× non-notch display. The manifest records the full source commit, bundle version/build, and app/helper executable hashes. The captures demonstrate the real fallback island and do not claim physical MacBook-notch verification. Compare them with the final signed build before publication.
+The artwork and screenshots in this directory use the Cowlick name and current icon. The UI captures were made from the exact candidate identified in [capture-provenance.json](capture-provenance.json) on a 2× non-notch display using Cowlick's deterministic simulated-notch fixture. The manifest records the full source commit, bundle version/build, and app/helper executable hashes. They demonstrate the real Cowlick views and animation geometry but do not claim physical MacBook-notch verification. Compare them with the final signed build before publication.
 
 The images intentionally omit an installation command until the signed v1.0 release and public Homebrew cask have both passed clean-account installation tests.
 
 **One-line description:** Cowlick shows local Codex activity and safe approval actions around the MacBook notch, with quota planning in the menu bar.
 
-**Boilerplate:** Cowlick is a native, local-first macOS companion for OpenAI Codex. It shows working, approval, completion, interruption, and multi-session state around the notch, with quota planning in the menu bar and a compact top-center presentation on Macs without a notch. Approval decisions are matched to the exact request and safely fall back to Codex when Cowlick cannot respond. Optional OpenAI and Anthropic organization-billing accounts remain separately labeled and local. Passive lifecycle observation is display-only; exact approvals require the authenticated hook path.
+**Boilerplate:** Cowlick is a native, local-first macOS companion for OpenAI Codex. It shows working, approval, completion, interruption, and multi-session state around the notch, with quota planning in one menu-bar item on Macs without a notch or whenever the user chooses Menu bar mode. Approval decisions are matched to the exact request and safely fall back to Codex when Cowlick cannot respond. Optional OpenAI and Anthropic organization-billing accounts remain separately labeled and local. Passive lifecycle observation is display-only; exact approvals require the authenticated hook path.
 
 ## Assets
 

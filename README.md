@@ -8,7 +8,7 @@
 
 ![Cowlick emerging from the top edge with a request-matched approval](Assets/Screenshots/hero.png)
 
-_Illustrative top-edge framing using a 2× non-notch display capture. Physical-notch evidence will be recaptured from the final signed candidate before release._
+_Illustrative top-edge framing using Cowlick's simulated-notch fixture on a 2× non-notch display capture. Physical-notch evidence will be recaptured from the final signed candidate before release._
 
 [Watch the 10-second product demo](Assets/Demo/cowlick-demo.mp4) · [Open the press kit](Assets/PressKit/README.md)
 
@@ -23,7 +23,7 @@ Cowlick is a native, local-first macOS companion for OpenAI Codex. It stays out 
 - **Completion leaves cleanly.** A brief confirmation appears, then the overlay hides again.
 - **Sessions stay separate.** Each Codex session and pending request keeps its own identity.
 
-On a Mac without a notch, Cowlick uses a compact top-center island below the menu bar instead of drawing a fake notch.
+On a Mac without a notch, Cowlick uses one compact menu-bar item instead of drawing a fake notch. On a notched Mac, Automatic mode keeps Cowlick entirely in the notch; Menu bar mode is always available as an override.
 
 ## Approval safety
 

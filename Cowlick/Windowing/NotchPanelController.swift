@@ -47,6 +47,7 @@ final class NotchPanelController {
   private var observers: [NSObjectProtocol] = []
   private var presentationUpdateScheduled = false
   private var lastAnnouncedApprovalID: UUID?
+  private var presentationEnabled = false
   private(set) var currentGeometry: ResolvedNotchGeometry?
 
   init(store: SessionStore) {
@@ -97,7 +98,7 @@ final class NotchPanelController {
       baseSize = NotchTheme.compactSize
     }
 
-    guard store.shouldShowOverlay,
+    guard presentationEnabled, store.shouldShowOverlay,
       let screen = NotchGeometryResolver.preferredScreen(store.settings.preferredDisplay)
     else {
       panel.orderOut(nil)
@@ -174,6 +175,17 @@ final class NotchPanelController {
       }
     } else {
       panel.alphaValue = 1
+    }
+  }
+
+  func setPresentationEnabled(_ enabled: Bool) {
+    guard enabled != presentationEnabled else { return }
+    presentationEnabled = enabled
+    if enabled {
+      schedulePresentationUpdate()
+    } else {
+      panel.orderOut(nil)
+      currentGeometry = nil
     }
   }
 
@@ -284,7 +296,7 @@ final class NotchPanelController {
     return NotchGeometryResolver.resolve(
       screen: screen,
       contentSize: contentSize,
-      showOnNonNotch: store.settings.showOnNonNotch
+      showOnNonNotch: false
     )
   }
 

@@ -2,7 +2,7 @@
 
 ## The island does not appear
 
-Use the menu-bar icon and choose Test State → Working. Enable “Show on displays without a notch” when using a desktop or external display. Diagnostics should report the socket as listening.
+Open Cowlick's menu-bar item and choose Test State → Working. Automatic mode uses the menu bar on a desktop or non-notched external display; choose Menu bar in Settings to use it on every display. Diagnostics should report the socket as listening.
 
 ## Codex events do not arrive
 

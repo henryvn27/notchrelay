@@ -65,22 +65,23 @@ private enum CaptureError: LocalizedError {
 
 private let specifications = [
   CaptureSpec(
-    filename: "working.png", arguments: ["--state=working"],
+    filename: "working.png", arguments: ["--simulate-notch", "--state=working"],
     minimumLogicalSize: CGSize(width: 140, height: 28), settleDelay: 0.25),
   CaptureSpec(
-    filename: "approval.png", arguments: ["--state=approvalRequested"],
+    filename: "approval.png", arguments: ["--simulate-notch", "--state=approvalRequested"],
     minimumLogicalSize: CGSize(width: 340, height: 110), settleDelay: 0.35),
   CaptureSpec(
-    filename: "completed.png", arguments: ["--state=completed"],
+    filename: "completed.png", arguments: ["--simulate-notch", "--state=completed"],
     minimumLogicalSize: CGSize(width: 140, height: 28), settleDelay: 0.2),
   CaptureSpec(
-    filename: "failed.png", arguments: ["--state=failed"],
+    filename: "failed.png", arguments: ["--simulate-notch", "--state=failed"],
     minimumLogicalSize: CGSize(width: 140, height: 28), settleDelay: 0.2),
   CaptureSpec(
-    filename: "failed-expanded.png", arguments: ["--state=failed", "--expanded"],
+    filename: "failed-expanded.png",
+    arguments: ["--simulate-notch", "--state=failed", "--expanded"],
     minimumLogicalSize: CGSize(width: 320, height: 90), settleDelay: 0.3),
   CaptureSpec(
-    filename: "multi-session.png", arguments: ["--state=multiple"],
+    filename: "multi-session.png", arguments: ["--simulate-notch", "--state=multiple"],
     minimumLogicalSize: CGSize(width: 320, height: 100), settleDelay: 0.35),
   CaptureSpec(
     filename: "onboarding.png", arguments: ["--open-onboarding"],

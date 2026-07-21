@@ -4,10 +4,10 @@
 | --- | --- | --- | --- |
 | [001](001-unify-notch-morph-motion.md) | Unify the notch morph | HIGH | DONE |
 | [002](002-add-native-notch-swipe.md) | Add native notch swipe interaction | MEDIUM | DONE |
-| [003](003-route-one-presentation-surface.md) | Route to exactly one presentation surface | HIGH | TODO |
-| [004](004-prove-dynamic-notch-kit-adapter.md) | Prove a safe DynamicNotchKit adapter | HIGH | TODO |
-| [005](005-morph-one-surface.md) | Make the notch morph as one surface | HIGH | TODO |
-| [006](006-physical-direct-manipulation.md) | Make direct manipulation feel physical | MEDIUM | TODO |
+| [003](003-route-one-presentation-surface.md) | Route to exactly one presentation surface | HIGH | DONE |
+| [004](004-prove-dynamic-notch-kit-adapter.md) | Prove a safe DynamicNotchKit adapter | HIGH | DONE — retain shell |
+| [005](005-morph-one-surface.md) | Make the notch morph as one surface | HIGH | Implemented; physical QA pending |
+| [006](006-physical-direct-manipulation.md) | Make direct manipulation feel physical | MEDIUM | Implemented; physical QA pending |
 
 Plans 001 and 002 record the first motion pass at `b009140`. The July 21 audit at `a937b39` found that pass insufficient: presentation ownership is still duplicated, the shell and content still run on separate timelines, and the threshold gesture is not direct manipulation. Plans 003–006 supersede the earlier motion assumptions without rewriting their historical record.
 

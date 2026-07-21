@@ -1,6 +1,6 @@
 # 006 — Make direct manipulation feel physical
 
-- **Status**: TODO
+- **Status**: IMPLEMENTED — PHYSICAL QA PENDING
 - **Commit**: a937b39
 - **Severity**: MEDIUM
 - **Category**: Physicality & origin
@@ -72,3 +72,7 @@ func makeBody(configuration: Configuration) -> some View {
   - press compression originates from the notch surface and returns within 140 ms;
   - Reduce Motion keeps opacity feedback but removes travel and scale.
 - **Done when**: gesture tests pass and a short recording shows direct, interruptible control without threshold snapping.
+
+## Implementation result
+
+The collapsed surface now compresses to 0.97 with 0.90 opacity over 140 ms, with scale removed under Reduce Motion. Downward drag progress follows the pointer with rising friction, uses predicted travel for flick intent, and releases through the shared spring. Approval state rejects the gesture. Six policy tests cover direct distance, predicted travel, cancellation, upward movement, friction, and bounded progress. Trackpad and physical-notch recording remains part of release hardware QA.

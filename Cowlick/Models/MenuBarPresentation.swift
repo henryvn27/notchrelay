@@ -24,7 +24,7 @@ enum MenuBarPresentation: String, CaseIterable, Identifiable, Sendable {
     case .iconAndDetails:
       "Shows the Cowlick icon, multiple-session count, and primary quota percentage."
     case .percentageOnly:
-      "Shows only the primary quota percentage for the selected Used or Remaining metric. Uses the Cowlick icon while quota is unavailable."
+      "Shows only the primary quota percentage for the selected Used or Remaining metric. Shows --% while quota is unavailable."
     case .iconOnly:
       "Shows only the Cowlick app icon."
     case .statusOnly:
@@ -57,10 +57,7 @@ struct MenuBarLabelContent: Equatable {
       let text = [sessions, percentageText].compactMap { $0 }.joined(separator: " · ")
       return MenuBarLabelContent(icon: .app, text: text.isEmpty ? nil : text)
     case .percentageOnly:
-      guard let percentageText else {
-        return MenuBarLabelContent(icon: .app, text: nil)
-      }
-      return MenuBarLabelContent(icon: .none, text: percentageText)
+      return MenuBarLabelContent(icon: .none, text: percentageText ?? "--%")
     case .iconOnly:
       return MenuBarLabelContent(icon: .app, text: nil)
     case .statusOnly:

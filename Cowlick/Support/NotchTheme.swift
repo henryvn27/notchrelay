@@ -29,21 +29,25 @@ enum NotchTheme {
   static let hoverFeedbackDuration = 0.12
   static let hoverOpenDelay = 0.20
   static let hoverCloseDelay = 0.40
-  static let contentSpring = Animation.spring(response: 0.28, dampingFraction: 1.0)
-  static let contentCollapse = Animation.timingCurve(
-    0.42,
-    0.00,
-    0.58,
-    1.00,
-    duration: panelCollapseDuration
+  static let contentExit = Animation.timingCurve(
+    0.23, 1.00, 0.32, 1.00, duration: panelCollapseDuration)
+  static let contentMorph = Animation.timingCurve(
+    0.77, 0.00, 0.175, 1.00, duration: panelExpandDuration)
+  static let statusChange = Animation.timingCurve(
+    0.23, 1.00, 0.32, 1.00, duration: 0.16)
+  static let pressFeedback = Animation.timingCurve(
+    0.23, 1.00, 0.32, 1.00, duration: 0.14)
+  static let dragRelease = Animation.spring(duration: 0.5, bounce: 0.2)
+  static let reducedMotion = Animation.easeOut(
+    duration: reducedMotionFadeDuration
   )
 
   // A decisive ease-out makes the panel feel attached to the camera housing:
   // most of the travel happens immediately, then the lower edge settles.
   static let expandTimingControlPoints: (Float, Float, Float, Float) =
-    (0.16, 0.84, 0.24, 1.00)
+    (0.77, 0.00, 0.175, 1.00)
   static let collapseTimingControlPoints: (Float, Float, Float, Float) =
-    (0.42, 0.00, 0.58, 1.00)
+    (0.23, 1.00, 0.32, 1.00)
 
   static func attachedSize(
     baseSize: CGSize,

@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let services = AppServices.shared
     WindowCoordinator.shared.configure(services: services)
     configureUITestingIfNeeded(services)
+    services.presentationCoordinator.start()
     guard !isUITesting else { return }
     do {
       try services.hookInstaller.refreshInstalledHelperIfNeeded()
@@ -112,6 +113,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func configureUITestingIfNeeded(_ services: AppServices) {
     guard CommandLine.arguments.contains("--ui-testing") else { return }
+    if CommandLine.arguments.contains("--menu-bar") {
+      services.settings.presentationPreference = .menuBar
+    }
     services.settings.showChatNames = !CommandLine.arguments.contains("--hide-chat-names")
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
     if ProcessInfo.processInfo.environment["COWLICK_ASSET_CAPTURE"] == "1" {
@@ -142,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         services.sessionStore.toggleExpanded()
       }
       if CommandLine.arguments.contains("--demo-sequence") {
+        try? await Task.sleep(for: .seconds(4))
         services.sessionStore.expand()
         try? await Task.sleep(for: .seconds(3))
         services.sessionStore.collapse()

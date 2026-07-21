@@ -7,6 +7,7 @@ final class AppServices {
   static let shared = AppServices()
 
   let settings: SettingsStore
+  let presentationCoordinator: PresentationCoordinator
   let eventLogger: EventLogger
   let approvalCoordinator: ApprovalCoordinator
   let capsLockService: NativeCapsLockSignalService
@@ -24,6 +25,7 @@ final class AppServices {
   private init() {
     LegacyMigrationService.migratePreferencesIfNeeded()
     settings = SettingsStore()
+    presentationCoordinator = PresentationCoordinator(settings: settings)
     eventLogger = EventLogger()
     approvalCoordinator = ApprovalCoordinator()
     capsLockService = NativeCapsLockSignalService()

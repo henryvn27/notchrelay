@@ -116,9 +116,7 @@ struct IslandHeaderView: View {
   private var motionReduced: Bool { reduceMotion || reducedAnimation }
 
   private var statusAnimation: Animation {
-    motionReduced
-      ? .easeOut(duration: NotchTheme.reducedMotionFadeDuration)
-      : NotchTheme.contentSpring
+    motionReduced ? NotchTheme.reducedMotion : NotchTheme.statusChange
   }
 
   private var statusTransition: AnyTransition {

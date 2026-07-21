@@ -1,6 +1,6 @@
 # 005 — Make the notch morph as one surface
 
-- **Status**: TODO
+- **Status**: IMPLEMENTED — PHYSICAL QA PENDING
 - **Commit**: a937b39
 - **Severity**: HIGH
 - **Category**: Interruptibility
@@ -85,3 +85,7 @@ static let reducedMotion = Animation.easeOut(duration: 0.12)
   - spamming expand/collapse never jumps through hidden or restarts from compact geometry;
   - Reduce Motion keeps the 120 ms fade while removing scale and positional motion.
 - **Done when**: a short side-by-side video shows continuous, interruptible morphs with no flash, double exposure, stale end state, or animation over 300 ms.
+
+## Implementation result
+
+The retained shell now uses one token set for its 240 ms expand and 180 ms collapse, while compact and expanded content use asymmetric opacity plus 0.96/0.98 top-anchored transitions instead of a scale-to-zero or independent spring. Status changes use a restrained 160 ms ease-out and Reduce Motion uses a 120 ms opacity-only transition. Mechanical tests pass. A physical-notch operated recording is still required before release; the host recorder could not target Cowlick's nonactivating status-bar panel in the active full-screen Space.
