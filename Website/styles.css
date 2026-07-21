@@ -373,27 +373,146 @@ button {
   border-radius: 0 0 1.05rem 1.05rem;
 }
 
-.island-frame {
+.mockup-state {
+  display: none;
+  width: 100%;
+}
+
+.island-stage[data-mode="working"] .mockup-state-working,
+.island-stage[data-mode="approval"] .mockup-state-approval,
+.island-stage[data-mode="completed"] .mockup-state-completed {
+  display: flex;
+}
+
+.mockup-state-working,
+.mockup-state-completed {
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  font-size: 0.78rem;
+}
+
+.mockup-status-dot,
+.mockup-complete-mark {
+  display: grid;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  place-items: center;
+}
+
+.mockup-status-dot {
+  border: 0.2rem solid #2d4436;
+  background: #72d48e;
+  box-shadow: 0 0 0 0.2rem rgb(114 212 142 / 10%);
+}
+
+.mockup-complete-mark {
+  background: #315b40;
+  color: #a7e6ba;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.mockup-project {
+  color: #f2f0ea;
+  font-weight: 720;
+}
+
+.mockup-status {
+  color: #85827c;
+  font-size: 0.68rem;
+}
+
+.mockup-state-approval {
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.mockup-approval-heading {
   display: grid;
   width: 100%;
+  align-items: start;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  text-align: left;
+}
+
+.mockup-approval-heading strong,
+.mockup-approval-heading small {
+  display: block;
+}
+
+.mockup-approval-heading strong {
+  color: #f2f0ea;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.mockup-approval-heading small,
+.mockup-tool {
+  color: #8f8c85;
+  font-size: 0.62rem;
+}
+
+.mockup-alert {
+  color: #d9a54f;
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.mockup-state-approval p {
+  width: 100%;
   margin: 0;
-  justify-items: center;
+  color: #d3d0c9;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  text-align: left;
 }
 
-.island-frame img {
-  width: min(100%, 23.75rem);
-  max-width: 100%;
-  object-fit: contain;
-  transition: width 240ms var(--ease-out);
+.mockup-state-approval code {
+  width: 100%;
+  overflow: hidden;
+  color: #8f8c85;
+  font-family: var(--mono);
+  font-size: 0.61rem;
+  line-height: 1.3;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.island-stage[data-mode="working"] .island-frame img,
-.island-stage[data-mode="completed"] .island-frame img {
-  width: min(100%, 10.625rem);
+.mockup-actions {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.45rem;
 }
 
-.island-frame figcaption {
-  margin-top: var(--space-3);
+.mockup-actions span {
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.42rem;
+  background: #2b2b29;
+  color: #e3e0d9;
+  font-size: 0.61rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.mockup-actions .mockup-copy {
+  padding-inline: 0.55rem;
+  color: #aaa7a0;
+}
+
+.mockup-actions .mockup-allow {
+  margin-left: auto;
+  background: #333330;
+}
+
+.island-caption {
+  margin: var(--space-3) 0 0;
   color: #aaa7a0;
   font-size: var(--text-xs);
 }
@@ -1256,9 +1375,27 @@ button {
     min-height: 5.25rem;
   }
 
-  .island-frame figcaption {
+  .island-caption {
     margin-top: var(--space-2);
     font-size: 0.625rem;
+  }
+
+  .mockup-state-approval {
+    gap: 0.45rem;
+  }
+
+  .mockup-approval-heading strong {
+    font-size: 0.66rem;
+  }
+
+  .mockup-state-approval p,
+  .mockup-state-approval code,
+  .mockup-actions span {
+    font-size: 0.52rem;
+  }
+
+  .mockup-actions span {
+    padding: 0.35rem 0.45rem;
   }
 
   .macbook-lid {

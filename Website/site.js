@@ -1,23 +1,11 @@
 const previews = {
   working: {
-    src: "./assets/working.png",
-    width: 170,
-    height: 34,
-    alt: "Cowlick showing the Scoutly project in its working state",
     caption: "Working. Quietly present.",
   },
   approval: {
-    src: "./assets/approval.png",
-    width: 380,
-    height: 116,
-    alt: "Cowlick showing a request-matched Bash approval with explicit Deny and Allow once actions",
     caption: "Approval. Enough context to decide.",
   },
   completed: {
-    src: "./assets/completed.png",
-    width: 170,
-    height: 34,
-    alt: "Cowlick showing the Meetly project as completed",
     caption: "Completed. Then out of the way.",
   },
 };
@@ -25,60 +13,33 @@ const previews = {
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const header = document.querySelector("[data-site-header]");
 const stage = document.querySelector(".island-stage");
-const previewImage = document.querySelector("#island-preview");
 const previewCaption = document.querySelector("#island-caption");
+const mockupStates = Array.from(document.querySelectorAll("[data-mockup-state]"));
 const previewButtons = Array.from(document.querySelectorAll("[data-preview]"));
 const previewNames = previewButtons.map((button) => button.dataset.preview);
-let activePreview = stage?.dataset.mode ?? "working";
-let requestedPreview = activePreview;
-let previewRequest = 0;
+let requestedPreview = stage?.dataset.mode ?? "working";
 let viewportFrame = 0;
 
-Object.values(previews).forEach((preview) => {
-  const image = new Image();
-  image.src = preview.src;
-});
-
-async function showPreview(name, { moveFocus = false } = {}) {
+function showPreview(name, { moveFocus = false } = {}) {
   const preview = previews[name];
-  if (!preview || !stage || !previewImage || !previewCaption) return;
+  if (!preview || !stage || !previewCaption) return;
 
   requestedPreview = name;
-  const request = ++previewRequest;
-  stateSwitcher?.setAttribute("aria-busy", "true");
 
-  const replacement = new Image();
-  replacement.src = preview.src;
-
-  try {
-    await replacement.decode();
-  } catch {
-    if (request === previewRequest) {
-      requestedPreview = activePreview;
-      stateSwitcher?.removeAttribute("aria-busy");
-    }
-    return;
-  }
-
-  if (request !== previewRequest) return;
-
-  activePreview = name;
   stage.dataset.mode = name;
-  previewImage.src = preview.src;
-  previewImage.width = preview.width;
-  previewImage.height = preview.height;
-  previewImage.alt = preview.alt;
   previewCaption.textContent = preview.caption;
+  mockupStates.forEach((state) => {
+    state.setAttribute("aria-hidden", String(state.dataset.mockupState !== name));
+  });
 
   previewButtons.forEach((button) => {
     const isActive = button.dataset.preview === name;
     button.setAttribute("aria-pressed", String(isActive));
     if (moveFocus && isActive) button.focus();
   });
-  stateSwitcher?.removeAttribute("aria-busy");
-
   if (!reducedMotion.matches) {
-    previewImage.animate(
+    const activeState = mockupStates.find((state) => state.dataset.mockupState === name);
+    activeState?.animate(
       [
         { opacity: 0.35, transform: "translateY(-0.35rem) scale(0.965)" },
         { opacity: 1, transform: "translateY(0) scale(1)" },

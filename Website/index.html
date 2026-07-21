@@ -73,19 +73,53 @@
               <div class="macbook-screen">
                 <div class="screen-notch" aria-hidden="true"><span></span></div>
                 <div class="screen-workspace">
-                  <div class="island-stage" data-mode="working">
-                    <figure class="island-frame">
-                      <img
-                        id="island-preview"
-                        src="./assets/working.png"
-                        width="170"
-                        height="34"
-                        alt="Cowlick showing the Scoutly project in its working state"
-                      >
-                      <figcaption id="island-caption" aria-live="polite" aria-atomic="true">
-                        Working. Quietly present.
-                      </figcaption>
-                    </figure>
+                  <div
+                    class="island-stage"
+                    id="island-preview"
+                    data-mode="working"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    <div class="mockup-state mockup-state-working" data-mockup-state="working">
+                      <span class="mockup-status-dot" aria-hidden="true"></span>
+                      <span class="mockup-project">Scoutly</span>
+                      <span class="mockup-status">Working</span>
+                    </div>
+
+                    <div
+                      class="mockup-state mockup-state-approval"
+                      data-mockup-state="approval"
+                      aria-hidden="true"
+                    >
+                      <div class="mockup-approval-heading">
+                        <span class="mockup-alert" aria-hidden="true">!</span>
+                        <span>
+                          <strong>Ship the verified release</strong>
+                          <small>ActivityPilot</small>
+                        </span>
+                        <span class="mockup-tool">Bash</span>
+                      </div>
+                      <p>Publish the verified branch to the configured GitHub remote</p>
+                      <code>git push -u origin agent/release-readiness</code>
+                      <div class="mockup-actions" aria-label="Approval actions">
+                        <span>Deny</span>
+                        <span>Open Codex</span>
+                        <span class="mockup-copy" aria-label="Copy command">⌘</span>
+                        <span class="mockup-allow">Allow once</span>
+                      </div>
+                    </div>
+
+                    <div
+                      class="mockup-state mockup-state-completed"
+                      data-mockup-state="completed"
+                      aria-hidden="true"
+                    >
+                      <span class="mockup-complete-mark" aria-hidden="true">✓</span>
+                      <span class="mockup-project">Meetily</span>
+                      <span class="mockup-status">Completed</span>
+                    </div>
+
+                    <p class="island-caption" id="island-caption">Working. Quietly present.</p>
                   </div>
                 </div>
               </div>
@@ -120,7 +154,7 @@
             >Completed</button>
           </div>
           <p class="demo-provenance">
-            Interactive mockup · UI captured on a 2× non-notch display
+            Interactive Cowlick mockup · Built from the product's real states
           </p>
           <span class="sr-only" id="state-switcher-help">
             Choose a state, or use the arrow keys, Home, and End to move between states.

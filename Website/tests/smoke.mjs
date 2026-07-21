@@ -92,12 +92,13 @@ try {
   );
 
   const preview = page.locator("#island-preview");
-  await assertRenderedImageGeometry(preview, { expectedWidth: 170 });
-  assert.match(await preview.getAttribute("alt"), /Scoutly project.*working state/);
+  await page.locator("[data-mockup-state='working']:visible").waitFor();
+  assert.equal(await preview.locator("img").count(), 0);
+  assert.match(await preview.textContent(), /Scoutly.*Working/s);
   assert.equal(await page.locator(".state-switcher").getAttribute("aria-describedby"), "state-switcher-help");
   assert.match(
     await page.locator(".demo-provenance").textContent(),
-    /Interactive mockup · UI captured on a 2× non-notch display/
+    /Interactive Cowlick mockup · Built from the product's real states/
   );
   await page.locator(".macbook-screen").waitFor();
   await page.locator(".screen-notch").waitFor();
@@ -117,15 +118,17 @@ try {
   await approval.click();
   await page.locator(".island-stage[data-mode='approval']").waitFor();
   assert.equal(await approval.getAttribute("aria-pressed"), "true");
-  assert.equal(await preview.getAttribute("src"), "./assets/approval.png");
-  await assertRenderedImageGeometry(preview, { expectedWidth: 380 });
+  assert.match(await preview.textContent(), /Ship the verified release.*Allow once/s);
+  assert.equal(
+    await page.locator("[data-mockup-state='approval']").getAttribute("aria-hidden"),
+    "false"
+  );
 
   const completed = page.getByRole("button", { name: "Completed" });
   await completed.click();
   await page.locator(".island-stage[data-mode='completed']").waitFor();
   assert.equal(await completed.getAttribute("aria-pressed"), "true");
-  assert.equal(await page.locator("#island-preview").getAttribute("src"), "./assets/completed.png");
-  assert.match(await preview.getAttribute("alt"), /Meetly project.*completed/);
+  assert.match(await preview.textContent(), /Meetily.*Completed/s);
 
   const working = page.getByRole("button", { name: "Working" });
   await working.click();
@@ -166,7 +169,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await approval.click();
   await page.locator(".island-stage[data-mode='approval']").waitFor();
-  await assertRenderedImageGeometry(preview);
+  await assertInsideViewport(preview, 390);
   await assertMinimumTarget(page.getByRole("button", { name: "Working" }));
   await assertMinimumTarget(approval);
   await assertMinimumTarget(completed);
@@ -176,61 +179,21 @@ try {
     reducedMotion: "reduce",
     viewport: { width: 1_024, height: 900 },
   });
-  await reducedMotionContext.addInitScript(() => {
-    window.__previewDecodes = [];
-    window.__resolvePreviewDecode = (suffix) => {
-      const index = window.__previewDecodes.findIndex((entry) => entry.source.endsWith(suffix));
-      if (index < 0) return false;
-      const [entry] = window.__previewDecodes.splice(index, 1);
-      entry.resolve();
-      return true;
-    };
-    HTMLImageElement.prototype.decode = function decode() {
-      const source = this.src;
-      return new Promise((resolve) => window.__previewDecodes.push({ source, resolve }));
-    };
-  });
   const reducedMotionPage = await reducedMotionContext.newPage();
   await reducedMotionPage.goto(pageURL);
   await reducedMotionPage.getByRole("button", { name: "Approval" }).click();
   await reducedMotionPage.getByRole("button", { name: "Completed" }).click();
-  assert.equal(await reducedMotionPage.locator(".island-stage").getAttribute("data-mode"), "working");
-  assert.equal(await reducedMotionPage.locator("#island-preview").getAttribute("src"), "./assets/working.png");
-  assert.match(await reducedMotionPage.locator("#island-caption").textContent(), /^\s*Working\./);
-  assert.equal(
-    await reducedMotionPage.getByRole("button", { name: "Working" }).getAttribute("aria-pressed"),
-    "true"
-  );
-  assert.equal(await reducedMotionPage.locator(".state-switcher").getAttribute("aria-busy"), "true");
-
-  assert.equal(
-    await reducedMotionPage.evaluate(() => window.__resolvePreviewDecode("approval.png")),
-    true
-  );
-  await reducedMotionPage.waitForTimeout(0);
-  assert.equal(await reducedMotionPage.locator(".island-stage").getAttribute("data-mode"), "working");
-  assert.equal(await reducedMotionPage.locator("#island-preview").getAttribute("src"), "./assets/working.png");
-
-  assert.equal(
-    await reducedMotionPage.evaluate(() => window.__resolvePreviewDecode("completed.png")),
-    true
-  );
   await reducedMotionPage.locator(".island-stage[data-mode='completed']").waitFor();
-  assert.equal(
-    await reducedMotionPage.locator("#island-preview").getAttribute("src"),
-    "./assets/completed.png"
-  );
   assert.match(await reducedMotionPage.locator("#island-caption").textContent(), /Completed\./);
   assert.equal(
     await reducedMotionPage.getByRole("button", { name: "Completed" }).getAttribute("aria-pressed"),
     "true"
   );
-  assert.equal(await reducedMotionPage.locator(".state-switcher").getAttribute("aria-busy"), null);
   await reducedMotionPage.waitForTimeout(50);
   assert.equal(
     await reducedMotionPage
-      .locator("#island-preview")
-      .evaluate((image) => image.getAnimations().filter((animation) => animation.playState === "running").length),
+      .locator("[data-mockup-state='completed']")
+      .evaluate((state) => state.getAnimations().filter((animation) => animation.playState === "running").length),
     0
   );
   await reducedMotionContext.close();
@@ -267,35 +230,6 @@ try {
 }
 
 console.log("Cowlick website browser smoke passed.");
-
-async function assertRenderedImageGeometry(locator, { expectedWidth } = {}) {
-  await locator.evaluate(
-    (image, width) =>
-      new Promise((resolve) => {
-        const ready = () => {
-          const box = image.getBoundingClientRect();
-          if (image.complete && box.width > 0 && (!width || Math.abs(box.width - width) < 1)) {
-            resolve();
-            return;
-          }
-          requestAnimationFrame(ready);
-        };
-        ready();
-      }),
-    expectedWidth
-  );
-
-  const geometry = await locator.evaluate((image) => {
-    const box = image.getBoundingClientRect();
-    return {
-      naturalRatio: image.naturalWidth / image.naturalHeight,
-      renderedRatio: box.width / box.height,
-      width: box.width,
-    };
-  });
-  if (expectedWidth) assert(Math.abs(geometry.width - expectedWidth) < 1);
-  assert(Math.abs(geometry.naturalRatio - geometry.renderedRatio) < 0.02);
-}
 
 async function assertInsideViewport(locator, viewportWidth) {
   const box = await locator.boundingBox();
