@@ -45,14 +45,14 @@ final class MenuBarPresentationTests: XCTestCase {
     )
   }
 
-  func testPercentageOnlyFallsBackToClickableAppIcon() {
+  func testPercentageOnlyNeverFallsBackToAppIcon() {
     XCTAssertEqual(
       resolve(.percentageOnly, percentageText: "64%"),
       MenuBarLabelContent(icon: .none, text: "64%")
     )
     XCTAssertEqual(
       resolve(.percentageOnly, percentageText: nil),
-      MenuBarLabelContent(icon: .app, text: nil)
+      MenuBarLabelContent(icon: .none, text: "--%")
     )
   }
 

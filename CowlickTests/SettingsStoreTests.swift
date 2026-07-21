@@ -20,7 +20,8 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(first.apiCostWindow, .last30Days)
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
-    XCTAssertEqual(first.menuBarPresentation, .iconAndDetails)
+    XCTAssertEqual(first.presentationPreference, .automatic)
+    XCTAssertEqual(first.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(first.integrationIntentionallyRemoved)
     first.showPromptPreviews = true
     first.showChatNames = false
@@ -29,6 +30,7 @@ final class SettingsStoreTests: XCTestCase {
     first.showAPICostEstimate = true
     first.apiCostWindow = .today
     first.menuBarPresentation = .percentageOnly
+    first.presentationPreference = .menuBar
     first.integrationIntentionallyRemoved = true
 
     let second = SettingsStore(defaults: defaults)
@@ -39,6 +41,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertTrue(second.showAPICostEstimate)
     XCTAssertEqual(second.apiCostWindow, .today)
     XCTAssertEqual(second.menuBarPresentation, .percentageOnly)
+    XCTAssertEqual(second.presentationPreference, .menuBar)
     XCTAssertTrue(second.integrationIntentionallyRemoved)
   }
 
@@ -66,7 +69,8 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(settings.apiCostWindow, .last30Days)
     XCTAssertFalse(settings.showResetForecast)
     XCTAssertEqual(settings.usageMetricPreference, .remaining)
-    XCTAssertEqual(settings.menuBarPresentation, .iconAndDetails)
+    XCTAssertEqual(settings.presentationPreference, .automatic)
+    XCTAssertEqual(settings.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(settings.integrationIntentionallyRemoved)
   }
 
@@ -109,13 +113,34 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(SettingsStore(defaults: defaults).usageMetricPreference, .remaining)
   }
 
-  func testInvalidMenuBarPresentationFallsBackToIconAndDetails() {
+  func testInvalidMenuBarPresentationFallsBackToPercentageOnly() {
     let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
     defaults.removePersistentDomain(forName: suite)
     defaults.set("hologram", forKey: SettingsStore.Key.menuBarPresentation)
 
-    XCTAssertEqual(SettingsStore(defaults: defaults).menuBarPresentation, .iconAndDetails)
+    XCTAssertEqual(SettingsStore(defaults: defaults).menuBarPresentation, .percentageOnly)
+  }
+
+  func testLegacyHiddenNonNotchOverlayMigratesToMenuBar() {
+    let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defaults.set(false, forKey: SettingsStore.Key.legacyShowOnNonNotch)
+
+    let settings = SettingsStore(defaults: defaults)
+
+    XCTAssertEqual(settings.presentationPreference, .menuBar)
+    XCTAssertEqual(defaults.string(forKey: SettingsStore.Key.presentationPreference), "menuBar")
+  }
+
+  func testLegacyShownNonNotchOverlayMigratesToAutomatic() {
+    let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defaults.set(true, forKey: SettingsStore.Key.legacyShowOnNonNotch)
+
+    XCTAssertEqual(SettingsStore(defaults: defaults).presentationPreference, .automatic)
   }
 
   func testLegacyPreferencesMigrateOnceWithoutOverwritingCurrentValues() {

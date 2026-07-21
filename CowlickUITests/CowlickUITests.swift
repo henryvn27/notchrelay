@@ -79,7 +79,7 @@ final class CowlickUITests: XCTestCase {
 
   func testCompletedResultPreviewRendersWhenEnabled() {
     let app = launch(
-      arguments: ["--state=completed", "--expanded", "--show-result-previews"])
+      arguments: ["--simulate-notch", "--state=completed", "--expanded", "--show-result-previews"])
     let completed = sessionRow(in: app, id: "demo-visual-state")
     XCTAssertTrue(completed.waitForExistence(timeout: 3))
     XCTAssertEqual(
@@ -88,7 +88,7 @@ final class CowlickUITests: XCTestCase {
   }
 
   func testFailedStateIsAccessible() {
-    let app = launch(arguments: ["--state=failed", "--expanded"])
+    let app = launch(arguments: ["--simulate-notch", "--state=failed", "--expanded"])
     let failedSession = sessionRow(in: app, id: "demo-visual-state")
     XCTAssertTrue(failedSession.waitForExistence(timeout: 3))
     XCTAssertEqual(
@@ -109,7 +109,7 @@ final class CowlickUITests: XCTestCase {
   }
 
   func testChatNamesCanBeHiddenWithoutChangingSessionState() {
-    let app = launch(arguments: ["--state=working", "--hide-chat-names"])
+    let app = launch(arguments: ["--simulate-notch", "--state=working", "--hide-chat-names"])
 
     XCTAssertTrue(app.buttons["Scoutly, Working"].waitForExistence(timeout: 3))
     XCTAssertFalse(app.staticTexts["Polish release onboarding"].exists)
@@ -181,7 +181,7 @@ final class CowlickUITests: XCTestCase {
   }
 
   private func launch(state: String) -> XCUIApplication {
-    launch(arguments: ["--state=\(state)"])
+    launch(arguments: ["--simulate-notch", "--state=\(state)"])
   }
 
   private func launch(
