@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // Aesthetic direction: quiet, physical, and attached to the Mac rather than floating above it.
@@ -8,6 +9,7 @@ import SwiftUI
 // Motion: restrained spring transitions, disabled for Reduce Motion.
 enum NotchTheme {
   static let island = Color.black
+  static let floatingSurface = Color(nsColor: .windowBackgroundColor)
   static let islandRaised = Color(white: 0.075)
   static let accent = Color(red: 0.79, green: 0.78, blue: 0.74)
   static let success = Color(red: 0.53, green: 0.76, blue: 0.62)

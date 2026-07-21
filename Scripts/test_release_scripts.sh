@@ -23,6 +23,11 @@ done
 grep -Fq 'requires_signed_feed' "$script_dir/release_preflight.sh"
 grep -Fq 'export method must be developer-id' "$script_dir/release_preflight.sh"
 grep -Fq 'CHANGELOG.md has no release section' "$script_dir/release_preflight.sh"
+grep -Fq 'app and helper must share one positive CURRENT_PROJECT_VERSION' \
+  "$script_dir/release_common.sh"
+grep -Fq 'Sparkle Downloader.xpc' "$script_dir/release_common.sh"
+grep -Fq 'Sparkle Installer.xpc' "$script_dir/release_common.sh"
+grep -Fq '"$script_dir/release_notes.sh" "$version"' "$script_dir/generate_appcast.sh"
 
 release_notes="$temporary_directory/release-notes.md"
 "$script_dir/release_notes.sh" 1.0.0 > "$release_notes"
@@ -602,10 +607,13 @@ done
 [[ -n "$derived_data" ]]
 [[ "$jobs" == "${COWLICK_TEST_EXPECTED_XCODE_JOBS:-2}" ]]
 helper="$derived_data/Build/Products/Release/Cowlick.app/Contents/Helpers/cowlick-hook"
+source_identity="$derived_data/Build/Products/Release/Cowlick.app/Contents/Resources/cowlick-source-commit.txt"
 mkdir -p "${helper:h}"
+mkdir -p "${source_identity:h}"
 print -r -- "#!/bin/zsh" > "$helper"
 print -r -- "# ${COWLICK_TEST_HELPER_MARKER:-wrapper-helper}" >> "$helper"
 print -r -- "exit 0" >> "$helper"
+print -r -- '0123456789abcdef0123456789abcdef01234567' > "$source_identity"
 chmod 755 "$helper"
 if [[ -n "${COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY:-}" ]]; then
   : > "$COWLICK_TEST_XCODEBUILD_BARRIER_DIRECTORY/reached"
@@ -710,7 +718,7 @@ assert_local_install_removed() {
   [[ ! -e "$home/Applications/Cowlick.app" ]]
   [[ ! -e "$home/.local/bin/cowlick-hook" && ! -L "$home/.local/bin/cowlick-hook" ]]
   [[ ! -e "$home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
-  ! grep -Fq 'cowlick-hook' "$home/.codex/hooks.json"
+  [[ ! -e "$home/.codex/hooks.json" ]] || ! grep -Fq 'cowlick-hook' "$home/.codex/hooks.json"
 }
 
 wrapper_install_first_home="$temporary_directory/wrapper-install-first-home"

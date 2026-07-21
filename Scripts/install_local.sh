@@ -177,6 +177,16 @@ xcodebuild \
 
 source_app="$derived_data/Build/Products/Release/Cowlick.app"
 [[ -d "$source_app" ]] || { print -u2 "Release app was not produced"; exit 1; }
+source_identity="$source_app/Contents/Resources/cowlick-source-commit.txt"
+[[ -f "$source_identity" && ! -L "$source_identity" ]] || {
+  print -u2 "Release app is missing its embedded source identity"
+  exit 1
+}
+source_commit="$(tr -d '[:space:]' < "$source_identity")"
+[[ "$source_commit" =~ '^[0-9a-f]{40}$' ]] || {
+  print -u2 "Release app has an invalid embedded source identity"
+  exit 1
+}
 
 stopped_pids=()
 [[ -d "$legacy_destination" ]] && legacy_present=true
@@ -239,7 +249,9 @@ for _ in {1..20}; do
   sleep 0.25
 done
 $bridge_ready || { print -u2 "Installed app did not start its authenticated bridge."; exit 1; }
-"$script_dir/verify_installation.sh" --app "$destination" --development
+"$script_dir/verify_installation.sh" --app "$destination" --development --installed \
+  --source-commit "$source_commit" \
+  --expected-executable "$destination/Contents/MacOS/Cowlick"
 if $legacy_present && [[ -d "$legacy_destination" ]]; then
   /bin/rm -rf "$legacy_destination"
   legacy_removed=true

@@ -15,10 +15,13 @@ validate_release_version() {
 validate_project_version() {
   local project_root="$1"
   local expected="$2"
-  local versions
+  local versions build_numbers
   versions="$(sed -n 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*//p' "$project_root/project.yml" | sort -u)"
   [[ "$versions" == "$expected" ]] \
     || release_error "project MARKETING_VERSION is '${versions//$'\n'/, }', expected '$expected'"
+  build_numbers="$(sed -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*//p' "$project_root/project.yml" | sort -u)"
+  [[ "$build_numbers" =~ '^[1-9][0-9]*$' ]] \
+    || release_error "app and helper must share one positive CURRENT_PROJECT_VERSION"
 }
 
 validate_app_version() {
@@ -56,10 +59,13 @@ verify_cowlick_app() {
   local expected_identity="$3"
   local expected_team="$4"
   local helper="$app/Contents/Helpers/cowlick-hook"
+  local sparkle="$app/Contents/Frameworks/Sparkle.framework"
+  local sparkle_version="$sparkle/Versions/B"
   local bundle_identifier
 
   [[ -d "$app" ]] || release_error "Cowlick.app is missing"
   [[ -x "$helper" ]] || release_error "bundled cowlick-hook is missing or not executable"
+  [[ -d "$sparkle" ]] || release_error "Sparkle.framework is missing"
   validate_app_version "$app" "$version"
   bundle_identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
     "$app/Contents/Info.plist")"
@@ -70,6 +76,15 @@ verify_cowlick_app() {
   codesign --verify --strict --verbose=2 "$helper"
   verify_code_identity "$app" "Cowlick.app" "$expected_identity" "$expected_team"
   verify_code_identity "$helper" "cowlick-hook" "$expected_identity" "$expected_team"
+  verify_code_identity "$sparkle" "Sparkle.framework" "$expected_identity" "$expected_team"
+  verify_code_identity "$sparkle_version/Updater.app" "Sparkle Updater.app" \
+    "$expected_identity" "$expected_team"
+  verify_code_identity "$sparkle_version/Autoupdate" "Sparkle Autoupdate" \
+    "$expected_identity" "$expected_team"
+  verify_code_identity "$sparkle_version/XPCServices/Downloader.xpc" \
+    "Sparkle Downloader.xpc" "$expected_identity" "$expected_team"
+  verify_code_identity "$sparkle_version/XPCServices/Installer.xpc" \
+    "Sparkle Installer.xpc" "$expected_identity" "$expected_team"
   codesign -dv --verbose=4 "$app" 2>&1 | grep -Fq 'Identifier=com.henryvn27.Cowlick' \
     || release_error "Cowlick.app code-signing identifier is incorrect"
   spctl --assess --type execute --verbose=2 "$app"

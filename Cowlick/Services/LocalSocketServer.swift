@@ -10,6 +10,7 @@ struct RuntimeMetadata: Codable, Equatable, Sendable {
   let pid: Int32
   let uid: uid_t
   let appVersion: String
+  let sourceCommit: String
   let approvalTimeout: TimeInterval
 }
 
@@ -377,6 +378,7 @@ final class LocalSocketServer: @unchecked Sendable {
       pid: getpid(),
       uid: getuid(),
       appVersion: ProductVersion.marketing,
+      sourceCommit: ProductVersion.sourceCommit,
       approvalTimeout: approvalTimeout()
     )
     let data = try JSONEncoder.bridge.encode(metadata)

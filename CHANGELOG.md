@@ -9,7 +9,7 @@ Cowlick follows [Semantic Versioning](https://semver.org/).
 This section is the 1.0.0 candidate release note until the matching tag appears on [GitHub Releases](https://github.com/henryvn27/cowlick/releases).
 
 - Native notch-aware and non-notch island for Codex working, approval, completed, parent-session, subagent, and multi-session lifecycle states, plus a separate presentation for Cowlick bridge and self-test failures.
-- Opaque true-black island surfaces on both notched and non-notch displays, without wallpaper tinting.
+- An opaque true-black notch surface plus an opaque system-adaptive floating surface on non-notch displays, without wallpaper tinting.
 - Exact request-matched Allow once and Deny actions with safe Codex fallback.
 - Authenticated private Unix-domain socket and bundled Swift helper.
 - Idempotent, reversible Codex hook onboarding that preserves unrelated configuration.

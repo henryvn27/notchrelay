@@ -17,7 +17,7 @@ staging_directory="$(mktemp -d "${TMPDIR%/}/cowlick-appcast.XXXXXX")"
 chmod 700 "$staging_directory"
 trap 'rm -rf "$staging_directory"' EXIT
 cp "$archive" "$staging_directory/Cowlick-$version.zip"
-cp "$project_root/CHANGELOG.md" "$staging_directory/Cowlick-$version.md"
+"$script_dir/release_notes.sh" "$version" > "$staging_directory/Cowlick-$version.md"
 
 arguments=(
   --download-url-prefix "https://github.com/henryvn27/cowlick/releases/download/v$version/"

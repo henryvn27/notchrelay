@@ -34,17 +34,9 @@ final class AppServices {
       capsLockService: capsLockService
     )
     sessionStore = store
-    localLifecycleObserver = CodexSessionObserver { event in
-      Task { @MainActor in
-        if event.kind == .stale, event.parentSessionID == nil {
-          store.expireLocalObservation(sessionID: event.sessionID, turnID: event.turnID)
-        } else if let bridgeEvent = event.bridgeEvent {
-          _ = await store.receive(bridgeEvent)
-        }
-      }
-    }
+    let resolvedUsageStore: UsageStore
     if CommandLine.arguments.contains("--usage-demo") {
-      usageStore = UsageStore(
+      resolvedUsageStore = UsageStore(
         settings: settings,
         usageService: UITestingCodexUsageService(),
         apiCostService: UITestingLocalCodexCostService(),
@@ -53,7 +45,20 @@ final class AppServices {
     } else {
       let apiCostService = LocalCodexCostService(
         roots: CommandLine.arguments.contains("--ui-testing") ? [] : nil)
-      usageStore = UsageStore(settings: settings, apiCostService: apiCostService)
+      resolvedUsageStore = UsageStore(settings: settings, apiCostService: apiCostService)
+    }
+    usageStore = resolvedUsageStore
+    localLifecycleObserver = CodexSessionObserver { event in
+      Task { @MainActor in
+        if event.kind == .stale, event.parentSessionID == nil {
+          store.expireLocalObservation(sessionID: event.sessionID, turnID: event.turnID)
+        } else if let bridgeEvent = event.bridgeEvent {
+          _ = await store.receive(bridgeEvent)
+        }
+        if event.shouldRefreshUsage {
+          resolvedUsageStore.refreshAfterActivity()
+        }
+      }
     }
     let providerServices = Self.makeProviderAccountServices(arguments: CommandLine.arguments)
     credentialStore = providerServices.credentialStore

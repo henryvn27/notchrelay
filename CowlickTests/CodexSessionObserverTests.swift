@@ -4,6 +4,17 @@ import XCTest
 @testable import Cowlick
 
 final class CodexSessionObserverTests: XCTestCase {
+  func testOnlyActivityEventsRefreshUsage() {
+    for kind in [
+      ObservedCodexLifecycleEvent.Kind.working,
+      .completed,
+      .failed,
+    ] {
+      XCTAssertTrue(makeEvent(kind: kind).shouldRefreshUsage)
+    }
+    XCTAssertFalse(makeEvent(kind: .stale).shouldRefreshUsage)
+  }
+
   private final class EventRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: [ObservedCodexLifecycleEvent] = []
@@ -464,6 +475,19 @@ final class CodexSessionObserverTests: XCTestCase {
   }
 
   private func jsonLine(_ value: String) -> Data { Data(value.utf8) }
+
+  private func makeEvent(kind: ObservedCodexLifecycleEvent.Kind) -> ObservedCodexLifecycleEvent {
+    ObservedCodexLifecycleEvent(
+      kind: kind,
+      sessionID: "session-1",
+      turnID: "turn-1",
+      cwd: "/tmp/Scoutly",
+      model: "gpt-5.6-sol",
+      timestamp: Date(timeIntervalSince1970: 0),
+      parentSessionID: nil,
+      agentType: nil
+    )
+  }
 
   private final class LockedClock: @unchecked Sendable {
     private let lock = NSLock()

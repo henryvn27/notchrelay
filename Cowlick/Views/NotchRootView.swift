@@ -13,7 +13,7 @@ struct NotchRootView: View {
       if presentation.isAttached {
         surfaceShape.fill(NotchTheme.island)
       } else {
-        surfaceShape.fill(.regularMaterial)
+        surfaceShape.fill(NotchTheme.floatingSurface)
       }
 
       Group {

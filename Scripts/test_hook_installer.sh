@@ -49,6 +49,47 @@ assert_invalid_hooks_rejected_without_residue missing-handlers \
 assert_invalid_hooks_rejected_without_residue mixed-handlers \
   '{"hooks":{"Stop":[{"hooks":[{"type":"command"},42]}]}}'
 
+fresh_home="$temporary_directory/fresh-home"
+fresh_snapshot="$temporary_directory/fresh-snapshot"
+COWLICK_HOME="$fresh_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" --snapshot "$fresh_snapshot" >/dev/null
+[[ -f "$fresh_home/.codex/hooks.json" ]]
+[[ -f "$fresh_home/Library/Application Support/Cowlick/.hooks-json-created-by-cowlick" ]]
+COWLICK_HOME="$fresh_home" swift "$script_dir/install_hooks.swift" restore \
+  --snapshot "$fresh_snapshot" >/dev/null
+[[ ! -e "$fresh_home/.codex/hooks.json" ]]
+[[ ! -e "$fresh_home/.local/bin/cowlick-hook" \
+  && ! -L "$fresh_home/.local/bin/cowlick-hook" ]]
+[[ ! -e "$fresh_home/Library/Application Support/Cowlick/.hooks-json-created-by-cowlick" ]]
+
+fresh_remove_home="$temporary_directory/fresh-remove-home"
+COWLICK_HOME="$fresh_remove_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" >/dev/null
+COWLICK_HOME="$fresh_remove_home" swift "$script_dir/install_hooks.swift" remove >/dev/null
+[[ ! -e "$fresh_remove_home/.codex/hooks.json" ]]
+[[ ! -e "$fresh_remove_home/Library/Application Support/Cowlick/.hooks-json-created-by-cowlick" ]]
+
+fresh_preserve_home="$temporary_directory/fresh-preserve-home"
+COWLICK_HOME="$fresh_preserve_home" swift "$script_dir/install_hooks.swift" install \
+  --helper "$helper" >/dev/null
+COWLICK_TEST_HOOKS="$fresh_preserve_home/.codex/hooks.json" swift -e '
+  import Foundation
+  let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["COWLICK_TEST_HOOKS"]!)
+  var root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+  root["future"] = ["preserve": true]
+  let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
+  try (data + Data([0x0A])).write(to: url, options: .atomic)
+  try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+'
+COWLICK_HOME="$fresh_preserve_home" swift "$script_dir/install_hooks.swift" remove >/dev/null
+[[ -f "$fresh_preserve_home/.codex/hooks.json" ]]
+grep -Fq '"future"' "$fresh_preserve_home/.codex/hooks.json"
+if grep -Fq 'cowlick-hook' "$fresh_preserve_home/.codex/hooks.json"; then
+  print -u2 "fresh-account removal retained Cowlick handlers"
+  exit 1
+fi
+[[ ! -e "$fresh_preserve_home/Library/Application Support/Cowlick/.hooks-json-created-by-cowlick" ]]
+
 symlink_home="$temporary_directory/symlink-hooks-home"
 symlink_target="$temporary_directory/foreign-hooks.json"
 symlink_hooks="$symlink_home/.codex/hooks.json"

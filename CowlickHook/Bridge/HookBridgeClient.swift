@@ -97,6 +97,7 @@ struct HookRuntimeMetadata: Codable, Sendable {
   let pid: Int32
   let uid: uid_t
   let appVersion: String
+  var sourceCommit: String? = nil
   let approvalTimeout: TimeInterval
 }
 
@@ -213,7 +214,9 @@ struct HookBridgeClient {
       return [
         "ok": true,
         "appVersion": metadata.appVersion,
+        "pid": metadata.pid,
         "protocolVersion": metadata.version,
+        "sourceCommit": metadata.sourceCommit ?? "unknown",
         "socket": "reachable",
       ]
     } catch {

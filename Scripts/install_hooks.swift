@@ -12,6 +12,7 @@ enum InstallerFailure: LocalizedError {
   case helperConflict
   case configurationChanged
   case invalidSnapshot
+  case unsafeOwnershipMarker
   case fileOperation(Int32)
 
   var errorDescription: String? {
@@ -30,6 +31,8 @@ enum InstallerFailure: LocalizedError {
     case .configurationChanged:
       "hooks.json changed during installation; no configuration was overwritten. Try again."
     case .invalidSnapshot: "The Cowlick integration snapshot is incomplete or invalid."
+    case .unsafeOwnershipMarker:
+      "Cowlick's hooks-file ownership marker is missing required owner-only protections."
     case .fileOperation(let code): "A protected file operation failed (errno \(code))."
     }
   }
@@ -53,6 +56,10 @@ let events = [
 let bridgeProtocolVersion = 2
 let snapshotMarkerName = ".cowlick-integration-snapshot-v1"
 let snapshotMarkerContents = Data("1\n".utf8)
+let hooksAbsentSnapshotName = ".hooks-json-was-absent"
+let hooksOwnershipMarkerName = ".hooks-json-created-by-cowlick"
+let hooksOwnershipMarker = home.appendingPathComponent(
+  "Library/Application Support/Cowlick/\(hooksOwnershipMarkerName)")
 
 enum InstallerCommand {
   case help
@@ -219,6 +226,14 @@ func encoded(_ root: [String: Any]) throws -> Data {
   return data
 }
 
+func containsOnlyEmptyHookConfiguration(_ data: Data) throws -> Bool {
+  var value = try root(from: data)
+  if let hooks = value["hooks"] as? [String: Any], hooks.isEmpty {
+    value.removeValue(forKey: "hooks")
+  }
+  return value.isEmpty
+}
+
 func removingHandlers(
   from original: [String: Any],
   events selectedEvents: [String] = events,
@@ -328,6 +343,32 @@ func writePrivateFile(_ data: Data, to url: URL) throws {
     unlink(url.path)
     throw InstallerFailure.fileOperation(errno)
   }
+}
+
+func privateMarkerExists(at url: URL) throws -> Bool {
+  var information = stat()
+  guard lstat(url.path, &information) == 0 else {
+    if errno == ENOENT { return false }
+    throw InstallerFailure.unsafeOwnershipMarker
+  }
+  guard information.st_mode & S_IFMT == S_IFREG,
+    information.st_uid == getuid(),
+    information.st_mode & 0o077 == 0,
+    (try? Data(contentsOf: url)) == snapshotMarkerContents
+  else { throw InstallerFailure.unsafeOwnershipMarker }
+  return true
+}
+
+func removePrivateMarkerIfPresent(at url: URL) throws {
+  guard try privateMarkerExists(at: url) else { return }
+  guard unlink(url.path) == 0 else { throw InstallerFailure.fileOperation(errno) }
+}
+
+func removeHooksFile(expected: Data) throws {
+  guard try readHooksDataIfPresent() == expected else {
+    throw InstallerFailure.configurationChanged
+  }
+  guard unlink(hooksURL.path) == 0 else { throw InstallerFailure.fileOperation(errno) }
 }
 
 func replaceHooks(with data: Data, expected original: Data?) throws {
@@ -474,6 +515,13 @@ func snapshotIntegration(to directory: URL) throws {
   try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
   if let hooksData = try readHooksDataIfPresent() {
     try writePrivateFile(hooksData, to: directory.appendingPathComponent("hooks.json"))
+  } else {
+    try writePrivateFile(
+      snapshotMarkerContents, to: directory.appendingPathComponent(hooksAbsentSnapshotName))
+  }
+  if try privateMarkerExists(at: hooksOwnershipMarker) {
+    try writePrivateFile(
+      snapshotMarkerContents, to: directory.appendingPathComponent(hooksOwnershipMarkerName))
   }
   let helpers = [
     (shim, installedHelper, "cowlick-hook"),
@@ -504,9 +552,14 @@ func restoreIntegration(from directory: URL) throws {
   else { throw InstallerFailure.invalidSnapshot }
 
   let hooksSnapshot = directory.appendingPathComponent("hooks.json")
+  let hooksAbsentSnapshot = directory.appendingPathComponent(hooksAbsentSnapshotName)
+  let ownershipSnapshot = directory.appendingPathComponent(hooksOwnershipMarkerName)
   let helperSnapshot = directory.appendingPathComponent("cowlick-hook")
   let legacyHelperSnapshot = directory.appendingPathComponent("notchrelay-hook")
   let savedHooks = try readHooksDataIfPresent(at: hooksSnapshot)
+  let hooksWereAbsent = try privateMarkerExists(at: hooksAbsentSnapshot)
+  guard (savedHooks != nil) != hooksWereAbsent else { throw InstallerFailure.invalidSnapshot }
+  let ownershipMarkerWasPresent = try privateMarkerExists(at: ownershipSnapshot)
   for source in [helperSnapshot, legacyHelperSnapshot]
   where fileManager.fileExists(atPath: source.path)
     && !fileManager.isExecutableFile(atPath: source.path)
@@ -531,8 +584,21 @@ func restoreIntegration(from directory: URL) throws {
       from: legacyHelperSnapshot, shim: legacyShim, installedHelper: legacyInstalledHelper)
   }
 
-  if restoredHooks != existing {
+  if hooksWereAbsent, hooksExist {
+    if try containsOnlyEmptyHookConfiguration(restoredHooks) {
+      try removeHooksFile(expected: existing)
+    } else if restoredHooks != existing {
+      try replaceHooks(with: restoredHooks, expected: existing)
+    }
+  } else if !hooksWereAbsent, restoredHooks != existing {
     try replaceHooks(with: restoredHooks, expected: hooksExist ? existing : nil)
+  }
+
+  try removePrivateMarkerIfPresent(at: hooksOwnershipMarker)
+  if ownershipMarkerWasPresent {
+    try fileManager.createDirectory(
+      at: hooksOwnershipMarker.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try writePrivateFile(snapshotMarkerContents, to: hooksOwnershipMarker)
   }
 }
 
@@ -555,6 +621,11 @@ do {
         if updated != existing {
           try replaceHooks(with: updated, expected: existed ? existing : nil)
         }
+        if !existed, !(try privateMarkerExists(at: hooksOwnershipMarker)) {
+          try fileManager.createDirectory(
+            at: hooksOwnershipMarker.deletingLastPathComponent(), withIntermediateDirectories: true)
+          try writePrivateFile(snapshotMarkerContents, to: hooksOwnershipMarker)
+        }
         try removeOwnedHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
       } catch {
         if let snapshot { try restoreIntegration(from: snapshot) }
@@ -566,12 +637,18 @@ do {
     try withConfigurationLock {
       try validateHelperRemoval(shim: shim, installedHelper: installedHelper)
       try validateHelperRemoval(shim: legacyShim, installedHelper: legacyInstalledHelper)
+      let ownsHooksFile = try privateMarkerExists(at: hooksOwnershipMarker)
       if let existing = try readHooksDataIfPresent() {
         let updated = try remove(existing)
-        if updated != existing { try replaceHooks(with: updated, expected: existing) }
+        if ownsHooksFile, try containsOnlyEmptyHookConfiguration(updated) {
+          try removeHooksFile(expected: existing)
+        } else if updated != existing {
+          try replaceHooks(with: updated, expected: existing)
+        }
       } else {
         print("No hooks file to update.")
       }
+      try removePrivateMarkerIfPresent(at: hooksOwnershipMarker)
       try removeOwnedHelper(shim: shim, installedHelper: installedHelper)
       try removeOwnedHelper(shim: legacyShim, installedHelper: legacyInstalledHelper)
     }

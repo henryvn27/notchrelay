@@ -6,6 +6,7 @@ Run source preflight before dispatching a release:
 
 ```sh
 ./Scripts/release_preflight.sh 1.0.0 --source-only
+./Scripts/test_verify_installation.sh
 ./Scripts/test_release_scripts.sh
 ```
 
@@ -32,7 +33,7 @@ SPARKLE_PRIVATE_KEY="…" \
 ./Scripts/create_release.sh 1.0.0
 ```
 
-`create_release.sh` runs distribution preflight, including an exact Sparkle private/public-key match. Run `./Scripts/verify_update_signing.sh` separately to prove archive and signed-feed verification with an ephemeral test key. Execute the UI suite on an interactive logged-in Mac; hosted CI compiles it but intentionally does not claim headless execution.
+`create_release.sh` runs distribution preflight, including an exact Sparkle private/public-key match. Run `./Scripts/verify_update_signing.sh` separately to prove archive and signed-feed verification with an ephemeral test key. CI executes the UI suite before release publication; also repeat it on the interactive release Mac for WindowServer-specific visual and focus acceptance.
 
 Dispatch the Release workflow from protected `main` and enter `1.0.0` as the version. Do not create the tag manually. A separate read-only provenance job checks that the dispatch SHA is the exact current `main` commit using the same executable exercised by the release-script tests. The release then calls the same CI workflow used by pull requests against that exact commit; signing credentials remain unavailable until both provenance and CI pass. After building and notarizing, it fetches `main` again immediately before creating the tag, so a merge during CI or notarization fails the run instead of silently releasing an older commit.
 

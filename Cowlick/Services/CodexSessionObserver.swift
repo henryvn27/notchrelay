@@ -19,6 +19,8 @@ struct ObservedCodexLifecycleEvent: Equatable, Sendable {
   let parentSessionID: String?
   let agentType: String?
 
+  var shouldRefreshUsage: Bool { kind != .stale }
+
   var bridgeEvent: BridgeEvent? {
     let isSubagent = parentSessionID != nil
     let eventName: BridgeEventName

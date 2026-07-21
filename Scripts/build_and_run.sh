@@ -24,18 +24,26 @@ done
 
 cd "$project_root"
 
+stopped_pids=()
 for process_name in Cowlick NotchRelay; do
   existing_pids=(${(f)"$(pgrep -x "$process_name" 2>/dev/null || true)"})
   for process_id in $existing_pids; do
     process_path="$(ps -p "$process_id" -o command= 2>/dev/null || true)"
     if [[ "$process_path" == *"/$process_name.app/Contents/MacOS/$process_name"* ]]; then
       kill "$process_id"
+      stopped_pids+=("$process_id")
     fi
   done
 done
-for _ in {1..50}; do
-  ! pgrep -x Cowlick >/dev/null 2>&1 && ! pgrep -x NotchRelay >/dev/null 2>&1 && break
-  sleep 0.1
+for process_id in $stopped_pids; do
+  for _ in {1..50}; do
+    kill -0 "$process_id" 2>/dev/null || break
+    sleep 0.1
+  done
+  kill -0 "$process_id" 2>/dev/null && {
+    print -u2 "Existing Cowlick process $process_id did not stop cleanly."
+    exit 1
+  }
 done
 
 if ! command -v xcodegen >/dev/null 2>&1; then
@@ -55,6 +63,7 @@ xcodebuild \
 
 app_path="$derived_data/Build/Products/$configuration/Cowlick.app"
 [[ -d "$app_path" ]] || { print -u2 "Fresh app bundle not found at $app_path"; exit 1; }
+source_commit="$(tr -d '[:space:]' < "$app_path/Contents/Resources/cowlick-source-commit.txt")"
 
 if $local_telemetry; then
   COWLICK_LOCAL_TELEMETRY=1 "$app_path/Contents/MacOS/Cowlick" >/dev/null 2>&1 &!
@@ -73,8 +82,12 @@ for _ in {1..100}; do
 done
 $bridge_ready || { print -u2 "Cowlick launched but its authenticated bridge did not become ready"; exit 1; }
 
+"$script_dir/verify_installation.sh" --app "$app_path" --development \
+  --source-commit "$source_commit" \
+  --expected-executable "$app_path/Contents/MacOS/Cowlick"
+
 if $run_verify; then
-  "$script_dir/verify_installation.sh" --app "$app_path" --development
+  "$helper" diagnostics
 fi
 
 if $show_logs; then

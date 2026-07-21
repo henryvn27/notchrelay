@@ -27,8 +27,8 @@ jobs:
         run: xcrun swift-format lint --recursive --strict Cowlick CowlickHook CowlickTests CowlickUITests
       - name: Unit tests
         run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UnitTests -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" CODE_SIGNING_ALLOWED=NO test
-      - name: Build UI test bundle
-        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" build-for-testing
+      - name: Run UI tests
+        run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick-UITests -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" test
       - name: Static analysis
         run: xcodebuild -project Cowlick.xcodeproj -scheme Cowlick -configuration Debug -derivedDataPath DerivedData -destination 'platform=macOS' -jobs "$COWLICK_XCODE_JOBS" CODE_SIGNING_ALLOWED=NO analyze
       - name: Verify installer script
@@ -38,6 +38,7 @@ jobs:
       - name: Verify release scripts
         run: |
           zsh -n Scripts/*.sh
+          ./Scripts/test_verify_installation.sh
           ./Scripts/test_release_scripts.sh
           ./Scripts/test_launch_asset_tools.sh
           xcrun swift Scripts/validate_launch_assets.swift --source-ref "$(git rev-parse HEAD)"
