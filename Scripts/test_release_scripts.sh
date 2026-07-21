@@ -547,6 +547,11 @@ for command_name in pgrep open xcodegen; do
   print -n -- '#!/bin/zsh\nexit 0\n' > "$wrapper_fake_bin/$command_name"
   chmod 755 "$wrapper_fake_bin/$command_name"
 done
+print -r -- '#!/bin/zsh' > "$wrapper_fake_bin/git"
+print -r -- '[[ "${COWLICK_TEST_GIT_DIRTY:-}" == 1 ]] && print " M Cowlick/App/AppServices.swift"' \
+  >> "$wrapper_fake_bin/git"
+print -r -- 'exit 0' >> "$wrapper_fake_bin/git"
+chmod 755 "$wrapper_fake_bin/git"
 rollback_remove_command="$wrapper_fake_bin/rollback-remove"
 rollback_move_command="$wrapper_fake_bin/rollback-move"
 print -r -- '#!/bin/zsh
@@ -647,6 +652,21 @@ for invalid_arguments in '--unknown' 'extra' '--help extra'; do
   fi
   [[ ! -e "$wrapper_argument_home" ]]
 done
+
+wrapper_dirty_home="$temporary_directory/wrapper-dirty-home"
+wrapper_dirty_output="$temporary_directory/wrapper-dirty-output"
+mkdir -p "$wrapper_dirty_home/Applications/Cowlick.app"
+print -n -- 'existing-app' > "$wrapper_dirty_home/Applications/Cowlick.app/marker"
+if env PATH="$wrapper_fake_bin:$PATH" HOME="$wrapper_dirty_home" \
+  COWLICK_HOME="$wrapper_dirty_home" TMPDIR="$temporary_directory" \
+  COWLICK_TEST_GIT_DIRTY=1 "$wrapper_scripts/install_local.sh" \
+  > "$wrapper_dirty_output" 2>&1; then
+  print -u2 "dirty source checkout unexpectedly allowed a local install"
+  exit 1
+fi
+grep -Fq 'Refusing to install Cowlick from a dirty checkout.' "$wrapper_dirty_output"
+grep -Fq 'existing-app' "$wrapper_dirty_home/Applications/Cowlick.app/marker"
+[[ ! -e "$wrapper_dirty_home/Library/Application Support/Cowlick/bin/cowlick-hook" ]]
 
 assert_invalid_wrapper_hooks_roll_back() {
   local name="$1"

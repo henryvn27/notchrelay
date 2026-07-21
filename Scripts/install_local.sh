@@ -22,6 +22,15 @@ if [[ -z "${COWLICK_LOCAL_LIFECYCLE_LOCK_HELD:-}" ]]; then
   exec /usr/bin/lockf -k "$HOME/.codex/.cowlick-local-lifecycle.lock" \
     "$script_dir/install_local.sh" "$@"
 fi
+cd "$project_root"
+worktree_status="$(git status --porcelain=v1 --untracked-files=all)" || {
+  print -u2 "Could not verify the Cowlick source checkout."
+  exit 1
+}
+[[ -z "$worktree_status" ]] || {
+  print -u2 "Refusing to install Cowlick from a dirty checkout. Commit or remove local changes first."
+  exit 1
+}
 derived_data="$project_root/DerivedData"
 destination="$HOME/Applications/Cowlick.app"
 legacy_destination="$HOME/Applications/NotchRelay.app"
@@ -161,7 +170,6 @@ rollback_install() {
 
 trap 'exit_code=$?; rollback_install $exit_code; cleanup_installer; exit $exit_code' EXIT
 
-cd "$project_root"
 command -v xcodegen >/dev/null 2>&1 || { print -u2 "Install XcodeGen first: brew install xcodegen"; exit 1; }
 cowlick_build_architecture="$(cowlick_host_architecture)"
 xcodegen generate
