@@ -14,6 +14,7 @@ The sensitive asset is authority to approve a Codex operation. Codex and the hel
 | Diagnostics disclose data | Bounded sanitized metadata; secret and home-component redaction; no full values logged |
 | Local rollout content spoofs activity | Treat it as same-user, display-only, untrusted input; allowlist record and event types, require owner regular files inside the resolved session root, bound lines and startup tail, expire stale state, and grant it no approval authority |
 | Activity observation exposes private transcript content | Extract only lifecycle metadata, keep raw buffers transient, and never display, log, or persist prompt, message, command, tool-input, or result fields |
+| Chat-title lookup crosses sessions or exposes prompt content | Match an exact UUID in current-user-owned regular SQLite files, require a local-host catalog row, sanitize and bound values, retain them only in memory, keep prompt-derived fallback behind prompt previews, and clear all copies when disabled |
 | Lifecycle recovery leaks private work | Owner-only directory and file modes, atomic replacement under a file lock, minimal fields only, 24-hour stale ceiling, no prompt or operation content |
 | Local quota access exposes account identity | Ask the installed Codex app-server only for `account/rateLimits/read`; never read `auth.json` or call account identity methods |
 | Billing credential leaks through metadata | Store only an opaque credential reference in owner-only metadata; store the credential as a device-only macOS Keychain item |
@@ -28,6 +29,8 @@ The sensitive asset is authority to approve a Codex operation. Codex and the hel
 Cowlick defends against accidental messages and other users. A process already running as the same user can generally read that user's files or drive granted UI; the app does not claim to withstand a fully compromised account.
 
 The local observer can affect only displayed lifecycle state. Exact approval requests and decisions require the authenticated synchronous hook path and a matching unexpired request UUID.
+
+Chat-title lookup is a separate display-only path. Titles never enter the hook protocol, socket protocol, approval request identity, lifecycle ledger, logs, or diagnostics. Project directory identity remains available as secondary context and the fallback label.
 
 Core features need no Accessibility permission. Caps Lock may require Input Monitoring or Accessibility and stays off until explicitly enabled and tested. See [SECURITY.md](../SECURITY.md).
 

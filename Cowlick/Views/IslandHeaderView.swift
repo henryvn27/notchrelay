@@ -66,11 +66,21 @@ struct IslandHeaderView: View {
 
   private var projectLabel: some View {
     HStack(spacing: 6) {
-      Text(session.projectName)
-        .font(.system(size: 13, weight: .medium))
-        .foregroundStyle(primaryTextColor)
-        .lineLimit(1)
-        .matchedGeometryEffect(id: "island-project", in: namespace)
+      VStack(alignment: .leading, spacing: 0) {
+        Text(session.displayName)
+          .font(.system(size: session.projectContext == nil ? 13 : 12.5, weight: .medium))
+          .foregroundStyle(primaryTextColor)
+          .lineLimit(1)
+          .truncationMode(.tail)
+          .matchedGeometryEffect(id: "island-session-name", in: namespace)
+        if let project = session.projectContext {
+          Text(project)
+            .font(.system(size: 9.5, weight: .regular))
+            .foregroundStyle(secondaryTextColor)
+            .lineLimit(1)
+            .truncationMode(.tail)
+        }
+      }
       if activeCount > 1 {
         Text("×\(activeCount)")
           .font(.system(size: 10.5, weight: .semibold).monospacedDigit())

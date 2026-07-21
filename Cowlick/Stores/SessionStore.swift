@@ -43,6 +43,7 @@ final class SessionStore {
   private var latestSubagentBoundarySequence: [String: UInt64] = [:]
   private var latestSubagentEventSequence: [SubagentOrderingKey: UInt64] = [:]
   private var locallyObservedTurns: [String: String] = [:]
+  private var chatTitleRefreshGeneration: UInt64 = 0
   var isExpanded = false
   var presentationDidChange: (() -> Void)?
 
@@ -50,17 +51,22 @@ final class SessionStore {
   let eventLogger: EventLogger
   let approvalCoordinator: ApprovalCoordinator
   let capsLockService: any CapsLockSignalService
+  private let resolveChatTitle: @Sendable (String, Bool) -> String?
 
   init(
     settings: SettingsStore = SettingsStore(),
     eventLogger: EventLogger = EventLogger(),
     approvalCoordinator: ApprovalCoordinator = ApprovalCoordinator(),
-    capsLockService: any CapsLockSignalService = NativeCapsLockSignalService()
+    capsLockService: any CapsLockSignalService = NativeCapsLockSignalService(),
+    resolveChatTitle: @escaping @Sendable (String, Bool) -> String? = {
+      CodexThreadTitleReader().title(for: $0, allowPromptDerivedFallback: $1)
+    }
   ) {
     self.settings = settings
     self.eventLogger = eventLogger
     self.approvalCoordinator = approvalCoordinator
     self.capsLockService = capsLockService
+    self.resolveChatTitle = resolveChatTitle
   }
 
   var currentApproval: ApprovalRequest? { approvalQueue.first }
@@ -122,9 +128,20 @@ final class SessionStore {
 
   func receive(_ event: BridgeEvent) async -> ApprovalDecision? {
     let deliverySequence = registerDeliverySequence(for: event)
-    let projectName = await Task.detached(priority: .utility) {
-      ProjectNameResolver.resolve(workingDirectory: event.cwd)
+    let titleResolver = resolveChatTitle
+    let showChatNames = settings.showChatNames
+    let allowPromptDerivedTitle = settings.showPromptPreviews
+    let metadata = await Task.detached(priority: .utility) {
+      (
+        projectName: ProjectNameResolver.resolve(workingDirectory: event.cwd),
+        chatTitle: showChatNames ? titleResolver(event.sessionId, allowPromptDerivedTitle) : nil
+      )
     }.value
+    let projectName = metadata.projectName
+    let chatTitle =
+      settings.showChatNames && settings.showPromptPreviews == allowPromptDerivedTitle
+      ? metadata.chatTitle : nil
+    if !settings.showChatNames { clearChatTitles() }
     if ignoredIntegrationDemoSessionIDs.contains(event.sessionId) { return nil }
     let isIntegrationDemo = integrationDemoSessionIDs.contains(event.sessionId)
     if isIntegrationDemo, !localDemoSessionIDs.contains(event.sessionId) { return nil }
@@ -142,6 +159,7 @@ final class SessionStore {
       upsertSession(
         id: event.sessionId,
         turnID: event.turnId,
+        chatTitle: chatTitle,
         projectName: projectName,
         cwd: event.cwd,
         model: event.model,
@@ -154,7 +172,8 @@ final class SessionStore {
       if event.agentId != nil {
         guard
           upsertSubagent(
-            event, projectName: projectName, deliverySequence: deliverySequence)
+            event, chatTitle: chatTitle, projectName: projectName,
+            deliverySequence: deliverySequence)
         else {
           recordIgnored(event, projectName: projectName)
           return nil
@@ -167,6 +186,7 @@ final class SessionStore {
         upsertSession(
           id: event.sessionId,
           turnID: event.turnId,
+          chatTitle: chatTitle,
           projectName: projectName,
           cwd: event.cwd,
           model: event.model,
@@ -182,10 +202,12 @@ final class SessionStore {
         recordIgnored(event, projectName: projectName)
         return .deferDecision
       }
-      return await handleApproval(event, projectName: projectName)
+      return await handleApproval(event, chatTitle: chatTitle, projectName: projectName)
     case .subagentStarted:
       guard
-        upsertSubagent(event, projectName: projectName, deliverySequence: deliverySequence)
+        upsertSubagent(
+          event, chatTitle: chatTitle, projectName: projectName,
+          deliverySequence: deliverySequence)
       else {
         recordIgnored(event, projectName: projectName)
         return nil
@@ -203,6 +225,7 @@ final class SessionStore {
       let shouldSignal = !matchesTerminalState(event, completed: true)
       complete(
         event,
+        chatTitle: chatTitle,
         projectName: projectName,
         deliverySequence: deliverySequence,
         shouldSignal: shouldSignal
@@ -216,6 +239,7 @@ final class SessionStore {
       let shouldSignal = !matchesTerminalState(event, completed: false)
       fail(
         event,
+        chatTitle: chatTitle,
         projectName: projectName,
         deliverySequence: deliverySequence,
         shouldSignal: shouldSignal
@@ -299,6 +323,61 @@ final class SessionStore {
     notifyPresentationChanged()
   }
 
+  func updateChatNameVisibility(_ isVisible: Bool) async {
+    guard isVisible == settings.showChatNames else { return }
+    await refreshChatNames()
+  }
+
+  func refreshChatNames() async {
+    chatTitleRefreshGeneration &+= 1
+    let generation = chatTitleRefreshGeneration
+    let showChatNames = settings.showChatNames
+    guard showChatNames else {
+      clearChatTitles()
+      notifyPresentationChanged()
+      return
+    }
+
+    let sessionIDs = Array(sessions.keys)
+    let titleResolver = resolveChatTitle
+    let allowPromptDerivedTitle = settings.showPromptPreviews
+    let titles = await Task.detached(priority: .utility) {
+      Dictionary(
+        uniqueKeysWithValues: sessionIDs.compactMap { id in
+          titleResolver(id, allowPromptDerivedTitle).map { (id, $0) }
+        })
+    }.value
+    guard generation == chatTitleRefreshGeneration,
+      settings.showChatNames == showChatNames,
+      settings.showPromptPreviews == allowPromptDerivedTitle
+    else { return }
+    for id in sessionIDs where sessions[id] != nil {
+      sessions[id]?.chatTitle = titles[id]
+    }
+    for index in approvalQueue.indices {
+      let request = approvalQueue[index]
+      approvalQueue[index] = request.with(chatTitle: titles[request.sessionID])
+    }
+    for (id, session) in sessions {
+      guard case .awaitingApproval(let request) = session.status,
+        let current = approvalQueue.first(where: { $0.id == request.id })
+      else { continue }
+      sessions[id]?.status = .awaitingApproval(current)
+    }
+    notifyPresentationChanged()
+  }
+
+  private func clearChatTitles() {
+    for id in sessions.keys {
+      sessions[id]?.chatTitle = nil
+      guard case .awaitingApproval(let request) = sessions[id]?.status else { continue }
+      sessions[id]?.status = .awaitingApproval(request.with(chatTitle: nil))
+    }
+    for index in approvalQueue.indices {
+      approvalQueue[index] = approvalQueue[index].with(chatTitle: nil)
+    }
+  }
+
   func expireLocalObservation(sessionID: String, turnID: String?) {
     let key = turnID ?? ""
     guard locallyObservedTurns[sessionID] == key,
@@ -322,7 +401,8 @@ final class SessionStore {
     case .working:
       localDemoSessionIDs.insert(id)
       upsertSession(
-        id: id, turnID: "demo-turn", projectName: "Scoutly", cwd: "/Demo/Scoutly", model: "gpt-5.6",
+        id: id, turnID: "demo-turn", chatTitle: demoChatTitle("Polish release onboarding"),
+        projectName: "Scoutly", cwd: "/Demo/Scoutly", model: "gpt-5.6",
         status: .working(prompt: "Refine the match scouting flow"), timestamp: now)
       isExpanded = false
     case .approvalRequested:
@@ -330,6 +410,7 @@ final class SessionStore {
         id: UUID(),
         sessionID: id,
         turnID: "demo-turn",
+        chatTitle: demoChatTitle("Ship the verified release"),
         projectName: "ActivityPilot",
         workingDirectory: "/Demo/ActivityPilot",
         toolName: "Bash",
@@ -343,14 +424,16 @@ final class SessionStore {
       localDemoSessionIDs.insert(id)
       approvalQueue.append(request)
       upsertSession(
-        id: id, turnID: "demo-turn", projectName: request.projectName,
+        id: id, turnID: "demo-turn", chatTitle: request.chatTitle,
+        projectName: request.projectName,
         cwd: request.workingDirectory, model: nil, status: .awaitingApproval(request),
         timestamp: now)
       isExpanded = true
     case .completed:
       localDemoSessionIDs.insert(id)
       upsertSession(
-        id: id, turnID: "demo-turn", projectName: "Meetly", cwd: "/Demo/Meetly", model: nil,
+        id: id, turnID: "demo-turn", chatTitle: demoChatTitle("Verify installation flow"),
+        projectName: "Meetly", cwd: "/Demo/Meetly", model: nil,
         status: .completed(message: "All checks passed"), timestamp: now)
       var session = sessions[id]!
       session.completionVisibleUntil = now.addingTimeInterval(
@@ -360,7 +443,8 @@ final class SessionStore {
     case .failed:
       localDemoSessionIDs.insert(id)
       upsertSession(
-        id: id, turnID: "demo-turn", projectName: "Scoutly", cwd: "/Demo/Scoutly", model: nil,
+        id: id, turnID: "demo-turn", chatTitle: demoChatTitle("Repair bridge health"),
+        projectName: "Scoutly", cwd: "/Demo/Scoutly", model: nil,
         status: .failed(message: "Bridge self-test failed"), timestamp: now)
       isExpanded = false
     case .sessionStart, .subagentStarted, .subagentStopped, .ping:
@@ -371,19 +455,25 @@ final class SessionStore {
 
   func restoreLifecycleSessions(_ recovered: [PersistedLifecycleSession]) async {
     guard !recovered.isEmpty else { return }
+    let titleResolver = resolveChatTitle
+    let showChatNames = settings.showChatNames
+    let allowPromptDerivedTitle = settings.showPromptPreviews
     let resolved = await Task.detached(priority: .utility) {
       recovered.map { entry in
         (
           entry,
-          ProjectNameResolver.resolve(workingDirectory: entry.workingDirectory)
+          ProjectNameResolver.resolve(workingDirectory: entry.workingDirectory),
+          showChatNames ? titleResolver(entry.sessionID, allowPromptDerivedTitle) : nil
         )
       }
     }.value
     clearLocalDemoState()
-    for (entry, projectName) in resolved where sessions[entry.sessionID] == nil {
+    for (entry, projectName, resolvedChatTitle) in resolved where sessions[entry.sessionID] == nil {
       upsertSession(
         id: entry.sessionID,
         turnID: entry.turnID,
+        chatTitle: settings.showChatNames && settings.showPromptPreviews == allowPromptDerivedTitle
+          ? resolvedChatTitle : nil,
         projectName: projectName,
         cwd: entry.workingDirectory,
         model: entry.model,
@@ -401,16 +491,24 @@ final class SessionStore {
     let now = Date()
     localDemoSessionIDs.formUnion(["demo-primary", "demo-secondary"])
     upsertSession(
-      id: "demo-primary", turnID: "demo-turn-1", projectName: "Scoutly",
+      id: "demo-primary", turnID: "demo-turn-1",
+      chatTitle: demoChatTitle("Prepare the release candidate"),
+      projectName: "Scoutly",
       cwd: "/Demo/Scoutly", model: "gpt-5.6",
       status: .working(prompt: "Verify the release build"), timestamp: now)
     upsertSession(
-      id: "demo-secondary", turnID: "demo-turn-2", projectName: "ActivityPilot",
+      id: "demo-secondary", turnID: "demo-turn-2",
+      chatTitle: demoChatTitle("Review diagnostics privacy"),
+      projectName: "ActivityPilot",
       cwd: "/Demo/ActivityPilot", model: "gpt-5.6",
       status: .working(prompt: "Review the diagnostics flow"),
       timestamp: now.addingTimeInterval(0.01))
     isExpanded = true
     notifyPresentationChanged()
+  }
+
+  private func demoChatTitle(_ value: String) -> String? {
+    settings.showChatNames ? value : nil
   }
 
   @discardableResult
@@ -491,7 +589,11 @@ final class SessionStore {
     }
   }
 
-  private func handleApproval(_ event: BridgeEvent, projectName: String) async -> ApprovalDecision {
+  private func handleApproval(
+    _ event: BridgeEvent,
+    chatTitle: String?,
+    projectName: String
+  ) async -> ApprovalDecision {
     let replayCutoff = Date().addingTimeInterval(-15 * 60)
     let retainedRequestIDs = seenApprovalRequestIDs.filter { $0.value >= replayCutoff }
     seenApprovalRequestIDs = retainedRequestIDs
@@ -512,6 +614,7 @@ final class SessionStore {
       id: event.requestId,
       sessionID: event.sessionId,
       turnID: event.turnId,
+      chatTitle: chatTitle,
       projectName: projectName,
       workingDirectory: event.cwd,
       toolName: event.toolName ?? "Codex tool",
@@ -532,6 +635,7 @@ final class SessionStore {
     upsertSession(
       id: event.sessionId,
       turnID: event.turnId,
+      chatTitle: chatTitle,
       projectName: projectName,
       cwd: event.cwd,
       model: event.model,
@@ -574,6 +678,7 @@ final class SessionStore {
 
   private func complete(
     _ event: BridgeEvent,
+    chatTitle: String?,
     projectName: String,
     deliverySequence: UInt64,
     shouldSignal: Bool = true
@@ -583,6 +688,7 @@ final class SessionStore {
     upsertSession(
       id: event.sessionId,
       turnID: event.turnId,
+      chatTitle: chatTitle,
       projectName: projectName,
       cwd: event.cwd,
       model: event.model,
@@ -619,6 +725,7 @@ final class SessionStore {
 
   private func fail(
     _ event: BridgeEvent,
+    chatTitle: String?,
     projectName: String,
     deliverySequence: UInt64,
     shouldSignal: Bool = true
@@ -627,6 +734,7 @@ final class SessionStore {
     upsertSession(
       id: event.sessionId,
       turnID: event.turnId,
+      chatTitle: chatTitle,
       projectName: projectName,
       cwd: event.cwd,
       model: event.model,
@@ -646,6 +754,7 @@ final class SessionStore {
   private func upsertSession(
     id: String,
     turnID: String?,
+    chatTitle: String? = nil,
     projectName: String,
     cwd: String,
     model: String?,
@@ -658,6 +767,7 @@ final class SessionStore {
     sessions[id] = AgentSession(
       id: id,
       turnID: turnID ?? existing?.turnID,
+      chatTitle: chatTitle,
       projectName: projectName,
       workingDirectory: cwd,
       model: model ?? existing?.model,
@@ -672,6 +782,7 @@ final class SessionStore {
   @discardableResult
   private func upsertSubagent(
     _ event: BridgeEvent,
+    chatTitle: String?,
     projectName: String,
     deliverySequence: UInt64
   ) -> Bool {
@@ -695,6 +806,7 @@ final class SessionStore {
       upsertSession(
         id: event.sessionId,
         turnID: turnID,
+        chatTitle: chatTitle,
         projectName: projectName,
         cwd: event.cwd,
         model: event.model,

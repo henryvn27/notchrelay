@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func configureUITestingIfNeeded(_ services: AppServices) {
     guard CommandLine.arguments.contains("--ui-testing") else { return }
+    services.settings.showChatNames = !CommandLine.arguments.contains("--hide-chat-names")
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
     if ProcessInfo.processInfo.environment["COWLICK_ASSET_CAPTURE"] == "1" {
       services.settings.reducedAnimation = true

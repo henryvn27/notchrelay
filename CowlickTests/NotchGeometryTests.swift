@@ -12,6 +12,7 @@ final class NotchGeometryTests: XCTestCase {
       id: UUID(),
       sessionID: "layout-test",
       turnID: "turn",
+      chatTitle: "Ship the verified ActivityPilot release candidate after reviewing every check",
       projectName: "ActivityPilot",
       workingDirectory: "/tmp/ActivityPilot",
       toolName: "Bash",
@@ -73,6 +74,7 @@ final class NotchGeometryTests: XCTestCase {
       id: UUID(),
       sessionID: "layout-test",
       turnID: "turn",
+      chatTitle: nil,
       projectName: "ActivityPilot",
       workingDirectory: "/tmp/ActivityPilot",
       toolName: "Bash",
@@ -100,6 +102,7 @@ final class NotchGeometryTests: XCTestCase {
       id: UUID(),
       sessionID: "session",
       turnID: "turn",
+      chatTitle: nil,
       projectName: "Scoutly",
       workingDirectory: "/private/work/Scoutly",
       toolName: "Bash",
@@ -116,6 +119,27 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertFalse(announcement.contains("secret-command"))
   }
 
+  func testApprovalAccessibilityAnnouncementDisambiguatesChatWithProject() {
+    let request = ApprovalRequest(
+      id: UUID(),
+      sessionID: "session",
+      turnID: "turn",
+      chatTitle: "Ship the release",
+      projectName: "Scoutly",
+      workingDirectory: "/private/work/Scoutly",
+      toolName: "Bash",
+      operationDescription: "Publish the private release",
+      operationSummary: "secret-command --token private",
+      fullOperation: "secret-command --token private",
+      requestedAt: .now,
+      expiresAt: .now.addingTimeInterval(60)
+    )
+
+    XCTAssertEqual(
+      ApprovalAccessibilityPresentation.announcement(for: request),
+      "Approval requested for Ship the release, Scoutly, Bash")
+  }
+
   @MainActor
   func testCollapsedAccessibilityHintMatchesItsAction() {
     XCTAssertEqual(
@@ -129,6 +153,7 @@ final class NotchGeometryTests: XCTestCase {
     let session = AgentSession(
       id: "session",
       turnID: "turn",
+      chatTitle: nil,
       projectName: "Scoutly",
       workingDirectory: "/tmp/Scoutly",
       model: nil,
@@ -194,7 +219,7 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(expanded.panelFrame.maxY, compact.panelFrame.maxY)
     XCTAssertGreaterThanOrEqual(expanded.panelFrame.width, compact.panelFrame.width)
     XCTAssertLessThan(expanded.panelFrame.minY, compact.panelFrame.minY)
-    XCTAssertEqual(expanded.panelFrame.height, 178)
+    XCTAssertEqual(expanded.panelFrame.height, 208)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {

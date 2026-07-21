@@ -53,7 +53,9 @@ struct CollapsedIslandView: View {
     activeCount: Int,
     activeSubagentCount: Int
   ) -> String {
-    var parts = [session.projectName, session.statusLabel]
+    var parts = [session.displayName]
+    if let project = session.projectContext { parts.append(project) }
+    parts.append(session.statusLabel)
     if activeCount > 1 { parts.append("\(activeCount) active sessions") }
     if activeSubagentCount > 0 {
       parts.append(

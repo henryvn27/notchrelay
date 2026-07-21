@@ -8,13 +8,15 @@ final class CowlickUITests: XCTestCase {
 
   func testWorkingStateIsAccessible() {
     let app = launch(state: "working")
-    let visible = app.buttons["Scoutly, Working"].waitForExistence(timeout: 3)
+    let visible = app.buttons["Polish release onboarding, Scoutly, Working"]
+      .waitForExistence(timeout: 3)
     XCTAssertTrue(visible)
   }
 
   func testSimulatedNotchWorkingStateIsAccessible() {
     let app = launch(arguments: ["--simulate-notch", "--state=working"])
-    XCTAssertTrue(app.buttons["Scoutly, Working"].waitForExistence(timeout: 3))
+    XCTAssertTrue(
+      app.buttons["Polish release onboarding, Scoutly, Working"].waitForExistence(timeout: 3))
   }
 
   func testSimulatedNotchExpandsNaturallyOnHover() {
@@ -25,7 +27,7 @@ final class CowlickUITests: XCTestCase {
       return
     }
 
-    let island = app.buttons["Scoutly, Working"]
+    let island = app.buttons["Polish release onboarding, Scoutly, Working"]
     XCTAssertTrue(island.waitForExistence(timeout: 3))
 
     island.hover()
@@ -70,7 +72,8 @@ final class CowlickUITests: XCTestCase {
 
   func testCompletedStateIsAccessible() {
     let app = launch(state: "completed")
-    let visible = app.buttons["Meetly, Completed"].waitForExistence(timeout: 3)
+    let visible = app.buttons["Verify installation flow, Meetly, Completed"]
+      .waitForExistence(timeout: 3)
     XCTAssertTrue(visible)
   }
 
@@ -79,14 +82,18 @@ final class CowlickUITests: XCTestCase {
       arguments: ["--state=completed", "--expanded", "--show-result-previews"])
     let completed = sessionRow(in: app, id: "demo-visual-state")
     XCTAssertTrue(completed.waitForExistence(timeout: 3))
-    XCTAssertEqual(completed.label, "Meetly, Completed, All checks passed")
+    XCTAssertEqual(
+      completed.label,
+      "Verify installation flow, Meetly, Completed, All checks passed")
   }
 
   func testFailedStateIsAccessible() {
     let app = launch(arguments: ["--state=failed", "--expanded"])
     let failedSession = sessionRow(in: app, id: "demo-visual-state")
     XCTAssertTrue(failedSession.waitForExistence(timeout: 3))
-    XCTAssertEqual(failedSession.label, "Scoutly, Failed, Bridge self-test failed")
+    XCTAssertEqual(
+      failedSession.label,
+      "Repair bridge health, Scoutly, Failed, Bridge self-test failed")
     XCTAssertTrue(app.buttons["Open Diagnostics"].exists)
   }
 
@@ -95,9 +102,17 @@ final class CowlickUITests: XCTestCase {
     let activityPilot = sessionRow(in: app, id: "demo-secondary")
     let scoutly = sessionRow(in: app, id: "demo-primary")
     XCTAssertTrue(activityPilot.waitForExistence(timeout: 3))
-    XCTAssertEqual(activityPilot.label, "ActivityPilot, Working")
+    XCTAssertEqual(activityPilot.label, "Review diagnostics privacy, ActivityPilot, Working")
     XCTAssertTrue(scoutly.exists)
-    XCTAssertEqual(scoutly.label, "Scoutly, Working")
+    XCTAssertEqual(scoutly.label, "Prepare the release candidate, Scoutly, Working")
+
+  }
+
+  func testChatNamesCanBeHiddenWithoutChangingSessionState() {
+    let app = launch(arguments: ["--state=working", "--hide-chat-names"])
+
+    XCTAssertTrue(app.buttons["Scoutly, Working"].waitForExistence(timeout: 3))
+    XCTAssertFalse(app.staticTexts["Polish release onboarding"].exists)
   }
 
   func testOnboardingOpens() {

@@ -3,6 +3,7 @@ import Foundation
 struct AgentSession: Identifiable, Equatable, Sendable {
   let id: String
   var turnID: String?
+  var chatTitle: String?
   var projectName: String
   var workingDirectory: String
   var model: String?
@@ -18,6 +19,14 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     case .working, .awaitingApproval: true
     case .idle, .failed, .completed: false
     }
+  }
+
+  var displayName: String {
+    chatTitle ?? projectName
+  }
+
+  var projectContext: String? {
+    chatTitle == nil ? nil : projectName
   }
 
   var presentationStatus: AgentStatus {

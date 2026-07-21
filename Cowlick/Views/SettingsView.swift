@@ -35,7 +35,29 @@ struct SettingsView: View {
             .foregroundStyle(.secondary)
         }
         Section("Appearance") {
-          Toggle("Show prompt previews", isOn: $settings.showPromptPreviews)
+          Toggle(
+            "Show Codex chat names",
+            isOn: Binding(
+              get: { settings.showChatNames },
+              set: { value in
+                settings.showChatNames = value
+                Task { await services.sessionStore.refreshChatNames() }
+              }
+            ))
+          Text(
+            "Uses the same short task names shown by Codex. Turn this off to show project names only."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          Toggle(
+            "Show prompt previews",
+            isOn: Binding(
+              get: { settings.showPromptPreviews },
+              set: { value in
+                settings.showPromptPreviews = value
+                Task { await services.sessionStore.refreshChatNames() }
+              }
+            ))
           Toggle("Show result previews", isOn: $settings.showResultPreviews)
           Picker("Show completion for", selection: $settings.completionVisibility) {
             ForEach(CompletionVisibility.allCases) { Text($0.label).tag($0) }

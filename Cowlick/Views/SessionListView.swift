@@ -20,9 +20,11 @@ struct SessionListView: View {
           statusIcon(for: session)
             .frame(width: 16)
           VStack(alignment: .leading, spacing: 2) {
-            Text(session.projectName)
+            Text(session.displayName)
               .font(.system(size: 12.5, weight: .medium))
               .foregroundStyle(primaryTextColor)
+              .lineLimit(1)
+              .truncationMode(.tail)
             Text(
               Self.secondaryText(
                 for: session,
@@ -100,18 +102,25 @@ struct SessionListView: View {
     showPromptPreviews: Bool,
     showResultPreviews: Bool
   ) -> String {
+    let detail: String
     if showPromptPreviews, case .working(let prompt) = session.presentationStatus, let prompt,
       !prompt.isEmpty
     {
-      return String(prompt.replacingOccurrences(of: "\n", with: " ").prefix(80))
+      detail = String(prompt.replacingOccurrences(of: "\n", with: " ").prefix(80))
+    } else {
+      detail =
+        switch session.presentationStatus {
+        case .failed(let message): message.map { String($0.prefix(80)) } ?? "Failed"
+        case .completed(let message):
+          if showResultPreviews {
+            message.map { String($0.prefix(80)) } ?? "Completed"
+          } else {
+            "Completed"
+          }
+        default: session.statusLabel
+        }
     }
-    switch session.presentationStatus {
-    case .failed(let message): return message.map { String($0.prefix(80)) } ?? "Failed"
-    case .completed(let message):
-      guard showResultPreviews else { return "Completed" }
-      return message.map { String($0.prefix(80)) } ?? "Completed"
-    default: return session.statusLabel
-    }
+    return [session.projectContext, detail].compactMap { $0 }.joined(separator: " · ")
   }
 
   static func accessibilityLabel(
@@ -124,10 +133,20 @@ struct SessionListView: View {
       for: session,
       showPromptPreviews: showPromptPreviews,
       showResultPreviews: showResultPreviews)
-    let parts =
-      secondary == status
-      ? [session.projectName, status]
-      : [session.projectName, status, secondary]
+    let semanticDetail: String
+    if let project = session.projectContext,
+      secondary.hasPrefix(project + " · ")
+    {
+      semanticDetail = String(secondary.dropFirst(project.count + 3))
+    } else {
+      semanticDetail = secondary
+    }
+    var parts = [session.displayName]
+    if let project = session.projectContext { parts.append(project) }
+    parts.append(status)
+    if semanticDetail != status, semanticDetail != session.projectContext {
+      parts.append(semanticDetail)
+    }
     return parts.joined(separator: ", ")
   }
 }

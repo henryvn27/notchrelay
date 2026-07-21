@@ -448,8 +448,16 @@ struct MenuBarContentView: View {
             )
             .foregroundStyle(stateColor(session.presentationStatus))
             .frame(width: 14)
-            Text(session.projectName)
-              .lineLimit(1)
+            VStack(alignment: .leading, spacing: 1) {
+              Text(session.displayName)
+                .lineLimit(1)
+              if let project = session.projectContext {
+                Text(project)
+                  .font(.caption2)
+                  .foregroundStyle(.secondary)
+                  .lineLimit(1)
+              }
+            }
             Spacer()
             Text(session.statusLabel)
               .foregroundStyle(.secondary)

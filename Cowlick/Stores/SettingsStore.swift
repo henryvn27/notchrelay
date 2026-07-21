@@ -47,6 +47,7 @@ enum PreferredDisplay: String, CaseIterable, Identifiable, Sendable {
 @Observable
 final class SettingsStore {
   enum Key {
+    static let showChatNames = "showChatNames"
     static let showPromptPreviews = "showPromptPreviews"
     static let showResultPreviews = "showResultPreviews"
     static let completionVisibility = "completionVisibility"
@@ -70,7 +71,7 @@ final class SettingsStore {
   }
 
   static let allKeys = [
-    Key.showPromptPreviews, Key.showResultPreviews, Key.completionVisibility,
+    Key.showChatNames, Key.showPromptPreviews, Key.showResultPreviews, Key.completionVisibility,
     Key.approvalTimeout, Key.autoExpandApprovals, Key.capsLockEnabled,
     Key.showOnNonNotch, Key.preferredDisplay, Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
@@ -81,6 +82,9 @@ final class SettingsStore {
 
   private let defaults: UserDefaults
 
+  var showChatNames: Bool {
+    didSet { defaults.set(showChatNames, forKey: Key.showChatNames) }
+  }
   var showPromptPreviews: Bool {
     didSet { defaults.set(showPromptPreviews, forKey: Key.showPromptPreviews) }
   }
@@ -151,6 +155,7 @@ final class SettingsStore {
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
     defaults.register(defaults: [
+      Key.showChatNames: true,
       Key.showPromptPreviews: false,
       Key.showResultPreviews: false,
       Key.completionVisibility: CompletionVisibility.fourSeconds.rawValue,
@@ -172,6 +177,7 @@ final class SettingsStore {
       Key.integrationIntentionallyRemoved: false,
     ])
 
+    showChatNames = defaults.bool(forKey: Key.showChatNames)
     showPromptPreviews = defaults.bool(forKey: Key.showPromptPreviews)
     showResultPreviews = defaults.bool(forKey: Key.showResultPreviews)
     completionVisibility =
@@ -208,6 +214,7 @@ final class SettingsStore {
       defaults.removeObject(forKey: key)
     }
     let replacement = SettingsStore(defaults: defaults)
+    showChatNames = replacement.showChatNames
     showPromptPreviews = replacement.showPromptPreviews
     showResultPreviews = replacement.showResultPreviews
     completionVisibility = replacement.completionVisibility

@@ -174,6 +174,7 @@ final class MenuBarPresentationTests: XCTestCase {
       id: UUID(),
       sessionID: "session-1",
       turnID: "turn-1",
+      chatTitle: nil,
       projectName: "Scoutly",
       workingDirectory: "/tmp/Scoutly",
       toolName: "Shell",

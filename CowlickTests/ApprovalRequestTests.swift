@@ -46,6 +46,7 @@ final class ApprovalRequestTests: XCTestCase {
       id: UUID(),
       sessionID: "session",
       turnID: "turn",
+      chatTitle: nil,
       projectName: "Scoutly",
       workingDirectory: "/tmp/Scoutly",
       toolName: "Shell",

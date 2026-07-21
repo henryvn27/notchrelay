@@ -21,8 +21,15 @@ struct ApprovalView: View {
           Image(systemName: "exclamationmark")
             .font(.system(size: 12, weight: .bold))
             .foregroundStyle(NotchTheme.warning)
-          Text(request.projectName)
-            .font(.system(size: 13, weight: .semibold))
+          VStack(alignment: .leading, spacing: 1) {
+            Text(request.displayName)
+              .font(.system(size: 13, weight: .semibold))
+            if let project = request.projectContext {
+              Text(project)
+                .font(.system(size: 10.5))
+                .foregroundStyle(secondaryTextColor)
+            }
+          }
           Spacer()
           Text(request.toolName)
             .font(.system(size: 10.5, weight: .medium))

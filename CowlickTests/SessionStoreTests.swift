@@ -774,9 +774,93 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertFalse(store.settings.showPromptPreviews)
   }
 
+  func testChatNameIsMatchedToTheExactSessionAndProjectRemainsContext() async {
+    let firstID = UUID().uuidString
+    let secondID = UUID().uuidString
+    let titles = [firstID: "Polish the notch", secondID: "Verify release signing"]
+    let store = SessionStore(
+      settings: makeTestSettings(),
+      resolveChatTitle: { id, _ in titles[id] }
+    )
+
+    _ = await store.receive(
+      makeBridgeEvent(event: .working, sessionID: firstID, cwd: "/tmp/Scoutly"))
+    _ = await store.receive(
+      makeBridgeEvent(event: .working, sessionID: secondID, cwd: "/tmp/Meetly"))
+
+    XCTAssertEqual(store.sessions[firstID]?.displayName, "Polish the notch")
+    XCTAssertEqual(store.sessions[firstID]?.projectContext, "Scoutly")
+    XCTAssertEqual(store.sessions[secondID]?.displayName, "Verify release signing")
+    XCTAssertEqual(store.sessions[secondID]?.projectContext, "Meetly")
+  }
+
+  func testDisablingChatNamesClearsSessionsAndPendingApprovals() async {
+    let sessionID = UUID().uuidString
+    let settings = makeTestSettings()
+    settings.approvalTimeout = 10
+    let store = SessionStore(
+      settings: settings,
+      resolveChatTitle: { _, _ in "Private task name" })
+    let event = makeBridgeEvent(
+      event: .approvalRequested,
+      sessionID: sessionID,
+      toolName: "Bash",
+      toolInput: .object(["command": .string("swift test")])
+    )
+    let decision = Task { await store.receive(event) }
+    let didQueueApproval = await waitUntil { store.currentApproval != nil }
+    XCTAssertTrue(didQueueApproval)
+
+    settings.showChatNames = false
+    await store.updateChatNameVisibility(false)
+
+    XCTAssertNil(store.sessions[sessionID]?.chatTitle)
+    XCTAssertNil(store.currentApproval?.chatTitle)
+    guard case .awaitingApproval(let embeddedRequest) = store.sessions[sessionID]?.status else {
+      return XCTFail("Expected the session to retain its pending approval state")
+    }
+    XCTAssertNil(embeddedRequest.chatTitle)
+    XCTAssertTrue(store.decide(requestID: event.requestId, decision: .deny))
+    _ = await decision.value
+  }
+
+  func testDisablingPromptPreviewsRevokesPromptDerivedChatTitle() async {
+    let sessionID = UUID().uuidString
+    let settings = makeTestSettings()
+    settings.showPromptPreviews = true
+    let store = SessionStore(
+      settings: settings,
+      resolveChatTitle: { _, allowPromptDerivedFallback in
+        allowPromptDerivedFallback ? "Private prompt-derived title" : nil
+      })
+    _ = await store.receive(
+      makeBridgeEvent(event: .working, sessionID: sessionID, cwd: "/tmp/Scoutly"))
+    XCTAssertEqual(store.sessions[sessionID]?.chatTitle, "Private prompt-derived title")
+
+    settings.showPromptPreviews = false
+    await store.refreshChatNames()
+
+    XCTAssertNil(store.sessions[sessionID]?.chatTitle)
+    XCTAssertEqual(store.sessions[sessionID]?.displayName, "Scoutly")
+  }
+
+  func testStaleChatNameDisableCannotOverrideCurrentEnabledPreference() async {
+    let sessionID = UUID().uuidString
+    let settings = makeTestSettings()
+    let store = SessionStore(
+      settings: settings,
+      resolveChatTitle: { _, _ in "Current chat title" })
+    _ = await store.receive(
+      makeBridgeEvent(event: .working, sessionID: sessionID, cwd: "/tmp/Scoutly"))
+
+    await store.updateChatNameVisibility(false)
+
+    XCTAssertEqual(store.sessions[sessionID]?.chatTitle, "Current chat title")
+  }
+
   private func sampleApproval() -> ApprovalRequest {
     ApprovalRequest(
-      id: UUID(), sessionID: "s", turnID: "t", projectName: "Scoutly",
+      id: UUID(), sessionID: "s", turnID: "t", chatTitle: nil, projectName: "Scoutly",
       workingDirectory: "/tmp/Scoutly", toolName: "Bash",
       operationDescription: "Run the project test suite", operationSummary: "swift test",
       fullOperation: "swift test",

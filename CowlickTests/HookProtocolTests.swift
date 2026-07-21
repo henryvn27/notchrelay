@@ -50,6 +50,16 @@ final class HookProtocolTests: XCTestCase {
     XCTAssertNil(root["deliverySequence"])
   }
 
+  func testChatTitleMetadataNeverEntersBridgeProtocol() throws {
+    let event = makeBridgeEvent(event: .working)
+    let encoded = try JSONEncoder.bridge.encode(event)
+    let root = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+
+    XCTAssertNil(root["chatTitle"])
+    XCTAssertNil(root["displayTitle"])
+    XCTAssertNil(root["threadTitle"])
+  }
+
   func testDecodesCurrentSubagentLifecycleSchemas() throws {
     let startData = Data(
       #"{"agent_id":"agent-1","agent_type":"code-reviewer","cwd":"/tmp/Cowlick","hook_event_name":"SubagentStart","model":"gpt-5.6","permission_mode":"default","session_id":"parent-1","transcript_path":null,"turn_id":"turn-1"}"#

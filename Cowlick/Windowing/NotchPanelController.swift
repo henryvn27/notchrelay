@@ -32,7 +32,10 @@ enum NotchPanelInteractionPolicy {
 
 enum ApprovalAccessibilityPresentation {
   static func announcement(for request: ApprovalRequest) -> String {
-    "Approval requested for \(request.projectName), \(request.toolName)"
+    let context = [request.displayName, request.projectContext, request.toolName]
+      .compactMap { $0 }
+      .joined(separator: ", ")
+    return "Approval requested for \(context)"
   }
 }
 

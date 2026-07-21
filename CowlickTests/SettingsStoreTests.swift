@@ -10,6 +10,7 @@ final class SettingsStoreTests: XCTestCase {
     defaults.removePersistentDomain(forName: suite)
 
     let first = SettingsStore(defaults: defaults)
+    XCTAssertTrue(first.showChatNames)
     XCTAssertFalse(first.showPromptPreviews)
     XCTAssertFalse(first.showResultPreviews)
     XCTAssertFalse(first.capsLockEnabled)
@@ -22,6 +23,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(first.menuBarPresentation, .iconAndDetails)
     XCTAssertFalse(first.integrationIntentionallyRemoved)
     first.showPromptPreviews = true
+    first.showChatNames = false
     first.approvalTimeout = 35
     first.usageMetricPreference = .used
     first.showAPICostEstimate = true
@@ -30,6 +32,7 @@ final class SettingsStoreTests: XCTestCase {
     first.integrationIntentionallyRemoved = true
 
     let second = SettingsStore(defaults: defaults)
+    XCTAssertFalse(second.showChatNames)
     XCTAssertTrue(second.showPromptPreviews)
     XCTAssertEqual(second.approvalTimeout, 35)
     XCTAssertEqual(second.usageMetricPreference, .used)
@@ -41,6 +44,7 @@ final class SettingsStoreTests: XCTestCase {
 
   func testResetRestoresSafeDefaults() {
     let settings = makeTestSettings()
+    settings.showChatNames = false
     settings.showPromptPreviews = true
     settings.showResultPreviews = true
     settings.capsLockEnabled = true
@@ -53,6 +57,7 @@ final class SettingsStoreTests: XCTestCase {
     settings.integrationIntentionallyRemoved = true
     settings.reset()
 
+    XCTAssertTrue(settings.showChatNames)
     XCTAssertFalse(settings.showPromptPreviews)
     XCTAssertFalse(settings.showResultPreviews)
     XCTAssertFalse(settings.capsLockEnabled)
