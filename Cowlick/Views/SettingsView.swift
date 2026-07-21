@@ -255,7 +255,10 @@ struct SettingsView: View {
         }
       }
       .formStyle(.grouped)
-      .tabItem { Label("System", systemImage: "gearshape.2") }
+      .tabItem {
+        Label("System", systemImage: "gearshape.2")
+          .accessibilityIdentifier("settings-system-tab")
+      }
     }
     .frame(width: 600, height: 460)
     .task { await refreshStatus() }

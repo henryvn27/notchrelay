@@ -126,7 +126,8 @@ final class CowlickUITests: XCTestCase {
 
   func testSystemSettingsMakesUpdatesDiagnosticsAndSignalsDiscoverable() {
     let app = launch(arguments: ["--open-settings"])
-    let systemTab = app.descendants(matching: .any).matching(identifier: "System").firstMatch
+    let systemTab = app.descendants(matching: .any)
+      .matching(identifier: "settings-system-tab").firstMatch
     XCTAssertTrue(systemTab.waitForExistence(timeout: 3))
 
     systemTab.click()
