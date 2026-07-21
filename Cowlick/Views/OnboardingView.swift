@@ -17,6 +17,7 @@ struct OnboardingView: View {
   let services: AppServices
 
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.scenePhase) private var scenePhase
   @State private var step = 0
   @State private var integrationStatus = "Not checked"
   @State private var integrationInstallState = IntegrationInstallState.notStarted
@@ -69,8 +70,10 @@ struct OnboardingView: View {
         if step > 0 { Button("Back") { step -= 1 } }
         Spacer()
         if step == totalSteps - 1 {
-          Button("Done") { completeOnboarding() }
-            .buttonStyle(.borderedProminent)
+          Button(Self.completionButtonTitle(trustState: integrationTrust.state)) {
+            completeOnboarding()
+          }
+          .buttonStyle(.borderedProminent)
         } else {
           if step == 4 {
             Button("Skip") { step += 1 }
@@ -89,6 +92,13 @@ struct OnboardingView: View {
     .task(id: step) {
       guard step == 3, integrationInstallState == .notStarted else { return }
       await installIntegration()
+    }
+    .onChange(of: scenePhase) { _, phase in
+      guard phase == .active,
+        step == 3 || step == totalSteps - 1,
+        integrationTrust.state != .trusted
+      else { return }
+      Task { await checkIntegrationTrust() }
     }
   }
 
@@ -142,12 +152,9 @@ struct OnboardingView: View {
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
       if integrationTrust.state != .trusted && integrationInstallState != .installing {
-        HStack {
-          if integrationTrust.state == .needsReview {
-            Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
-          }
-          Button("Open Codex") { CodexActivationService.openCodex(fallbackDirectory: nil) }
-          Button("Check Again") { Task { await checkIntegrationTrust() } }
+        if integrationTrust.state == .needsReview {
+          Button("Review in Codex") { reviewHooksInCodex() }
+            .buttonStyle(.borderedProminent)
         }
         Button("Finish Setup Later") {
           integrationDeferred = true
@@ -210,15 +217,12 @@ struct OnboardingView: View {
           trustState: integrationTrust.state, integrationDeferred: integrationDeferred)
       )
       if integrationTrust.state != .trusted {
-        Text(CodexIntegrationPresentation.reviewInstruction)
+        Text(Self.finishInstruction(trustState: integrationTrust.state))
           .font(.caption)
           .foregroundStyle(.secondary)
-        HStack {
-          if integrationTrust.state == .needsReview {
-            Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
-          }
-          Button("Open Codex") { CodexActivationService.openCodex(fallbackDirectory: nil) }
-          Button("Check Again") { Task { await checkIntegrationTrust() } }
+        if integrationTrust.state == .needsReview {
+          Button("Review in Codex") { reviewHooksInCodex() }
+            .buttonStyle(.borderedProminent)
         }
       }
     }
@@ -297,6 +301,11 @@ struct OnboardingView: View {
     integrationTrust = await services.hookTrustService.inspect()
     integrationStatus = integrationTrust.state.summary
     if integrationTrust.state == .trusted { integrationDeferred = false }
+  }
+
+  private func reviewHooksInCodex() {
+    CodexIntegrationPresentation.copyReviewCommand()
+    CodexActivationService.openCodex(fallbackDirectory: nil)
   }
 
   private func checkCapsSupport() {
@@ -417,7 +426,11 @@ struct OnboardingView: View {
   }
 
   static func finishTitle(trustState: CodexHookTrustState) -> String {
-    trustState == .trusted ? "You're ready." : "Codex review still needed."
+    switch trustState {
+    case .trusted: "You're ready."
+    case .needsReview: "One quick review in Codex."
+    case .notChecked, .incomplete, .unavailable: "Setup needs attention."
+    }
   }
 
   static func finishDetail(
@@ -428,8 +441,24 @@ struct OnboardingView: View {
       return
         "Cowlick observes current and future activity locally. Trusted hooks add exact approval actions and higher-fidelity lifecycle delivery."
     }
+    if trustState == .needsReview {
+      return
+        "Cowlick is connected. Review its hooks in Codex to enable approval actions from the island."
+    }
     return integrationDeferred
       ? "You can finish later. Cowlick can show local activity now; approval actions remain in Codex until you review Cowlick's hooks."
       : "Local activity is available now; review Cowlick's hooks to approve or deny from the island."
+  }
+
+  static func finishInstruction(trustState: CodexHookTrustState) -> String {
+    if trustState == .needsReview {
+      return
+        "Cowlick will copy /hooks and open Codex. Review Cowlick there, then return—setup checks automatically."
+    }
+    return CodexIntegrationPresentation.guidance(for: trustState)
+  }
+
+  static func completionButtonTitle(trustState: CodexHookTrustState) -> String {
+    trustState == .trusted ? "Done" : "Finish Later"
   }
 }

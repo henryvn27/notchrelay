@@ -1192,34 +1192,33 @@ final class DiagnosticsTests: XCTestCase {
   }
 
   func testOnboardingDoesNotClaimReadyBeforeCodexTrust() {
-    let unreadyStates: [CodexHookTrustState] = [
-      .notChecked,
+    for state in [
+      CodexHookTrustState.notChecked,
       .needsReview,
       .incomplete,
       .unavailable("Codex unavailable"),
-    ]
-
-    for state in unreadyStates {
+    ] {
       XCTAssertFalse(OnboardingView.canContinueFromIntegration(trustState: state))
-      XCTAssertEqual(
-        OnboardingView.finishTitle(trustState: state),
-        "Codex review still needed."
-      )
+      XCTAssertNotEqual(OnboardingView.finishTitle(trustState: state), "You're ready.")
+      XCTAssertEqual(OnboardingView.completionButtonTitle(trustState: state), "Finish Later")
     }
     XCTAssertTrue(OnboardingView.canContinueFromIntegration(trustState: .trusted))
     XCTAssertEqual(OnboardingView.finishTitle(trustState: .trusted), "You're ready.")
+    XCTAssertEqual(OnboardingView.completionButtonTitle(trustState: .trusted), "Done")
   }
 
-  func testDeferredOnboardingExplainsLocalStatusAndApprovalBoundary() {
+  func testReviewOnboardingExplainsOneActionHandoffAndApprovalBoundary() {
     let detail = OnboardingView.finishDetail(
       trustState: .needsReview,
       integrationDeferred: true
     )
+    let instruction = OnboardingView.finishInstruction(trustState: .needsReview)
 
-    XCTAssertTrue(detail.contains("finish later"), detail)
-    XCTAssertTrue(detail.contains("show local activity now"), detail)
-    XCTAssertTrue(detail.contains("approval actions remain in Codex"), detail)
+    XCTAssertTrue(detail.contains("Cowlick is connected"), detail)
+    XCTAssertTrue(detail.contains("approval actions"), detail)
     XCTAssertFalse(detail.contains("ready"), detail)
+    XCTAssertTrue(instruction.contains("copy /hooks and open Codex"), instruction)
+    XCTAssertTrue(instruction.contains("checks automatically"), instruction)
   }
 
   func testDiagnosticsSanitizesEventScalarsBeforeAddingSeparators() {
