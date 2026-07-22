@@ -50,7 +50,6 @@ private struct NotchActionBar: View {
     }
     .frame(maxWidth: .infinity)
     .padding(.horizontal, 14)
-    .padding(.vertical, 7)
     .overlay(alignment: .top) {
       Rectangle()
         .fill(isAttached ? NotchTheme.hairline : Color.secondary.opacity(0.18))
@@ -67,6 +66,8 @@ private struct NotchActionBar: View {
       Label(title, systemImage: systemImage)
         .font(.system(size: 10.5, weight: .medium))
         .foregroundStyle(isAttached ? Color.white.opacity(0.72) : Color.secondary)
+        .padding(.vertical, 7)
+        .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
     .help(title)

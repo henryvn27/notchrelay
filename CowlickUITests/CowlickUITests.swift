@@ -103,6 +103,18 @@ final class CowlickUITests: XCTestCase {
 
   }
 
+  func testExpandedNotchActionPaddingIsClickable() {
+    let app = launch(state: "multiple")
+    let settings = app.buttons["Settings"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 3))
+    XCTAssertGreaterThanOrEqual(settings.frame.height, 27)
+
+    let notch = app.windows.firstMatch
+    notch.coordinate(withNormalizedOffset: CGVector(dx: 0.40, dy: 0.98)).click()
+
+    XCTAssertTrue(app.staticTexts["Appearance"].waitForExistence(timeout: 3))
+  }
+
   func testChatNamesCanBeHiddenWithoutChangingSessionState() {
     let app = launch(arguments: ["--simulate-notch", "--state=working", "--hide-chat-names"])
 
