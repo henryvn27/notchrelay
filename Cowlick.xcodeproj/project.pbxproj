@@ -67,6 +67,7 @@
 		7F2252103C2374B6E4007AC7 /* ProviderAccountEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F354262AEDBE7AD60387B22F /* ProviderAccountEditorView.swift */; };
 		809528534D6F5C05251CF572 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FBAB191BAF0BA9F8E9CB8F /* SessionListView.swift */; };
 		82A978BC7EC0B0E45EB5D27A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4A920B7BBA7C42B9E6473E /* OnboardingView.swift */; };
+		84996057D5BDF2C5A2A2D029 /* NotchSurfaceEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CE48DD353F12CEB6719FE0 /* NotchSurfaceEngineTests.swift */; };
 		8635C38A1A8A66612B69DED8 /* LocalCodexCostServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B884B9CEC9D8D9D3B349F7C6 /* LocalCodexCostServiceTests.swift */; };
 		8958A7C719F44CBE7E83BD52 /* UsagePlanningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6080E9C79459106F29BEF54A /* UsagePlanningTests.swift */; };
 		8BEFC17DD2E6E84851D63414 /* UsageStoreAPICostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7C7A684D1C338945B2F5D5 /* UsageStoreAPICostTests.swift */; };
@@ -202,6 +203,7 @@
 		30ECF7F3AC168F8424EB04B0 /* ProviderBillingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBillingStoreTests.swift; sourceTree = "<group>"; };
 		33E040C9DEDBFFC3B36C9BDF /* WindowCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCoordinator.swift; sourceTree = "<group>"; };
 		33E1B088493FC82776C9F94C /* APICostWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APICostWindow.swift; sourceTree = "<group>"; };
+		35CE48DD353F12CEB6719FE0 /* NotchSurfaceEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchSurfaceEngineTests.swift; sourceTree = "<group>"; };
 		3723611B2465DB0C20B81BC6 /* UsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStore.swift; sourceTree = "<group>"; };
 		3AB06D90B299815FC18437FD /* CodexPriorityTierReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexPriorityTierReader.swift; sourceTree = "<group>"; };
 		41F7AA4D4579780636AC224B /* LocalCodexCostEstimate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCodexCostEstimate.swift; sourceTree = "<group>"; };
@@ -324,6 +326,7 @@
 				0478BAE10E695EDB10EF1243 /* MenuBarPresentationTests.swift */,
 				13CBA9B585034C9478D3781F /* NotchGeometryTests.swift */,
 				B642EE7E81F2E0B158AE62E6 /* NotchPullGesturePolicyTests.swift */,
+				35CE48DD353F12CEB6719FE0 /* NotchSurfaceEngineTests.swift */,
 				88ED5A412FE03AEA6626B118 /* NotchSwipeInterpreterTests.swift */,
 				2F74417621A6CF2D90509B9C /* PresentationRoutingTests.swift */,
 				0FEDE94BB9B610FA091712E4 /* ProjectNameResolverTests.swift */,
@@ -863,6 +866,7 @@
 				AF581DECD3D5F1953ACD6898 /* MenuBarPresentationTests.swift in Sources */,
 				280BEF7D013F811918328516 /* NotchGeometryTests.swift in Sources */,
 				E4654F9F9A325677C8765993 /* NotchPullGesturePolicyTests.swift in Sources */,
+				84996057D5BDF2C5A2A2D029 /* NotchSurfaceEngineTests.swift in Sources */,
 				9A9EA8D5BDF0EB4594DE2645 /* NotchSwipeInterpreterTests.swift in Sources */,
 				43C3E75C11FA0905A77172B9 /* PresentationRoutingTests.swift in Sources */,
 				BA260A553A74C83105127119 /* ProductVersion.swift in Sources */,

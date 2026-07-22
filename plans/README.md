@@ -8,6 +8,7 @@
 | [004](004-prove-dynamic-notch-kit-adapter.md) | Prove a safe DynamicNotchKit adapter | HIGH | DONE — retain shell |
 | [005](005-morph-one-surface.md) | Make the notch morph as one surface | HIGH | Implemented; physical QA pending |
 | [006](006-physical-direct-manipulation.md) | Make direct manipulation feel physical | MEDIUM | Implemented; physical QA pending |
+| [007](007-adopt-ping-island-surface-engine.md) | Adopt Ping Island's fixed-shell notch engine | HIGH | DONE — motion verified |
 
 Plans 001 and 002 record the first motion pass at `b009140`. The July 21 audit at `a937b39` found that pass insufficient: presentation ownership is still duplicated, the shell and content still run on separate timelines, and the threshold gesture is not direct manipulation. Plans 003–006 supersede the earlier motion assumptions without rewriting their historical record.
 
@@ -19,3 +20,5 @@ Plans 001 and 002 record the first motion pass at `b009140`. The July 21 audit a
 4. **006** last. Gesture and press feedback should target the final shell rather than be rewritten twice.
 
 Plans 004 and 005 are coupled: DynamicNotchKit is the recommended engine, but its stock 400 ms bouncy/blur/scale-zero effects are explicitly out of scope. Cowlick should use the MIT package's geometry and state structure behind a local adapter, then override or patch its motion and key-window behavior.
+
+Plan 007 supersedes the retained-shell conclusion in plans 004 and 005. The current implementation proved that merely borrowing motion values does not fix the split AppKit/SwiftUI presentation. Ping Island's Apache-2.0 fixed-shell architecture is now the implementation base: keep AppKit stable, bound hit testing to the live surface, and let SwiftUI own the complete interruptible morph.

@@ -23,16 +23,16 @@ enum NotchTheme {
   static let compactRadius: CGFloat = 14
   static let expandedBottomRadius: CGFloat = 22
   static let floatingRadius: CGFloat = 12
-  static let panelExpandDuration = 0.24
-  static let panelCollapseDuration = 0.18
   static let reducedMotionFadeDuration = 0.12
   static let hoverFeedbackDuration = 0.12
   static let hoverOpenDelay = 0.20
   static let hoverCloseDelay = 0.40
-  static let contentExit = Animation.timingCurve(
-    0.23, 1.00, 0.32, 1.00, duration: panelCollapseDuration)
-  static let contentMorph = Animation.timingCurve(
-    0.77, 0.00, 0.175, 1.00, duration: panelExpandDuration)
+  // Surface springs follow Ping Island's fixed-shell engine. AppKit owns a
+  // stable host window; SwiftUI retargets the complete notch surface.
+  static let surfaceOpen = Animation.spring(
+    response: 0.42, dampingFraction: 0.8, blendDuration: 0)
+  static let surfaceClose = Animation.spring(
+    response: 0.45, dampingFraction: 1.0, blendDuration: 0)
   static let statusChange = Animation.timingCurve(
     0.23, 1.00, 0.32, 1.00, duration: 0.16)
   static let pressFeedback = Animation.timingCurve(
@@ -41,13 +41,6 @@ enum NotchTheme {
   static let reducedMotion = Animation.easeOut(
     duration: reducedMotionFadeDuration
   )
-
-  // A decisive ease-out makes the panel feel attached to the camera housing:
-  // most of the travel happens immediately, then the lower edge settles.
-  static let expandTimingControlPoints: (Float, Float, Float, Float) =
-    (0.77, 0.00, 0.175, 1.00)
-  static let collapseTimingControlPoints: (Float, Float, Float, Float) =
-    (0.23, 1.00, 0.32, 1.00)
 
   static func attachedSize(
     baseSize: CGSize,
@@ -71,6 +64,15 @@ enum NotchTheme {
     let visibleCount = sessionCount > 3 ? 2 : min(3, max(1, sessionCount))
     let overflowHeight: CGFloat = sessionCount > visibleCount ? 20 : 0
     return CGSize(width: 360, height: 20 + CGFloat(visibleCount) * 28 + overflowHeight)
+  }
+
+  static func hostSize(notchGapWidth: CGFloat, safeAreaTop: CGFloat) -> CGSize {
+    attachedSize(
+      baseSize: maximumApprovalSize,
+      notchGapWidth: notchGapWidth,
+      safeAreaTop: safeAreaTop,
+      expanded: true
+    )
   }
 
   static func approvalSize(for request: ApprovalRequest) -> CGSize {

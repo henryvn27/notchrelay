@@ -9,6 +9,14 @@ struct NotchRootView: View {
   @GestureState private var pullDistance: CGFloat = 0
 
   var body: some View {
+    notchSurface
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      .onDisappear { hoverIntent?.cancel() }
+      .onExitCommand { store.collapse() }
+      .preferredColorScheme(presentation.isAttached ? .dark : nil)
+  }
+
+  private var notchSurface: some View {
     ZStack(alignment: .top) {
       if presentation.isAttached {
         surfaceShape.fill(NotchTheme.island)
@@ -16,15 +24,8 @@ struct NotchRootView: View {
         surfaceShape.fill(NotchTheme.floatingSurface)
       }
 
-      ZStack(alignment: .top) {
-        if isExpanded {
-          ExpandedIslandView(
-            store: store,
-            presentation: presentation,
-            namespace: islandMorph
-          )
-          .transition(expandedTransition)
-        } else if let session = store.displaySession {
+      VStack(spacing: 0) {
+        if let session = store.displaySession ?? store.sessionSummaries.first {
           CollapsedIslandView(
             session: session,
             activeCount: store.activeSessionCount,
@@ -32,15 +33,23 @@ struct NotchRootView: View {
             notchGapWidth: presentation.isAttached ? presentation.notchGapWidth : nil,
             isAttached: presentation.isAttached,
             reducedAnimation: store.settings.reducedAnimation,
-            namespace: islandMorph
-          ) {
-            if case .completed = session.presentationStatus {
-              store.dismissCompletion(sessionID: session.id)
-            } else {
-              store.toggleExpanded()
-            }
-          }
-          .transition(compactTransition)
+            namespace: islandMorph,
+            action: handleHeaderAction
+          )
+          .frame(
+            height: presentation.isAttached
+              ? presentation.safeAreaTop : NotchTheme.compactSize.height
+          )
+          .zIndex(1)
+        }
+
+        if presentation.mode.isExpanded {
+          ExpandedIslandView(
+            store: store,
+            isAttached: presentation.isAttached
+          )
+          .transition(expandedTransition)
+          .zIndex(0)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -50,6 +59,11 @@ struct NotchRootView: View {
         anchor: .top
       )
     }
+    .frame(
+      width: presentation.surfaceSize.width,
+      height: presentation.surfaceSize.height,
+      alignment: .top
+    )
     .overlay {
       if !presentation.isAttached {
         surfaceShape.stroke(.separator.opacity(0.55), lineWidth: 0.5)
@@ -57,18 +71,13 @@ struct NotchRootView: View {
     }
     .contentShape(surfaceShape)
     .clipShape(surfaceShape)
-    .animation(contentAnimation, value: layoutMode)
+    .animation(surfaceAnimation, value: presentation.state)
     .onHover(perform: handleHover)
     .simultaneousGesture(pullDownGesture)
-    .onDisappear {
-      hoverIntent?.cancel()
-    }
-    .onExitCommand { store.collapse() }
-    .preferredColorScheme(presentation.isAttached ? .dark : nil)
   }
 
   private var isExpanded: Bool {
-    store.isExpanded
+    presentation.mode.isExpanded
   }
 
   private var surfaceShape: UnevenRoundedRectangle {
@@ -84,33 +93,22 @@ struct NotchRootView: View {
     )
   }
 
-  private var layoutMode: LayoutMode {
-    if store.currentApproval != nil, store.isExpanded { return .approval }
-    if store.isExpanded { return .sessions }
-    return .compact
+  private var layoutMode: NotchSurfaceMode {
+    presentation.mode
   }
 
   private var motionReduced: Bool {
     reduceMotion || store.settings.reducedAnimation
   }
 
-  private var contentAnimation: Animation {
+  private var surfaceAnimation: Animation? {
     if motionReduced {
-      return NotchTheme.reducedMotion
+      return nil
     }
-    return layoutMode == .compact ? NotchTheme.contentExit : NotchTheme.contentMorph
+    return layoutMode == .compact ? NotchTheme.surfaceClose : NotchTheme.surfaceOpen
   }
 
   private var expandedTransition: AnyTransition {
-    motionReduced
-      ? .opacity
-      : .asymmetric(
-        insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
-        removal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
-      )
-  }
-
-  private var compactTransition: AnyTransition {
     motionReduced
       ? .opacity
       : .asymmetric(
@@ -131,7 +129,7 @@ struct NotchRootView: View {
           distance: value.translation.height,
           predictedDistance: value.predictedEndTranslation.height
         ) {
-          withAnimation(motionReduced ? NotchTheme.reducedMotion : NotchTheme.dragRelease) {
+          withAnimation(motionReduced ? nil : NotchTheme.dragRelease) {
             store.expand()
           }
         }
@@ -156,10 +154,16 @@ struct NotchRootView: View {
       }
     }
   }
-}
 
-private enum LayoutMode: Hashable {
-  case compact
-  case sessions
-  case approval
+  private func handleHeaderAction() {
+    if isExpanded {
+      store.collapse()
+    } else if let session = store.displaySession,
+      case .completed = session.presentationStatus
+    {
+      store.dismissCompletion(sessionID: session.id)
+    } else {
+      store.expand()
+    }
+  }
 }

@@ -4,7 +4,8 @@ Reviewed July 21, 2026 against Cowlick's MIT license, macOS 14 deployment target
 
 | Repository | License | Fit | Verdict |
 | --- | --- | --- | --- |
-| [mrkai77/DynamicNotchKit](https://github.com/mrkai77/DynamicNotchKit) | MIT | Native Swift package; custom expanded and compact SwiftUI content; notch/floating geometry; hover and transition configuration | **Use as the engine candidate behind a Cowlick adapter.** Pin and review an exact revision. Override motion and patch key-window policy. |
+| [erha19/ping-island](https://github.com/erha19/ping-island) | Apache-2.0 | Current native SwiftUI/AppKit implementation; fixed top window, self-morphing surface, and bounded hit testing | **Use its fixed-shell interaction architecture as Cowlick's foundation.** Preserve Cowlick's product model and focus policy. |
+| [mrkai77/DynamicNotchKit](https://github.com/mrkai77/DynamicNotchKit) | MIT | Native Swift package; custom expanded and compact SwiftUI content; notch/floating geometry; hover and transition configuration | Earlier adapter candidate; rejected after the bounded spike because its hosting and key-window ownership conflicted with Cowlick's approval policy. |
 | [TheBoredTeam/boring.notch](https://github.com/TheBoredTeam/boring.notch) | GPL-3.0 | Most mature full notch product and useful behavioral reference | Do not copy or link into MIT Cowlick without an intentional GPL relicensing decision. |
 | [Ebullioscopic/Atoll](https://github.com/Ebullioscopic/Atoll) | GPL-3.0 | Polished native Dynamic Island product with gestures | Reference behavior only; license is incompatible with the intended MIT reuse path. |
 | [jackson-storm/DynamicNotch](https://github.com/jackson-storm/DynamicNotch) | GPL-3.0 | Active native notch implementation | Reference behavior only for the same license reason. |
@@ -12,18 +13,18 @@ Reviewed July 21, 2026 against Cowlick's MIT license, macOS 14 deployment target
 | [MioMioOS/MioIsland](https://github.com/MioMioOS/MioIsland) | CC BY-NC 4.0 | Close coding-agent/notch product match | Do not reuse: non-commercial restriction is not an acceptable general-purpose app dependency. |
 | [f/textream](https://github.com/f/textream) | No repository license detected | Notch/floating teleprompter surface | Do not copy unlicensed source. |
 
-## Recommended boundary
+## Selected boundary
 
-DynamicNotchKit already handles the lower-level shell Cowlick should stop reinventing: physical-notch detection, compact leading/trailing areas, expanded content, screen-relative panel placement, hover lifetime, and hidden/compact/expanded state. Its source is small enough to review and its MIT terms are compatible with Cowlick.
+Ping Island's fixed top-window architecture solves the specific defect without importing a second product model: AppKit owns one stable transparent host, a bounded hosting view keeps unused space click-through, and SwiftUI owns the visible surface morph. The reviewed Apache-2.0 source is pinned at commit `c9148fc6a66a98f62dc1cac8fde415c2be9f2233`.
 
-Do not adopt its visual defaults wholesale. At reviewed commit `cd0b3e52d537db115ad3a9d89601f20e0bee8d27`, upstream defaults include 400 ms bouncy/smooth transitions, scale-to-zero compact content, 10 px blur transitions, an ease-in window fade, a panel that always reports `canBecomeKey == true`, and a half-screen backing window. Cowlick needs a pinned fork or adapter that:
+Adopt only that architectural seam and its restrained open/close spring values. Cowlick keeps:
 
-1. preserves `NotchPanelInteractionPolicy` and nonactivating passive status;
-2. uses the user's preferred display and current Spaces behavior;
-3. skips intermediate hidden states when converting compact/expanded;
-4. supplies Cowlick's sub-300 ms restrained motion tokens and Reduce Motion behavior;
-5. retains Cowlick content and approval semantics rather than importing a second product model.
+1. `NotchPanelInteractionPolicy` and nonactivating passive status;
+2. the user's preferred display and existing Spaces behavior;
+3. Cowlick's session, hook, and approval state model;
+4. Cowlick's persistent compact header and expanded body;
+5. instant spatial state changes when Reduce Motion is enabled.
 
 ## Decision
 
-Run plan 003 regardless. Then run plan 004 as a bounded adapter spike. If the adapter passes focus, display, state-reversal, and Reduce Motion gates, use it as the shell and execute plan 005 on top. If it fails any gate, retain Cowlick's shell and execute plan 005 directly; the audit does not justify weakening approval safety merely to remove custom code.
+The DynamicNotchKit adapter failed its bounded ownership gate, so it is not the base. Plan 007 supersedes the earlier retained-shell conclusion: use Ping Island's stable-host/self-morphing-surface design while retaining Cowlick's focus, routing, and approval safety boundaries.

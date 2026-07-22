@@ -1,19 +1,54 @@
 import AppKit
 import Observation
-import QuartzCore
 import SwiftUI
+
+enum NotchSurfaceMode: Hashable, Sendable {
+  case compact
+  case sessions
+  case approval
+
+  var isExpanded: Bool { self != .compact }
+}
+
+struct NotchSurfacePresentationState: Equatable, Sendable {
+  var isAttached = false
+  var notchGapWidth: CGFloat = 0
+  var safeAreaTop: CGFloat = 0
+  var surfaceSize = NotchTheme.compactSize
+  var mode = NotchSurfaceMode.compact
+}
 
 @MainActor
 @Observable
 final class NotchPanelPresentation {
-  private(set) var isAttached = false
-  private(set) var notchGapWidth: CGFloat = 0
-  private(set) var safeAreaTop: CGFloat = 0
+  private(set) var state = NotchSurfacePresentationState()
 
-  func update(from geometry: ResolvedNotchGeometry) {
-    isAttached = geometry.hasNotch
-    notchGapWidth = geometry.notchGapWidth
-    safeAreaTop = geometry.safeAreaTop
+  var isAttached: Bool { state.isAttached }
+  var notchGapWidth: CGFloat { state.notchGapWidth }
+  var safeAreaTop: CGFloat { state.safeAreaTop }
+  var surfaceSize: CGSize { state.surfaceSize }
+  var mode: NotchSurfaceMode { state.mode }
+
+  func update(
+    from geometry: ResolvedNotchGeometry,
+    surfaceSize: CGSize,
+    mode: NotchSurfaceMode
+  ) {
+    state = NotchSurfacePresentationState(
+      isAttached: geometry.hasNotch,
+      notchGapWidth: geometry.notchGapWidth,
+      safeAreaTop: geometry.safeAreaTop,
+      surfaceSize: surfaceSize,
+      mode: mode
+    )
+  }
+
+  func interactiveRect(in hostSize: CGSize, isFlipped: Bool) -> CGRect {
+    NotchSurfaceLayout.interactiveRect(
+      hostSize: hostSize,
+      surfaceSize: surfaceSize,
+      isFlipped: isFlipped
+    )
   }
 }
 
@@ -80,6 +115,13 @@ final class NotchPanelController {
     hostingView.handlePointerDown = { [weak self] in
       self?.activateApprovalForUserInteraction()
     }
+    hostingView.interactiveRect = { [weak hostingView, weak presentation] in
+      guard let hostingView, let presentation else { return .zero }
+      return presentation.interactiveRect(
+        in: hostingView.bounds.size,
+        isFlipped: hostingView.isFlipped
+      )
+    }
     panel.contentView = hostingView
     installObservers()
     store.presentationDidChange = { [weak self] in self?.schedulePresentationUpdate() }
@@ -89,12 +131,16 @@ final class NotchPanelController {
     announceCurrentApprovalIfNeeded()
     let interactiveApproval = store.currentApproval != nil && store.isExpanded
 
+    let mode: NotchSurfaceMode
     let baseSize: CGSize
     if interactiveApproval, let approval = store.currentApproval {
+      mode = .approval
       baseSize = NotchTheme.approvalSize(for: approval)
     } else if store.isExpanded {
+      mode = .sessions
       baseSize = NotchTheme.sessionListSize(sessionCount: store.sessionSummaries.count)
     } else {
+      mode = .compact
       baseSize = NotchTheme.compactSize
     }
 
@@ -126,9 +172,8 @@ final class NotchPanelController {
       return
     }
 
-    let previousGeometry = currentGeometry
     currentGeometry = geometry
-    presentation.update(from: geometry)
+    presentation.update(from: geometry, surfaceSize: contentSize, mode: mode)
     panel.hasShadow = !geometry.hasNotch
     panel.permitsKeyInteraction = interactiveApproval
     panel.ignoresMouseEvents = false
@@ -136,32 +181,19 @@ final class NotchPanelController {
       panel.styleMask.insert(.nonactivatingPanel)
     }
 
-    // Do not force a hosting-view layout here. Ordering the panel performs the
-    // required layout once; forcing a display first can re-enter SwiftUI text
-    // layout when an approval changes the panel's key-window behavior.
     let reduceMotion =
       store.settings.reducedAnimation || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-    let shouldAnimate =
-      panel.isVisible && previousGeometry?.displayID == geometry.displayID && !reduceMotion
-    if shouldAnimate, panel.frame != geometry.panelFrame {
-      let expanding = geometry.panelFrame.height > panel.frame.height
-      let controlPoints =
-        expanding
-        ? NotchTheme.expandTimingControlPoints
-        : NotchTheme.collapseTimingControlPoints
-      NSAnimationContext.runAnimationGroup { context in
-        context.duration =
-          expanding ? NotchTheme.panelExpandDuration : NotchTheme.panelCollapseDuration
-        context.timingFunction = CAMediaTimingFunction(
-          controlPoints: controlPoints.0,
-          controlPoints.1,
-          controlPoints.2,
-          controlPoints.3
-        )
-        panel.animator().setFrame(geometry.panelFrame, display: true)
-      }
-    } else {
-      panel.setFrame(geometry.panelFrame, display: false)
+    let hostContentSize = NotchTheme.hostSize(
+      notchGapWidth: geometry.notchGapWidth,
+      safeAreaTop: geometry.safeAreaTop
+    )
+    guard let hostGeometry = resolvedGeometry(screen: screen, contentSize: hostContentSize) else {
+      panel.orderOut(nil)
+      currentGeometry = nil
+      return
+    }
+    if panel.frame != hostGeometry.panelFrame {
+      panel.setFrame(hostGeometry.panelFrame, display: false)
     }
 
     let wasVisible = panel.isVisible

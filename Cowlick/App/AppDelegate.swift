@@ -113,9 +113,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func configureUITestingIfNeeded(_ services: AppServices) {
     guard CommandLine.arguments.contains("--ui-testing") else { return }
-    if CommandLine.arguments.contains("--menu-bar") {
-      services.settings.presentationPreference = .menuBar
-    }
+    services.settings.presentationPreference =
+      CommandLine.arguments.contains("--menu-bar") ? .menuBar : .automatic
     services.settings.showChatNames = !CommandLine.arguments.contains("--hide-chat-names")
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
     if ProcessInfo.processInfo.environment["COWLICK_ASSET_CAPTURE"] == "1" {
