@@ -191,7 +191,10 @@ struct MenuBarContentView: View {
   private func scrollableDetails(store: SessionStore) -> some View {
     VStack(alignment: .leading, spacing: 0) {
       if hookTrust.state.requiresIntegrationAttention {
-        integrationAttentionSection
+        CodexIntegrationAttentionView(
+          state: hookTrust.state,
+          refresh: { Task { await refreshHookTrust() } }
+        )
       }
 
       if services.settings.showCodexUsage || services.settings.showAPICostEstimate
@@ -210,7 +213,7 @@ struct MenuBarContentView: View {
 
       if !services.providerAccountsController.accounts.isEmpty {
         Divider()
-        billingAccountSection
+        ProviderBillingSectionView(services: services)
       }
 
       if !store.sessionSummaries.isEmpty {
@@ -227,118 +230,6 @@ struct MenuBarContentView: View {
       || services.settings.showResetForecast
       || !services.providerAccountsController.accounts.isEmpty
       || !store.sessionSummaries.isEmpty
-  }
-
-  private var billingAccountSection: some View {
-    let controller = services.providerAccountsController
-    return VStack(alignment: .leading, spacing: 7) {
-      HStack {
-        Text("API billing")
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(.secondary)
-        Spacer()
-        Button {
-          Task { await controller.refreshSelected() }
-        } label: {
-          if let selectedID = controller.selectedAccountID,
-            services.providerBillingStore.refreshingAccountIDs.contains(selectedID)
-          {
-            ProgressView()
-              .controlSize(.mini)
-          } else {
-            Image(systemName: "arrow.clockwise")
-          }
-        }
-        .buttonStyle(.plain)
-        .disabled(
-          controller.selectedAccount == nil
-            || controller.selectedAccountID.map(
-              services.providerBillingStore.refreshingAccountIDs.contains) == true
-        )
-        .help("Refresh selected billing account")
-        .accessibilityLabel("Refresh selected billing account")
-      }
-
-      if let selected = controller.selectedAccount {
-        let presentation = billingPresentation(for: selected.id)
-        Menu {
-          ForEach(controller.accounts) { account in
-            Button {
-              _ = controller.selectAccount(id: account.id)
-            } label: {
-              if account.id == controller.selectedAccountID {
-                Label(account.alias, systemImage: "checkmark")
-              } else {
-                Text(account.alias)
-              }
-            }
-          }
-        } label: {
-          HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-              Text(selected.alias)
-                .font(.callout.weight(.medium))
-                .lineLimit(1)
-              Text(selected.provider.billingAccountName ?? "Billing account")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-              Text(presentation.detail)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text(billingAmount(for: selected.id, presentation: presentation))
-              .font(.callout.monospacedDigit())
-              .foregroundStyle(.secondary)
-            Image(systemName: "chevron.up.chevron.down")
-              .font(.caption2)
-              .foregroundStyle(.tertiary)
-          }
-          .contentShape(Rectangle())
-        }
-        .menuStyle(.borderlessButton)
-        .accessibilityLabel(billingAccessibilityLabel(for: selected))
-
-        if let error = services.providerBillingStore.errors[selected.id] {
-          Label(error, systemImage: "exclamationmark.circle")
-            .font(.caption2)
-            .foregroundStyle(.orange)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-      }
-    }
-    .padding(.horizontal, 14)
-    .padding(.vertical, 10)
-  }
-
-  private func billingPresentation(for accountID: UUID) -> ProviderBillingPresentation {
-    ProviderBillingPresentation.resolve(
-      snapshot: services.providerBillingStore.snapshots[accountID],
-      errorMessage: services.providerBillingStore.errors[accountID]
-    )
-  }
-
-  private func billingAmount(
-    for accountID: UUID,
-    presentation: ProviderBillingPresentation
-  ) -> String {
-    guard presentation.showsAmount,
-      let snapshot = services.providerBillingStore.snapshots[accountID]
-    else {
-      return "Not refreshed"
-    }
-    return snapshot.amount.formatted(.currency(code: snapshot.currency.uppercased()))
-  }
-
-  private func billingAccessibilityLabel(for account: ProviderAccount) -> String {
-    let presentation = billingPresentation(for: account.id)
-    return [
-      "API billing account",
-      account.alias,
-      account.provider.billingAccountName ?? "",
-      billingAmount(for: account.id, presentation: presentation),
-      presentation.detail,
-    ].joined(separator: ", ")
   }
 
   private func header(store: SessionStore) -> some View {
@@ -396,43 +287,6 @@ struct MenuBarContentView: View {
     }
     .padding(.horizontal, 14)
     .padding(.vertical, 12)
-  }
-
-  @ViewBuilder
-  private var integrationAttentionSection: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Label(integrationAttentionTitle, systemImage: "exclamationmark.triangle.fill")
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(NotchTheme.warning)
-      Text(CodexIntegrationPresentation.guidance(for: hookTrust.state))
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
-      HStack(spacing: 12) {
-        if hookTrust.state == .incomplete {
-          Button("Open Settings") { WindowCoordinator.shared.openSettingsForTesting() }
-        } else if hookTrust.state == .needsReview {
-          Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
-        } else {
-          Button("Open Diagnostics") { WindowCoordinator.shared.openDiagnostics() }
-        }
-        Button("Check Again") { Task { await refreshHookTrust() } }
-      }
-      .buttonStyle(.link)
-    }
-    .padding(.horizontal, 14)
-    .padding(.vertical, 10)
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("codex-integration-attention")
-  }
-
-  private var integrationAttentionTitle: String {
-    switch hookTrust.state {
-    case .needsReview: "Codex review required"
-    case .incomplete: "Integration needs repair"
-    case .unavailable: "Integration not verified"
-    case .notChecked, .trusted: ""
-    }
   }
 
   private func sessionSection(store: SessionStore) -> some View {
@@ -610,8 +464,165 @@ struct MenuBarContentView: View {
   }
 }
 
+struct CodexIntegrationAttentionView: View {
+  let state: CodexHookTrustState
+  let refresh: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Label(title, systemImage: "exclamationmark.triangle.fill")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(NotchTheme.warning)
+      Text(CodexIntegrationPresentation.guidance(for: state))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+      HStack(spacing: 12) {
+        if state == .incomplete {
+          Button("Open Settings") { WindowCoordinator.shared.openSettingsForTesting() }
+        } else if state == .needsReview {
+          Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
+        } else {
+          Button("Open Diagnostics") { WindowCoordinator.shared.openDiagnostics() }
+        }
+        Button("Check Again", action: refresh)
+      }
+      .buttonStyle(.link)
+    }
+    .padding(.horizontal, 14)
+    .padding(.vertical, 10)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("codex-integration-attention")
+  }
+
+  private var title: String {
+    switch state {
+    case .needsReview: "Codex review required"
+    case .incomplete: "Integration needs repair"
+    case .unavailable: "Integration not verified"
+    case .notChecked, .trusted: ""
+    }
+  }
+}
+
+struct ProviderBillingSectionView: View {
+  let services: AppServices
+
+  var body: some View {
+    let controller = services.providerAccountsController
+    VStack(alignment: .leading, spacing: 7) {
+      HStack {
+        Text("API billing")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+        Spacer()
+        Button {
+          Task { await controller.refreshSelected() }
+        } label: {
+          if let selectedID = controller.selectedAccountID,
+            services.providerBillingStore.refreshingAccountIDs.contains(selectedID)
+          {
+            ProgressView()
+              .controlSize(.mini)
+          } else {
+            Image(systemName: "arrow.clockwise")
+          }
+        }
+        .buttonStyle(.plain)
+        .disabled(
+          controller.selectedAccount == nil
+            || controller.selectedAccountID.map(
+              services.providerBillingStore.refreshingAccountIDs.contains) == true
+        )
+        .help("Refresh selected billing account")
+        .accessibilityLabel("Refresh selected billing account")
+      }
+
+      if let selected = controller.selectedAccount {
+        let presentation = billingPresentation(for: selected.id)
+        Menu {
+          ForEach(controller.accounts) { account in
+            Button {
+              _ = controller.selectAccount(id: account.id)
+            } label: {
+              if account.id == controller.selectedAccountID {
+                Label(account.alias, systemImage: "checkmark")
+              } else {
+                Text(account.alias)
+              }
+            }
+          }
+        } label: {
+          HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(selected.alias)
+                .font(.callout.weight(.medium))
+                .lineLimit(1)
+              Text(selected.provider.billingAccountName ?? "Billing account")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+              Text(presentation.detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(billingAmount(for: selected.id, presentation: presentation))
+              .font(.callout.monospacedDigit())
+              .foregroundStyle(.secondary)
+            Image(systemName: "chevron.up.chevron.down")
+              .font(.caption2)
+              .foregroundStyle(.tertiary)
+          }
+          .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .accessibilityLabel(billingAccessibilityLabel(for: selected))
+
+        if let error = services.providerBillingStore.errors[selected.id] {
+          Label(error, systemImage: "exclamationmark.circle")
+            .font(.caption2)
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+    .padding(.horizontal, 14)
+    .padding(.vertical, 10)
+  }
+
+  private func billingPresentation(for accountID: UUID) -> ProviderBillingPresentation {
+    ProviderBillingPresentation.resolve(
+      snapshot: services.providerBillingStore.snapshots[accountID],
+      errorMessage: services.providerBillingStore.errors[accountID]
+    )
+  }
+
+  private func billingAmount(
+    for accountID: UUID,
+    presentation: ProviderBillingPresentation
+  ) -> String {
+    guard presentation.showsAmount,
+      let snapshot = services.providerBillingStore.snapshots[accountID]
+    else {
+      return "Not refreshed"
+    }
+    return snapshot.amount.formatted(.currency(code: snapshot.currency.uppercased()))
+  }
+
+  private func billingAccessibilityLabel(for account: ProviderAccount) -> String {
+    let presentation = billingPresentation(for: account.id)
+    return [
+      "API billing account",
+      account.alias,
+      account.provider.billingAccountName ?? "",
+      billingAmount(for: account.id, presentation: presentation),
+      presentation.detail,
+    ].joined(separator: ", ")
+  }
+}
+
 extension CodexHookTrustState {
-  fileprivate var requiresIntegrationAttention: Bool {
+  var requiresIntegrationAttention: Bool {
     switch self {
     case .needsReview, .incomplete, .unavailable: true
     case .notChecked, .trusted: false

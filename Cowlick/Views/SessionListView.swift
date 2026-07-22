@@ -5,6 +5,7 @@ struct SessionListView: View {
   let showPromptPreviews: Bool
   let showResultPreviews: Bool
   let isAttached: Bool
+  var scrollsInternally = true
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -22,7 +23,7 @@ struct SessionListView: View {
 
   @ViewBuilder
   private var sessionViewport: some View {
-    if sessions.count > NotchTheme.maximumVisibleSessionCount {
+    if scrollsInternally && sessions.count > NotchTheme.maximumVisibleSessionCount {
       ScrollView(.vertical, showsIndicators: false) {
         sessionRows
       }

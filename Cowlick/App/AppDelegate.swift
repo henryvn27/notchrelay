@@ -133,6 +133,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       .map { String($0.dropFirst("--state=".count)) }
     Task { @MainActor in
       try? await Task.sleep(for: .milliseconds(300))
+      if CommandLine.arguments.contains("--billing-demo") {
+        _ = try? await services.providerAccountsController.addAccount(
+          provider: .openAIAPI,
+          alias: "Platform",
+          credential: Data("ui-testing-admin-key".utf8)
+        )
+      }
       if stateName == "multiple" {
         services.sessionStore.testState(.working)
         try? await Task.sleep(for: .milliseconds(500))

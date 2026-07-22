@@ -76,8 +76,9 @@ enum ApprovalAccessibilityPresentation {
 
 @MainActor
 final class NotchPanelController {
-  private let store: SessionStore
-  private let usageStore: UsageStore
+  private let services: AppServices
+  private var store: SessionStore { services.sessionStore }
+  private var usageStore: UsageStore { services.usageStore }
   private let panel: NotchPanel
   private let presentation = NotchPanelPresentation()
   private let hostingView: NotchHostingView<NotchRootView>
@@ -89,9 +90,8 @@ final class NotchPanelController {
   private var presentationEnabled = false
   private(set) var currentGeometry: ResolvedNotchGeometry?
 
-  init(store: SessionStore, usageStore: UsageStore) {
-    self.store = store
-    self.usageStore = usageStore
+  init(services: AppServices) {
+    self.services = services
     panel = NotchPanel(
       contentRect: CGRect(origin: .zero, size: NotchTheme.compactSize),
       styleMask: [.borderless, .nonactivatingPanel],
@@ -100,8 +100,7 @@ final class NotchPanelController {
     )
     hostingView = NotchHostingView(
       rootView: NotchRootView(
-        store: store,
-        usageStore: usageStore,
+        services: services,
         presentation: presentation
       ))
     hostingView.handlePointerDown = { [weak self] in
@@ -135,7 +134,12 @@ final class NotchPanelController {
       baseSize = NotchTheme.approvalSize(for: approval)
     } else if store.isExpanded {
       mode = .sessions
-      baseSize = NotchTheme.sessionListSize(sessionCount: store.sessionSummaries.count)
+      baseSize = NotchTheme.expandedInformationSize(
+        sessionCount: store.sessionSummaries.count,
+        showsOfficialUsage: services.settings.showCodexUsage,
+        showsAPICostEstimate: services.settings.showAPICostEstimate,
+        showsForecast: services.settings.showResetForecast
+      )
     } else {
       mode = .compact
       baseSize = NotchTheme.compactSize

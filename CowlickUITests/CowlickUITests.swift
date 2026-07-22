@@ -146,7 +146,7 @@ final class CowlickUITests: XCTestCase {
 
   func testOverflowSessionListScrollsWithoutMovingActionBar() {
     let app = launch(state: "overflow")
-    let scrollView = app.scrollViews["session-scroll-view"]
+    let scrollView = app.scrollViews["notch-scroll-content"]
     let settings = app.buttons["Settings"]
     XCTAssertTrue(scrollView.waitForExistence(timeout: 3))
     XCTAssertTrue(settings.waitForExistence(timeout: 3))
@@ -156,6 +156,26 @@ final class CowlickUITests: XCTestCase {
 
     XCTAssertTrue(sessionRow(in: app, id: "demo-overflow-1").waitForExistence(timeout: 2))
     XCTAssertEqual(settings.frame.minY, actionBarY, accuracy: 1)
+  }
+
+  func testExpandedNotchIncludesMenuBarInformation() {
+    let app = launch(
+      arguments: [
+        "--simulate-notch", "--usage-demo", "--billing-demo", "--state=working", "--expanded",
+      ])
+
+    XCTAssertTrue(
+      app.descendants(matching: .any).matching(identifier: "notch-activity-header").firstMatch
+        .waitForExistence(timeout: 3))
+    XCTAssertTrue(app.staticTexts["Codex quota"].exists)
+    XCTAssertTrue(app.staticTexts["API-price equivalent"].exists)
+    XCTAssertTrue(app.staticTexts["Unofficial reset forecast"].exists)
+    XCTAssertTrue(app.staticTexts["API billing"].waitForExistence(timeout: 3))
+    XCTAssertTrue(app.staticTexts["Platform"].exists)
+    XCTAssertTrue(app.buttons["Open Codex"].exists)
+    XCTAssertTrue(app.buttons["Settings"].exists)
+    XCTAssertTrue(app.buttons["Diagnostics"].exists)
+    XCTAssertTrue(app.buttons["Quit"].exists)
   }
 
   func testExpandedNotchActionPaddingIsClickable() {

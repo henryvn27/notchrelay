@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct NotchRootView: View {
-  let store: SessionStore
-  let usageStore: UsageStore
+  let services: AppServices
   let presentation: NotchPanelPresentation
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @GestureState private var pullDistance: CGFloat = 0
+
+  private var store: SessionStore { services.sessionStore }
+  private var usageStore: UsageStore { services.usageStore }
 
   var body: some View {
     notchSurface
@@ -65,7 +67,7 @@ struct NotchRootView: View {
 
         if presentation.mode.isExpanded {
           ExpandedIslandView(
-            store: store,
+            services: services,
             isAttached: presentation.isAttached
           )
           .transition(expandedTransition)

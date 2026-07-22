@@ -34,6 +34,8 @@ enum NotchTheme {
   static let sessionRowSpacing: CGFloat = 4
   static let sessionListVerticalPadding: CGFloat = 10
   static let actionBarHeight: CGFloat = 28
+  static let informationHeaderHeight: CGFloat = 44
+  static let maximumInformationViewportHeight: CGFloat = 196
   // SwiftUI owns the visible surface morph. AppKit only prepares the opening
   // host and retains it until closing finishes; hit testing follows the
   // requested compact or expanded surface rather than the transparent host.
@@ -83,6 +85,30 @@ enum NotchTheme {
       width: 360,
       height: sessionListVerticalPadding + CGFloat(visibleCount) * sessionRowHeight + rowSpacing
         + actionBarHeight
+    )
+  }
+
+  static func expandedInformationSize(
+    sessionCount: Int,
+    showsOfficialUsage: Bool,
+    showsAPICostEstimate: Bool,
+    showsForecast: Bool
+  ) -> CGSize {
+    let visibleCount = min(max(0, sessionCount), maximumVisibleSessionCount)
+    let sessionSpacing = CGFloat(max(0, visibleCount - 1)) * sessionRowSpacing
+    let sessionHeight =
+      visibleCount == 0
+      ? 0
+      : sessionListVerticalPadding + CGFloat(visibleCount) * sessionRowHeight + sessionSpacing
+    let estimatedInformationHeight =
+      informationHeaderHeight
+      + (showsOfficialUsage ? 148 : 0)
+      + (showsAPICostEstimate ? 124 : 0)
+      + (showsForecast ? 92 : 0)
+      + sessionHeight
+    return CGSize(
+      width: 360,
+      height: min(estimatedInformationHeight, maximumInformationViewportHeight) + actionBarHeight
     )
   }
 

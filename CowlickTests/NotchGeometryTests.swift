@@ -213,6 +213,33 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(NotchTheme.maximumSessionViewportHeight, 98)
   }
 
+  func testExpandedInformationHeightAdaptsThenCaps() {
+    func size(
+      sessions: Int,
+      officialUsage: Bool = false,
+      apiCost: Bool = false,
+      forecast: Bool = false
+    ) -> CGSize {
+      NotchTheme.expandedInformationSize(
+        sessionCount: sessions,
+        showsOfficialUsage: officialUsage,
+        showsAPICostEstimate: apiCost,
+        showsForecast: forecast
+      )
+    }
+
+    XCTAssertEqual(size(sessions: 0), CGSize(width: 360, height: 72))
+    XCTAssertEqual(size(sessions: 1), CGSize(width: 360, height: 112))
+    XCTAssertEqual(size(sessions: 2), CGSize(width: 360, height: 146))
+    XCTAssertEqual(size(sessions: 3), CGSize(width: 360, height: 180))
+    XCTAssertEqual(size(sessions: 4), CGSize(width: 360, height: 180))
+    XCTAssertEqual(size(sessions: 0, officialUsage: true), CGSize(width: 360, height: 220))
+    XCTAssertEqual(
+      size(sessions: 3, officialUsage: true, apiCost: true, forecast: true),
+      CGSize(width: 360, height: 224)
+    )
+  }
+
   func testAnimatedSurfacePathKeepsItsTopEdgeFixed() {
     let host = CGRect(x: 0, y: 0, width: 420, height: 240)
     let compact = TopAnchoredNotchShape(
@@ -289,15 +316,20 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(expanded.panelFrame.height, 208)
   }
 
-  func testAttachedSessionDrawerKeepsCompactWidthWhileOpeningDownward() {
+  func testAttachedInformationDrawerKeepsCompactWidthWhileOpeningDownward() {
     let compact = NotchTheme.attachedSize(
       baseSize: NotchTheme.compactSize,
       notchGapWidth: 212,
       safeAreaTop: 38,
       expanded: false
     )
-    let sessions = NotchTheme.attachedSize(
-      baseSize: NotchTheme.sessionListSize(sessionCount: 3),
+    let information = NotchTheme.attachedSize(
+      baseSize: NotchTheme.expandedInformationSize(
+        sessionCount: 3,
+        showsOfficialUsage: true,
+        showsAPICostEstimate: true,
+        showsForecast: true
+      ),
       notchGapWidth: 212,
       safeAreaTop: 38,
       expanded: true,
@@ -305,8 +337,8 @@ final class NotchGeometryTests: XCTestCase {
     )
 
     XCTAssertEqual(compact.width, 308)
-    XCTAssertEqual(sessions.width, compact.width)
-    XCTAssertEqual(sessions.height, 174)
+    XCTAssertEqual(information.width, compact.width)
+    XCTAssertEqual(information.height, 262)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {
