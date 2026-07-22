@@ -151,6 +151,7 @@ private struct UsageCaptureView: View {
       showAPICostEstimate: true,
       showForecast: true,
       metricPreference: .remaining,
+      density: .detailed,
       refresh: { services.usageStore.refreshOfficial(force: true) }
     )
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

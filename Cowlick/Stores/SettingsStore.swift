@@ -66,6 +66,12 @@ final class SettingsStore {
     static let showResetForecast = "showResetForecast"
     static let usageMetricPreference = "usageMetricPreference"
     static let notchSecondaryMetric = "notchSecondaryMetric"
+    static let showNotchCurrentWork = "showNotchCurrentWork"
+    static let showNotchIntegrationAlerts = "showNotchIntegrationAlerts"
+    static let showNotchCodexUsage = "showNotchCodexUsage"
+    static let showNotchAPICostEstimate = "showNotchAPICostEstimate"
+    static let showNotchResetForecast = "showNotchResetForecast"
+    static let showNotchProviderBilling = "showNotchProviderBilling"
     static let menuBarPresentation = "menuBarPresentation"
     static let selectedProviderAccountID = "selectedProviderAccountID"
     static let onboardingComplete = "onboardingComplete"
@@ -79,7 +85,9 @@ final class SettingsStore {
     Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
     Key.showAPICostEstimate, Key.apiCostWindow, Key.showResetForecast, Key.usageMetricPreference,
-    Key.notchSecondaryMetric,
+    Key.notchSecondaryMetric, Key.showNotchCurrentWork, Key.showNotchIntegrationAlerts,
+    Key.showNotchCodexUsage, Key.showNotchAPICostEstimate, Key.showNotchResetForecast,
+    Key.showNotchProviderBilling,
     Key.menuBarPresentation,
     Key.selectedProviderAccountID, Key.onboardingComplete, Key.integrationIntentionallyRemoved,
   ]
@@ -140,6 +148,24 @@ final class SettingsStore {
   var notchSecondaryMetric: NotchSecondaryMetric {
     didSet { defaults.set(notchSecondaryMetric.rawValue, forKey: Key.notchSecondaryMetric) }
   }
+  var showNotchCurrentWork: Bool {
+    didSet { defaults.set(showNotchCurrentWork, forKey: Key.showNotchCurrentWork) }
+  }
+  var showNotchIntegrationAlerts: Bool {
+    didSet { defaults.set(showNotchIntegrationAlerts, forKey: Key.showNotchIntegrationAlerts) }
+  }
+  var showNotchCodexUsage: Bool {
+    didSet { defaults.set(showNotchCodexUsage, forKey: Key.showNotchCodexUsage) }
+  }
+  var showNotchAPICostEstimate: Bool {
+    didSet { defaults.set(showNotchAPICostEstimate, forKey: Key.showNotchAPICostEstimate) }
+  }
+  var showNotchResetForecast: Bool {
+    didSet { defaults.set(showNotchResetForecast, forKey: Key.showNotchResetForecast) }
+  }
+  var showNotchProviderBilling: Bool {
+    didSet { defaults.set(showNotchProviderBilling, forKey: Key.showNotchProviderBilling) }
+  }
   var menuBarPresentation: MenuBarPresentation {
     didSet { defaults.set(menuBarPresentation.rawValue, forKey: Key.menuBarPresentation) }
   }
@@ -181,6 +207,12 @@ final class SettingsStore {
       Key.showResetForecast: false,
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
       Key.notchSecondaryMetric: NotchSecondaryMetric.blank.rawValue,
+      Key.showNotchCurrentWork: true,
+      Key.showNotchIntegrationAlerts: true,
+      Key.showNotchCodexUsage: true,
+      Key.showNotchAPICostEstimate: true,
+      Key.showNotchResetForecast: true,
+      Key.showNotchProviderBilling: true,
       Key.menuBarPresentation: MenuBarPresentation.percentageOnly.rawValue,
       Key.onboardingComplete: false,
       Key.integrationIntentionallyRemoved: false,
@@ -216,6 +248,12 @@ final class SettingsStore {
     notchSecondaryMetric =
       NotchSecondaryMetric(rawValue: defaults.string(forKey: Key.notchSecondaryMetric) ?? "")
       ?? .blank
+    showNotchCurrentWork = defaults.bool(forKey: Key.showNotchCurrentWork)
+    showNotchIntegrationAlerts = defaults.bool(forKey: Key.showNotchIntegrationAlerts)
+    showNotchCodexUsage = defaults.bool(forKey: Key.showNotchCodexUsage)
+    showNotchAPICostEstimate = defaults.bool(forKey: Key.showNotchAPICostEstimate)
+    showNotchResetForecast = defaults.bool(forKey: Key.showNotchResetForecast)
+    showNotchProviderBilling = defaults.bool(forKey: Key.showNotchProviderBilling)
     menuBarPresentation =
       MenuBarPresentation(rawValue: defaults.string(forKey: Key.menuBarPresentation) ?? "")
       ?? .percentageOnly
@@ -249,6 +287,12 @@ final class SettingsStore {
     showResetForecast = replacement.showResetForecast
     usageMetricPreference = replacement.usageMetricPreference
     notchSecondaryMetric = replacement.notchSecondaryMetric
+    showNotchCurrentWork = replacement.showNotchCurrentWork
+    showNotchIntegrationAlerts = replacement.showNotchIntegrationAlerts
+    showNotchCodexUsage = replacement.showNotchCodexUsage
+    showNotchAPICostEstimate = replacement.showNotchAPICostEstimate
+    showNotchResetForecast = replacement.showNotchResetForecast
+    showNotchProviderBilling = replacement.showNotchProviderBilling
     menuBarPresentation = replacement.menuBarPresentation
     selectedProviderAccountID = replacement.selectedProviderAccountID
     onboardingComplete = replacement.onboardingComplete

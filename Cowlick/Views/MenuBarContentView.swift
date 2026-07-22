@@ -207,13 +207,14 @@ struct MenuBarContentView: View {
           showAPICostEstimate: services.settings.showAPICostEstimate,
           showForecast: services.settings.showResetForecast,
           metricPreference: services.settings.usageMetricPreference,
+          density: .detailed,
           refresh: { services.usageStore.refreshOfficial(force: true) }
         )
       }
 
       if !services.providerAccountsController.accounts.isEmpty {
         Divider()
-        ProviderBillingSectionView(services: services)
+        ProviderBillingSectionView(services: services, density: .detailed)
       }
 
       if !store.sessionSummaries.isEmpty {
@@ -507,15 +508,22 @@ struct CodexIntegrationAttentionView: View {
 
 struct ProviderBillingSectionView: View {
   let services: AppServices
+  let density: UsageSectionDensity
 
   var body: some View {
     let controller = services.providerAccountsController
-    VStack(alignment: .leading, spacing: 7) {
+    let selectedAccount = controller.selectedAccount
+    let selectedPresentation = selectedAccount.map { billingPresentation(for: $0.id) }
+    VStack(alignment: .leading, spacing: density == .compact ? 4 : 7) {
       HStack {
         Text("API billing")
           .font(.caption.weight(.semibold))
           .foregroundStyle(.secondary)
         Spacer()
+        if density == .compact, let selectedAccount, let selectedPresentation {
+          Text(billingAmount(for: selectedAccount.id, presentation: selectedPresentation))
+            .font(.caption.weight(.semibold).monospacedDigit())
+        }
         Button {
           Task { await controller.refreshSelected() }
         } label: {
@@ -538,46 +546,63 @@ struct ProviderBillingSectionView: View {
         .accessibilityLabel("Refresh selected billing account")
       }
 
-      if let selected = controller.selectedAccount {
+      if let selected = selectedAccount {
         let presentation = billingPresentation(for: selected.id)
-        Menu {
-          ForEach(controller.accounts) { account in
-            Button {
-              _ = controller.selectAccount(id: account.id)
-            } label: {
-              if account.id == controller.selectedAccountID {
-                Label(account.alias, systemImage: "checkmark")
-              } else {
-                Text(account.alias)
+        if density == .compact {
+          HStack(spacing: 4) {
+            Text(selected.provider.billingAccountName ?? "Billing account")
+            if presentation.detail != "Not refreshed" {
+              Text("· \(presentation.detail)")
+                .foregroundStyle(.tertiary)
+            }
+            Spacer(minLength: 0)
+          }
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+          .accessibilityElement(children: .ignore)
+          .accessibilityIdentifier("provider-billing-account")
+          .accessibilityLabel(compactBillingAccessibilityLabel(for: selected))
+        } else {
+          Menu {
+            ForEach(controller.accounts) { account in
+              Button {
+                _ = controller.selectAccount(id: account.id)
+              } label: {
+                if account.id == controller.selectedAccountID {
+                  Label(account.alias, systemImage: "checkmark")
+                } else {
+                  Text(account.alias)
+                }
               }
             }
-          }
-        } label: {
-          HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-              Text(selected.alias)
-                .font(.callout.weight(.medium))
-                .lineLimit(1)
-              Text(selected.provider.billingAccountName ?? "Billing account")
-                .font(.caption2)
+          } label: {
+            HStack(spacing: 8) {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(selected.alias)
+                  .font(.callout.weight(.medium))
+                  .lineLimit(1)
+                Text(selected.provider.billingAccountName ?? "Billing account")
+                  .font(.caption2)
+                  .foregroundStyle(.secondary)
+                Text(presentation.detail)
+                  .font(.caption2)
+                  .foregroundStyle(.secondary)
+              }
+              Spacer()
+              Text(billingAmount(for: selected.id, presentation: presentation))
+                .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
-              Text(presentation.detail)
+              Image(systemName: "chevron.up.chevron.down")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
             }
-            Spacer()
-            Text(billingAmount(for: selected.id, presentation: presentation))
-              .font(.callout.monospacedDigit())
-              .foregroundStyle(.secondary)
-            Image(systemName: "chevron.up.chevron.down")
-              .font(.caption2)
-              .foregroundStyle(.tertiary)
           }
           .contentShape(Rectangle())
+          .menuStyle(.borderlessButton)
+          .accessibilityIdentifier("provider-billing-account")
+          .accessibilityLabel(billingAccessibilityLabel(for: selected))
         }
-        .menuStyle(.borderlessButton)
-        .accessibilityIdentifier("provider-billing-account")
-        .accessibilityLabel(billingAccessibilityLabel(for: selected))
 
         if let error = services.providerBillingStore.errors[selected.id] {
           Label(error, systemImage: "exclamationmark.circle")
@@ -588,7 +613,7 @@ struct ProviderBillingSectionView: View {
       }
     }
     .padding(.horizontal, 14)
-    .padding(.vertical, 10)
+    .padding(.vertical, density == .compact ? 8 : 10)
   }
 
   private func billingPresentation(for accountID: UUID) -> ProviderBillingPresentation {
@@ -615,6 +640,16 @@ struct ProviderBillingSectionView: View {
     return [
       "API billing account",
       account.alias,
+      account.provider.billingAccountName ?? "",
+      billingAmount(for: account.id, presentation: presentation),
+      presentation.detail,
+    ].joined(separator: ", ")
+  }
+
+  private func compactBillingAccessibilityLabel(for account: ProviderAccount) -> String {
+    let presentation = billingPresentation(for: account.id)
+    return [
+      "API billing",
       account.provider.billingAccountName ?? "",
       billingAmount(for: account.id, presentation: presentation),
       presentation.detail,

@@ -3,6 +3,8 @@ import SwiftUI
 struct ExpandedIslandView: View {
   let services: AppServices
   let isAttached: Bool
+  let allowsEmergencyScrolling: Bool
+  let contentHeightDidChange: (CGFloat) -> Void
   @State private var hookTrust = CodexHookTrustReport.notChecked
 
   private var store: SessionStore { services.sessionStore }
@@ -25,58 +27,95 @@ struct ExpandedIslandView: View {
     }
     .task {
       services.usageStore.refreshForMenuPresentation()
-      hookTrust = await services.hookTrustService.inspect()
       await services.providerAccountsController.load()
+    }
+    .task(id: services.settings.showNotchIntegrationAlerts) {
+      if services.settings.showNotchIntegrationAlerts {
+        hookTrust = await services.hookTrustService.inspect()
+      } else {
+        hookTrust = .notChecked
+      }
     }
   }
 
   private var informationView: some View {
     VStack(spacing: 0) {
-      ScrollView(.vertical, showsIndicators: false) {
-        VStack(alignment: .leading, spacing: 0) {
-          activityHeader
-
-          if !store.sessionSummaries.isEmpty {
-            Divider()
-            SessionListView(
-              sessions: store.sessionSummaries,
-              showPromptPreviews: store.settings.showPromptPreviews,
-              showResultPreviews: store.settings.showResultPreviews,
-              isAttached: isAttached
-            )
-          }
-
-          if hookTrust.state.requiresIntegrationAttention {
-            Divider()
-            CodexIntegrationAttentionView(
-              state: hookTrust.state,
-              refresh: { Task { hookTrust = await services.hookTrustService.inspect() } }
-            )
-          }
-
-          if showsUsageInformation {
-            Divider()
-            UsageSectionView(
-              store: services.usageStore,
-              showOfficialUsage: services.settings.showCodexUsage,
-              showAPICostEstimate: services.settings.showAPICostEstimate,
-              showForecast: services.settings.showResetForecast,
-              metricPreference: services.settings.usageMetricPreference,
-              refresh: { services.usageStore.refreshOfficial(force: true) }
-            )
-          }
-
-          if !services.providerAccountsController.accounts.isEmpty {
-            Divider()
-            ProviderBillingSectionView(services: services)
-          }
-        }
-      }
-      .accessibilityIdentifier("notch-scroll-content")
-      .layoutPriority(1)
+      informationViewport
+        .layoutPriority(1)
 
       NotchActionBar(services: services, isAttached: isAttached)
         .frame(height: NotchTheme.actionBarHeight)
+    }
+    .onPreferenceChange(ExpandedInformationHeightKey.self) { informationHeight in
+      contentHeightDidChange(informationHeight + NotchTheme.actionBarHeight)
+    }
+  }
+
+  @ViewBuilder
+  private var informationViewport: some View {
+    if allowsEmergencyScrolling {
+      ScrollView(.vertical, showsIndicators: false) {
+        informationContent
+      }
+      .accessibilityIdentifier("notch-scroll-content")
+    } else {
+      informationContent
+    }
+  }
+
+  private var informationContent: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      if services.settings.showNotchCurrentWork {
+        activityHeader
+      }
+
+      if services.settings.showNotchCurrentWork, !store.sessionSummaries.isEmpty {
+        Divider()
+        SessionListView(
+          sessions: store.sessionSummaries,
+          showPromptPreviews: store.settings.showPromptPreviews,
+          showResultPreviews: store.settings.showResultPreviews,
+          isAttached: isAttached
+        )
+      }
+
+      if services.settings.showNotchIntegrationAlerts,
+        hookTrust.state.requiresIntegrationAttention
+      {
+        Divider()
+        CodexIntegrationAttentionView(
+          state: hookTrust.state,
+          refresh: { Task { hookTrust = await services.hookTrustService.inspect() } }
+        )
+      }
+
+      if showsUsageInformation {
+        Divider()
+        UsageSectionView(
+          store: services.usageStore,
+          showOfficialUsage: showsOfficialUsage,
+          showAPICostEstimate: showsAPICostEstimate,
+          showForecast: showsForecast,
+          metricPreference: services.settings.usageMetricPreference,
+          density: .compact,
+          refresh: { services.usageStore.refreshOfficial(force: true) }
+        )
+      }
+
+      if services.settings.showNotchProviderBilling,
+        !services.providerAccountsController.accounts.isEmpty
+      {
+        Divider()
+        ProviderBillingSectionView(services: services, density: .compact)
+      }
+    }
+    .background {
+      GeometryReader { proxy in
+        Color.clear.preference(
+          key: ExpandedInformationHeightKey.self,
+          value: proxy.size.height
+        )
+      }
     }
   }
 
@@ -90,7 +129,7 @@ struct ExpandedIslandView: View {
         Text(
           MenuBarContentView.headerTitle(
             status: store.displaySession?.presentationStatus,
-            trustState: hookTrust.state
+            trustState: displayedHookTrustState
           )
         )
         .font(.system(size: 12.5, weight: .semibold))
@@ -98,7 +137,7 @@ struct ExpandedIslandView: View {
           MenuBarContentView.activitySummary(
             activeSessionCount: store.activeSessionCount,
             activeSubagentCount: store.activeSubagentCount,
-            trustState: hookTrust.state
+            trustState: displayedHookTrustState
           )
         )
         .font(.system(size: 10.5))
@@ -127,13 +166,29 @@ struct ExpandedIslandView: View {
   }
 
   private var showsUsageInformation: Bool {
-    services.settings.showCodexUsage || services.settings.showAPICostEstimate
-      || services.settings.showResetForecast
+    showsOfficialUsage || showsAPICostEstimate || showsForecast
+  }
+
+  private var showsOfficialUsage: Bool {
+    services.settings.showCodexUsage && services.settings.showNotchCodexUsage
+  }
+
+  private var showsAPICostEstimate: Bool {
+    services.settings.showAPICostEstimate && services.settings.showNotchAPICostEstimate
+  }
+
+  private var showsForecast: Bool {
+    services.settings.showResetForecast && services.settings.showNotchResetForecast
+  }
+
+  private var displayedHookTrustState: CodexHookTrustState {
+    services.settings.showNotchIntegrationAlerts ? hookTrust.state : .trusted
   }
 
   private var headerNeedsIntegrationAttention: Bool {
     let status = store.displaySession?.presentationStatus
-    return (status == nil || status == .idle) && hookTrust.state.requiresIntegrationAttention
+    return (status == nil || status == .idle)
+      && displayedHookTrustState.requiresIntegrationAttention
   }
 
   private var headerIcon: String {
@@ -155,6 +210,14 @@ struct ExpandedIslandView: View {
     case .failed: return NotchTheme.failure
     default: return .secondary
     }
+  }
+}
+
+private struct ExpandedInformationHeightKey: PreferenceKey {
+  static let defaultValue: CGFloat = 0
+
+  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    value = max(value, nextValue())
   }
 }
 

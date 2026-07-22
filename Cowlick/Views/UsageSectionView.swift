@@ -1,32 +1,215 @@
 import SwiftUI
 
+enum UsageSectionDensity {
+  case detailed
+  case compact
+}
+
 struct UsageSectionView: View {
   let store: UsageStore
   let showOfficialUsage: Bool
   let showAPICostEstimate: Bool
   let showForecast: Bool
   let metricPreference: UsageMetricPreference
+  let density: UsageSectionDensity
   let refresh: () -> Void
   @State private var presentationDate = Date()
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: density == .compact ? 8 : 12) {
       if showOfficialUsage {
-        officialUsage
+        if density == .compact { compactOfficialUsage } else { officialUsage }
       }
       if showAPICostEstimate {
-        apiEquivalentCost
+        if density == .compact { compactAPICost } else { apiEquivalentCost }
       }
       if showForecast {
-        thirdPartyForecast
+        if density == .compact { compactForecast } else { thirdPartyForecast }
       }
     }
     .padding(.horizontal, 14)
-    .padding(.vertical, 12)
+    .padding(.vertical, density == .compact ? 8 : 12)
     .background {
       MenuPresentationObserver { presentationDate = Date() }
         .frame(width: 0, height: 0)
     }
+  }
+
+  private var compactOfficialUsage: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: 1) {
+          Text("Codex quota")
+            .font(.caption.weight(.semibold))
+          if let snapshot = store.snapshot {
+            Text(officialFreshness(snapshot))
+              .font(.caption2)
+              .foregroundStyle(store.officialError == nil ? Color.secondary : Color.orange)
+          } else {
+            Text("From the local Codex app")
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+          }
+        }
+        Spacer()
+        officialRefreshButton
+      }
+
+      if let snapshot = store.snapshot {
+        ForEach(snapshot.limits) { limit in
+          compactQuotaWindow(limit, observedAt: snapshot.fetchedAt)
+        }
+      } else if let error = store.officialError {
+        unavailableRow(error)
+      } else {
+        loadingRow("Reading local quota…")
+      }
+    }
+  }
+
+  private func compactQuotaWindow(_ limit: CodexUsageLimit, observedAt: Date) -> some View {
+    let pace = QuotaPaceCalculator.pace(
+      for: QuotaWindow(
+        usedPercent: limit.usedPercent,
+        duration: limit.windowDurationMinutes.map { TimeInterval($0 * 60) },
+        resetsAt: limit.resetsAt
+      ),
+      observedAt: observedAt
+    )
+    return VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .firstTextBaseline) {
+        Text(limit.name)
+          .font(.caption)
+          .lineLimit(1)
+        Spacer()
+        Text(percentLabel(for: limit))
+          .font(.caption.weight(.semibold).monospacedDigit())
+      }
+      QuotaProgressBar(
+        displayedPercent: limit.displayedPercent(for: metricPreference),
+        metricPreference: metricPreference,
+        pace: pace
+      )
+      HStack(spacing: 4) {
+        if let pace {
+          Text(compactPaceLabel(pace))
+            .foregroundStyle(compactPaceColor(pace))
+        }
+        if pace != nil, limit.resetsAt != nil {
+          Text("·").foregroundStyle(.tertiary)
+        }
+        if let resetsAt = limit.resetsAt {
+          Text("Resets \(RelativeTimeLabel.string(for: resetsAt, relativeTo: presentationDate))")
+            .foregroundStyle(.secondary)
+        }
+        Spacer(minLength: 0)
+      }
+      .font(.caption2)
+      .monospacedDigit()
+      .lineLimit(1)
+    }
+    .accessibilityElement(children: .combine)
+  }
+
+  private var compactAPICost: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: 1) {
+          Text("API-price estimate")
+            .font(.caption.weight(.semibold))
+          Text("This Mac · \(store.settings.apiCostWindow.label.lowercased())")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        Spacer()
+        if let estimate = store.apiCostEstimate {
+          Text(
+            estimate.measurement.amount.formatted(
+              .currency(code: estimate.measurement.currency.uppercased()))
+          )
+          .font(.caption.weight(.semibold).monospacedDigit())
+        }
+        apiCostRefreshButton
+      }
+
+      if let estimate = store.apiCostEstimate {
+        Text(compactAPICostStatus(estimate))
+          .font(.caption2)
+          .foregroundStyle(store.apiCostError == nil ? Color.secondary : Color.orange)
+          .lineLimit(1)
+      } else if let error = store.apiCostError {
+        unavailableRow(error)
+      } else {
+        loadingRow("Reading local token counters…")
+      }
+    }
+    .accessibilityElement(children: .contain)
+  }
+
+  private var compactForecast: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: 1) {
+          Text("Reset forecast")
+            .font(.caption.weight(.semibold))
+          Link("Will Codex Reset? · third party", destination: ResetForecast.sourceURL)
+            .font(.caption2)
+        }
+        Spacer()
+        if let forecast = store.forecast {
+          Text(forecast.resetAnnounced ? "Announced" : "\(Int(forecast.score.rounded()))%")
+            .font(.caption.weight(.semibold).monospacedDigit())
+            .foregroundStyle(forecast.resetAnnounced ? NotchTheme.success : .primary)
+        }
+        forecastRefreshButton
+      }
+
+      if let forecast = store.forecast {
+        Text(compactForecastStatus(forecast))
+          .font(.caption2)
+          .foregroundStyle(store.forecastError == nil ? Color.secondary : Color.orange)
+          .lineLimit(1)
+      } else if let error = store.forecastError {
+        unavailableRow(error)
+      } else {
+        loadingRow("Loading third-party forecast…")
+      }
+    }
+    .accessibilityElement(children: .contain)
+  }
+
+  private func compactPaceLabel(_ pace: QuotaPace) -> String {
+    let balance = Int(abs(pace.balancePercent).rounded())
+    return switch pace.status {
+    case .reserve: "+\(balance)% vs pace"
+    case .onPace: "On pace"
+    case .deficit: "-\(balance)% vs pace"
+    }
+  }
+
+  private func compactPaceColor(_ pace: QuotaPace) -> Color {
+    switch pace.status {
+    case .reserve: NotchTheme.success
+    case .onPace: .secondary
+    case .deficit:
+      abs(pace.balancePercent) < 15 ? NotchTheme.warning : NotchTheme.failure
+    }
+  }
+
+  private func compactAPICostStatus(_ estimate: LocalCodexCostEstimate) -> String {
+    if store.apiCostError != nil { return "Refresh failed · last estimate · not a bill" }
+    if estimate.measurement.coverage == .partial || estimate.unpricedTokenCount > 0 {
+      return "Partial API-rate estimate · not a bill"
+    }
+    return "API-rate estimate · not a bill"
+  }
+
+  private func compactForecastStatus(_ forecast: ResetForecast) -> String {
+    let freshness =
+      forecast.fetchedAt.map {
+        " · updated \(RelativeTimeLabel.string(for: $0, relativeTo: presentationDate))"
+      } ?? ""
+    return "Chance of reset in the next 48h\(freshness)"
   }
 
   private var apiEquivalentCost: some View {

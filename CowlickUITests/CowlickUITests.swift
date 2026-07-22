@@ -168,13 +168,41 @@ final class CowlickUITests: XCTestCase {
       app.descendants(matching: .any).matching(identifier: "notch-activity-header").firstMatch
         .waitForExistence(timeout: 3))
     XCTAssertTrue(app.staticTexts["Codex quota"].exists)
-    XCTAssertTrue(app.staticTexts["API-price equivalent"].exists)
-    XCTAssertTrue(app.staticTexts["Unofficial reset forecast"].exists)
+    XCTAssertTrue(app.staticTexts["API-price estimate"].exists)
+    XCTAssertTrue(app.staticTexts["Reset forecast"].exists)
     XCTAssertTrue(app.staticTexts["API billing"].waitForExistence(timeout: 3))
     XCTAssertTrue(
       app.descendants(matching: .any).matching(identifier: "provider-billing-account").firstMatch
         .exists)
+    XCTAssertFalse(app.popUpButtons["provider-billing-account"].exists)
+    XCTAssertFalse(app.staticTexts["Platform"].exists)
     XCTAssertTrue(app.buttons["Open Codex"].exists)
+    XCTAssertTrue(app.buttons["Settings"].exists)
+    XCTAssertTrue(app.buttons["Diagnostics"].exists)
+    XCTAssertTrue(app.buttons["Quit"].exists)
+  }
+
+  func testExpandedNotchContentCanBeHidden() {
+    let app = launch(
+      arguments: [
+        "--simulate-notch", "--usage-demo", "--billing-demo", "--state=working", "--expanded",
+        "--hide-notch-current-work", "--hide-notch-integration-alerts",
+        "--hide-notch-codex-usage", "--hide-notch-api-cost",
+        "--hide-notch-reset-forecast", "--hide-notch-provider-billing",
+      ])
+
+    XCTAssertTrue(app.buttons["Open Codex"].waitForExistence(timeout: 3))
+    XCTAssertFalse(
+      app.descendants(matching: .any).matching(identifier: "notch-activity-header").firstMatch
+        .exists)
+    XCTAssertFalse(sessionRow(in: app, id: "demo-visual-state").exists)
+    XCTAssertFalse(app.staticTexts["Codex quota"].exists)
+    XCTAssertFalse(app.staticTexts["API-price estimate"].exists)
+    XCTAssertFalse(app.staticTexts["Reset forecast"].exists)
+    XCTAssertFalse(app.staticTexts["API billing"].exists)
+    XCTAssertFalse(
+      app.descendants(matching: .any).matching(identifier: "codex-integration-attention")
+        .firstMatch.exists)
     XCTAssertTrue(app.buttons["Settings"].exists)
     XCTAssertTrue(app.buttons["Diagnostics"].exists)
     XCTAssertTrue(app.buttons["Quit"].exists)
@@ -211,6 +239,26 @@ final class CowlickUITests: XCTestCase {
   func testSettingsOpens() {
     let app = launch(arguments: ["--open-settings"])
     XCTAssertTrue(app.staticTexts["Appearance"].waitForExistence(timeout: 3))
+  }
+
+  func testSettingsExposesExpandedNotchContentControls() {
+    let app = launch(arguments: ["--open-settings"])
+    let identifiers = [
+      "settings-notch-current-work",
+      "settings-notch-integration-alerts",
+      "settings-notch-codex-usage",
+      "settings-notch-api-cost",
+      "settings-notch-reset-forecast",
+      "settings-notch-provider-billing",
+    ]
+
+    for identifier in identifiers {
+      XCTAssertTrue(
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+          .waitForExistence(timeout: 3),
+        "Missing expanded-notch setting: \(identifier)"
+      )
+    }
   }
 
   func testAccountsSettingsOpens() {

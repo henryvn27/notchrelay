@@ -68,7 +68,9 @@ struct NotchRootView: View {
         if presentation.mode.isExpanded {
           ExpandedIslandView(
             services: services,
-            isAttached: presentation.isAttached
+            isAttached: presentation.isAttached,
+            allowsEmergencyScrolling: requiresEmergencyScrolling,
+            contentHeightDidChange: presentation.reportInformationContentHeight
           )
           .transition(expandedTransition)
           .zIndex(0)
@@ -106,6 +108,12 @@ struct NotchRootView: View {
 
   private var compactHeaderHeight: CGFloat {
     presentation.isAttached ? presentation.safeAreaTop : NotchTheme.compactSize.height
+  }
+
+  private var requiresEmergencyScrolling: Bool {
+    let availableHeight = max(0, presentation.surfaceSize.height - compactHeaderHeight)
+    return presentation.informationContentHeight <= 0
+      || presentation.informationContentHeight > availableHeight + 0.5
   }
 
   private var animatedSurfaceShape: TopAnchoredNotchShape {

@@ -33,6 +33,12 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
     XCTAssertEqual(first.notchSecondaryMetric, .blank)
+    XCTAssertTrue(first.showNotchCurrentWork)
+    XCTAssertTrue(first.showNotchIntegrationAlerts)
+    XCTAssertTrue(first.showNotchCodexUsage)
+    XCTAssertTrue(first.showNotchAPICostEstimate)
+    XCTAssertTrue(first.showNotchResetForecast)
+    XCTAssertTrue(first.showNotchProviderBilling)
     XCTAssertEqual(first.presentationPreference, .automatic)
     XCTAssertEqual(first.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(first.integrationIntentionallyRemoved)
@@ -46,6 +52,12 @@ final class SettingsStoreTests: XCTestCase {
     first.menuBarPresentation = .percentageOnly
     first.presentationPreference = .menuBar
     first.integrationIntentionallyRemoved = true
+    first.showNotchCurrentWork = false
+    first.showNotchIntegrationAlerts = false
+    first.showNotchCodexUsage = false
+    first.showNotchAPICostEstimate = false
+    first.showNotchResetForecast = false
+    first.showNotchProviderBilling = false
 
     let second = SettingsStore(defaults: defaults)
     XCTAssertFalse(second.showChatNames)
@@ -58,6 +70,12 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(second.menuBarPresentation, .percentageOnly)
     XCTAssertEqual(second.presentationPreference, .menuBar)
     XCTAssertTrue(second.integrationIntentionallyRemoved)
+    XCTAssertFalse(second.showNotchCurrentWork)
+    XCTAssertFalse(second.showNotchIntegrationAlerts)
+    XCTAssertFalse(second.showNotchCodexUsage)
+    XCTAssertFalse(second.showNotchAPICostEstimate)
+    XCTAssertFalse(second.showNotchResetForecast)
+    XCTAssertFalse(second.showNotchProviderBilling)
   }
 
   func testResetRestoresSafeDefaults() {
@@ -74,6 +92,12 @@ final class SettingsStoreTests: XCTestCase {
     settings.notchSecondaryMetric = .resetProbability
     settings.menuBarPresentation = .statusAndPercentage
     settings.integrationIntentionallyRemoved = true
+    settings.showNotchCurrentWork = false
+    settings.showNotchIntegrationAlerts = false
+    settings.showNotchCodexUsage = false
+    settings.showNotchAPICostEstimate = false
+    settings.showNotchResetForecast = false
+    settings.showNotchProviderBilling = false
     settings.reset()
 
     XCTAssertTrue(settings.showChatNames)
@@ -89,6 +113,12 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(settings.presentationPreference, .automatic)
     XCTAssertEqual(settings.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(settings.integrationIntentionallyRemoved)
+    XCTAssertTrue(settings.showNotchCurrentWork)
+    XCTAssertTrue(settings.showNotchIntegrationAlerts)
+    XCTAssertTrue(settings.showNotchCodexUsage)
+    XCTAssertTrue(settings.showNotchAPICostEstimate)
+    XCTAssertTrue(settings.showNotchResetForecast)
+    XCTAssertTrue(settings.showNotchProviderBilling)
   }
 
   func testUnhealthyIntegrationReopensOnboardingUntilRepair() {

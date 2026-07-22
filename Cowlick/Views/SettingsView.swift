@@ -49,6 +49,25 @@ struct SettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         }
+        Section("Expanded notch") {
+          Toggle("Current work", isOn: $settings.showNotchCurrentWork)
+            .accessibilityIdentifier("settings-notch-current-work")
+          Toggle("Integration alerts", isOn: $settings.showNotchIntegrationAlerts)
+            .accessibilityIdentifier("settings-notch-integration-alerts")
+          Toggle("Codex quota", isOn: $settings.showNotchCodexUsage)
+            .accessibilityIdentifier("settings-notch-codex-usage")
+          Toggle("API-price estimate", isOn: $settings.showNotchAPICostEstimate)
+            .accessibilityIdentifier("settings-notch-api-cost")
+          Toggle("Reset forecast", isOn: $settings.showNotchResetForecast)
+            .accessibilityIdentifier("settings-notch-reset-forecast")
+          Toggle("Provider billing", isOn: $settings.showNotchProviderBilling)
+            .accessibilityIdentifier("settings-notch-provider-billing")
+          Text(
+            "Choose exactly what appears after the notch expands. These switches affect only the expanded notch; quota sources must also be enabled in the Quota tab."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
         Section("Appearance") {
           Toggle(
             "Show Codex chat names",

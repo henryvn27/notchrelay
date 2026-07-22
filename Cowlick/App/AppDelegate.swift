@@ -119,6 +119,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     services.settings.showPromptPreviews =
       CommandLine.arguments.contains("--show-prompt-previews")
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
+    services.settings.showNotchCurrentWork =
+      !CommandLine.arguments.contains("--hide-notch-current-work")
+    services.settings.showNotchIntegrationAlerts =
+      !CommandLine.arguments.contains("--hide-notch-integration-alerts")
+    services.settings.showNotchCodexUsage =
+      !CommandLine.arguments.contains("--hide-notch-codex-usage")
+    services.settings.showNotchAPICostEstimate =
+      !CommandLine.arguments.contains("--hide-notch-api-cost")
+    services.settings.showNotchResetForecast =
+      !CommandLine.arguments.contains("--hide-notch-reset-forecast")
+    services.settings.showNotchProviderBilling =
+      !CommandLine.arguments.contains("--hide-notch-provider-billing")
     if ProcessInfo.processInfo.environment["COWLICK_ASSET_CAPTURE"] == "1" {
       services.settings.reducedAnimation = true
     }

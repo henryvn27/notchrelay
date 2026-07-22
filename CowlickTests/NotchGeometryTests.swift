@@ -216,15 +216,21 @@ final class NotchGeometryTests: XCTestCase {
   func testExpandedInformationHeightAdaptsThenCaps() {
     func size(
       sessions: Int,
+      currentWork: Bool = true,
+      integrationAlerts: Bool = false,
       officialUsage: Bool = false,
       apiCost: Bool = false,
-      forecast: Bool = false
+      forecast: Bool = false,
+      billing: Bool = false
     ) -> CGSize {
       NotchTheme.expandedInformationSize(
         sessionCount: sessions,
+        showsCurrentWork: currentWork,
+        showsIntegrationAlerts: integrationAlerts,
         showsOfficialUsage: officialUsage,
         showsAPICostEstimate: apiCost,
-        showsForecast: forecast
+        showsForecast: forecast,
+        showsBilling: billing
       )
     }
 
@@ -233,10 +239,19 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(size(sessions: 2), CGSize(width: 360, height: 146))
     XCTAssertEqual(size(sessions: 3), CGSize(width: 360, height: 180))
     XCTAssertEqual(size(sessions: 4), CGSize(width: 360, height: 180))
-    XCTAssertEqual(size(sessions: 0, officialUsage: true), CGSize(width: 360, height: 220))
+    XCTAssertEqual(size(sessions: 0, officialUsage: true), CGSize(width: 360, height: 212))
+    XCTAssertEqual(size(sessions: 3, currentWork: false), CGSize(width: 360, height: 28))
+    XCTAssertEqual(
+      size(sessions: 0, currentWork: false, integrationAlerts: true),
+      CGSize(width: 360, height: 108)
+    )
+    XCTAssertEqual(
+      size(sessions: 0, currentWork: false, billing: true),
+      CGSize(width: 360, height: 78)
+    )
     XCTAssertEqual(
       size(sessions: 3, officialUsage: true, apiCost: true, forecast: true),
-      CGSize(width: 360, height: 224)
+      CGSize(width: 360, height: 408)
     )
   }
 
@@ -326,9 +341,12 @@ final class NotchGeometryTests: XCTestCase {
     let information = NotchTheme.attachedSize(
       baseSize: NotchTheme.expandedInformationSize(
         sessionCount: 3,
+        showsCurrentWork: true,
+        showsIntegrationAlerts: true,
         showsOfficialUsage: true,
         showsAPICostEstimate: true,
-        showsForecast: true
+        showsForecast: true,
+        showsBilling: true
       ),
       notchGapWidth: 212,
       safeAreaTop: 38,
@@ -338,7 +356,7 @@ final class NotchGeometryTests: XCTestCase {
 
     XCTAssertEqual(compact.width, 308)
     XCTAssertEqual(information.width, compact.width)
-    XCTAssertEqual(information.height, 262)
+    XCTAssertEqual(information.height, 496)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {

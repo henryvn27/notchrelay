@@ -22,6 +22,7 @@ struct NotchSurfacePresentationState: Equatable, Sendable {
 @Observable
 final class NotchPanelPresentation {
   private(set) var state = NotchSurfacePresentationState()
+  private(set) var informationContentHeight: CGFloat = 0
 
   var isAttached: Bool { state.isAttached }
   var notchGapWidth: CGFloat { state.notchGapWidth }
@@ -41,6 +42,12 @@ final class NotchPanelPresentation {
       surfaceSize: surfaceSize,
       mode: mode
     )
+  }
+
+  func reportInformationContentHeight(_ height: CGFloat) {
+    let height = max(0, height)
+    guard abs(informationContentHeight - height) >= 0.5 else { return }
+    informationContentHeight = height
   }
 
   func interactiveRect(in hostSize: CGSize, isFlipped: Bool) -> CGRect {
@@ -134,11 +141,23 @@ final class NotchPanelController {
       baseSize = NotchTheme.approvalSize(for: approval)
     } else if store.isExpanded {
       mode = .sessions
-      baseSize = NotchTheme.expandedInformationSize(
+      let estimatedSize = NotchTheme.expandedInformationSize(
         sessionCount: store.sessionSummaries.count,
-        showsOfficialUsage: services.settings.showCodexUsage,
-        showsAPICostEstimate: services.settings.showAPICostEstimate,
+        showsCurrentWork: services.settings.showNotchCurrentWork,
+        showsIntegrationAlerts: services.settings.showNotchIntegrationAlerts,
+        showsOfficialUsage: services.settings.showCodexUsage
+          && services.settings.showNotchCodexUsage,
+        showsAPICostEstimate: services.settings.showAPICostEstimate
+          && services.settings.showNotchAPICostEstimate,
         showsForecast: services.settings.showResetForecast
+          && services.settings.showNotchResetForecast,
+        showsBilling: services.settings.showNotchProviderBilling
+          && !services.providerAccountsController.accounts.isEmpty
+      )
+      baseSize = CGSize(
+        width: estimatedSize.width,
+        height: presentation.informationContentHeight > 0
+          ? presentation.informationContentHeight : estimatedSize.height
       )
     } else {
       mode = .compact
@@ -155,9 +174,10 @@ final class NotchPanelController {
     }
 
     let isExpanded = store.isExpanded
-    let contentSize: CGSize
-    if let metrics = resolvedNotchMetrics(for: screen) {
-      contentSize = NotchTheme.attachedSize(
+    let unboundedContentSize: CGSize
+    let notchMetrics = resolvedNotchMetrics(for: screen)
+    if let metrics = notchMetrics {
+      unboundedContentSize = NotchTheme.attachedSize(
         baseSize: baseSize,
         notchGapWidth: metrics.gapWidth,
         safeAreaTop: metrics.safeAreaTop,
@@ -165,8 +185,16 @@ final class NotchPanelController {
         allowsWidthGrowth: mode == .approval
       )
     } else {
-      contentSize = baseSize
+      unboundedContentSize = baseSize
     }
+    let maximumPanelHeight =
+      notchMetrics == nil
+      ? max(NotchTheme.actionBarHeight, screen.visibleFrame.height - 12)
+      : max(NotchTheme.actionBarHeight, screen.frame.height - 24)
+    let contentSize = CGSize(
+      width: unboundedContentSize.width,
+      height: min(unboundedContentSize.height, maximumPanelHeight)
+    )
 
     guard let geometry = resolvedGeometry(screen: screen, contentSize: contentSize)
     else {
@@ -353,7 +381,17 @@ final class NotchPanelController {
   private func observeUsageChanges() {
     withObservationTracking {
       _ = usageStore.settings.showCodexUsage
+      _ = usageStore.settings.showAPICostEstimate
+      _ = usageStore.settings.showResetForecast
+      _ = usageStore.settings.showNotchCurrentWork
+      _ = usageStore.settings.showNotchIntegrationAlerts
+      _ = usageStore.settings.showNotchCodexUsage
+      _ = usageStore.settings.showNotchAPICostEstimate
+      _ = usageStore.settings.showNotchResetForecast
+      _ = usageStore.settings.showNotchProviderBilling
       _ = usageStore.primaryDisplayedPercent
+      _ = services.providerAccountsController.accounts.count
+      _ = presentation.informationContentHeight
     } onChange: { [weak self] in
       Task { @MainActor [weak self] in
         self?.observeUsageChanges()
