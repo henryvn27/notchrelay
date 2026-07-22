@@ -30,7 +30,11 @@ final class CowlickUITests: XCTestCase {
     let island = app.buttons["Polish release onboarding, Scoutly, Working"]
     XCTAssertTrue(island.waitForExistence(timeout: 3))
 
-    island.hover()
+    // Passive status panels deliberately remain nonactivating, so XCTest may
+    // report their accessibility elements as not hittable even though pointer
+    // routing is live. Exercise the same physical point without asking XCTest
+    // to activate the panel first.
+    island.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).hover()
 
     XCTAssertTrue(expandedSession.waitForExistence(timeout: 2))
   }
