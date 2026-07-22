@@ -199,7 +199,7 @@ The official NotchNook product surface confirms widgets, live actions, a file sh
 
 Notch gestures:
 
-- Hover opens after the existing 80 ms intent delay; leave closes after 160 ms unless focus or drag is inside.
+- Hover gives restrained visual feedback while the surface stays compact; click or pull-down opens it. Leaving an expanded surface closes after 160 ms unless focus or drag is inside.
 - Click toggles compact/expanded.
 - Horizontal swipe changes pages and is interruptible.
 - Pull/down gesture expands; upward gesture collapses.
@@ -235,7 +235,10 @@ The compact notch is a status sentence, not an icon strip:
 - State/approval owns the strongest color. Usage is secondary unless at risk.
 - Now is preferred over the chat title. Project is retained as context.
 - At narrow widths, truncation order is chat metadata → agent detail → Project → Now. State and approval never disappear.
-- Idle with usage available shows the percentage and next reset only; no fake active session.
+- The minimized hardware-notch shell is exactly as tall as the safe-area notch and adds two matched 48-point wings; it never extends below the camera housing.
+- Idle with usage available centers the primary percentage in the left wing. The right wing is user-selectable: blank, used/left meaning, window progress, pace balance (`+13%` banked, `-14%` behind), reset countdown, projected runway, or the opt-in reset probability. The shell never grows for a selection.
+- Compact secondary values use terse visible tokens and complete VoiceOver labels; unavailable data leaves the wing blank rather than guessing.
+- Both idle wing values use the same 11-point semibold typography. Pace color is semantic and redundant with the sign: banked (`+`) is green, 1–14 points behind (`-`) is yellow, and 15 or more points behind is red.
 
 ### 5.2 Notch expanded state
 
@@ -302,7 +305,7 @@ Cowlick already uses the Apache-2.0 Ping Island fixed-shell architecture. Keep i
 - one top-anchored SwiftUI surface controlling width, height, corners, and body reveal;
 - bounded hit testing so unused host space is click-through;
 - no AppKit frame animation during state changes;
-- 80/160 ms hover intent;
+- passive hover feedback and 160 ms pointer-exit collapse;
 - interruptible opening spring, critically damped closing spring;
 - opacity-only body insertion clipped by the shell;
 - immediate 80–100 ms press response;
@@ -314,7 +317,7 @@ Cowlick already uses the Apache-2.0 Ping Island fixed-shell architecture. Keep i
 Performance gates for the expanded feature set:
 
 - idle WindowServer/CPU impact must remain within the existing Cowlick baseline plus a measured 0.2% CPU ceiling on the representative Mac;
-- hover-to-first-frame p95 under 100 ms; page-switch p95 under 150 ms;
+- click-to-first-frame p95 under 100 ms; page-switch p95 under 150 ms;
 - transcript parsing stays off-main and incremental; no full-file scan on every activity update;
 - media waveform, Mirror, and charts stop rendering when their page is not visible;
 - file drag previews are generated asynchronously and cached by file identity;

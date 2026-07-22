@@ -179,16 +179,24 @@ final class NotchGeometryTests: XCTestCase {
         session: nil,
         activeCount: 0,
         activeSubagentCount: 0,
-        usageLabel: "Codex, 73 percent remaining"
+        usageLabel: "Codex, 73 percent remaining",
+        secondaryUsageLabel: "13 percentage points ahead of usage pace"
       ),
-      "Codex, 73 percent remaining"
+      "Codex, 73 percent remaining, 13 percentage points ahead of usage pace"
     )
   }
 
-  func testNotchMotionUsesPromptHoverAndOpacityOnlyContentReveal() {
-    XCTAssertEqual(NotchTheme.hoverOpenDelay, 0.08)
+  func testNotchMotionUsesSubtleHoverFeedbackAndPromptCollapse() {
+    XCTAssertEqual(NotchTheme.hoverFeedbackDuration, 0.12)
     XCTAssertEqual(NotchTheme.hoverCloseDelay, 0.16)
     XCTAssertEqual(NotchTheme.reducedMotionFadeDuration, 0.12)
+  }
+
+  @MainActor
+  func testNotchHostingViewAcceptsTheFirstMouseClick() {
+    let hostingView = NotchHostingView(rootView: EmptyView())
+
+    XCTAssertTrue(hostingView.acceptsFirstMouse(for: nil))
   }
 
   func testNotchUsesAuxiliaryGapWithoutHardcodedWidth() throws {
@@ -211,16 +219,16 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertEqual(result.safeAreaTop, 38)
   }
 
-  func testAttachedCompactReservesVisibleWingsBesideCameraGap() {
+  func testAttachedCompactUsesMinimalWingsAndOnlyTheHardwareNotchHeight() {
     let size = NotchTheme.attachedSize(
       baseSize: NotchTheme.compactSize,
       notchGapWidth: 212,
-      safeAreaTop: 38,
+      safeAreaTop: 32,
       expanded: false
     )
 
-    XCTAssertEqual(size.width, 356)
-    XCTAssertEqual(size.height, 38)
+    XCTAssertEqual(size.width, 308)
+    XCTAssertEqual(size.height, 32)
   }
 
   func testAttachedExpansionGrowsDownwardFromStableTopEdge() throws {

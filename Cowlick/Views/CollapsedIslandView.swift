@@ -28,10 +28,15 @@ struct CollapsedIslandView: View {
         )
       } else {
         Button(action: action) {
-          header(session: nil, showsHoverFeedback: false)
+          header(session: nil, showsHoverFeedback: true)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(IslandPressButtonStyle(reduceMotion: motionReduced))
         .accessibilityHint("Open Cowlick controls")
+        .onHover { isHovering = $0 }
+        .animation(
+          motionReduced ? nil : .easeOut(duration: NotchTheme.hoverFeedbackDuration),
+          value: isHovering
+        )
       }
     }
     .accessibilityLabel(
@@ -39,7 +44,8 @@ struct CollapsedIslandView: View {
         session: session,
         activeCount: activeCount,
         activeSubagentCount: activeSubagentCount,
-        usageLabel: usageAccessibilityLabel
+        usageLabel: usageAccessibilityLabel,
+        secondaryUsageLabel: session == nil ? secondaryUsageValue?.accessibilityLabel : nil
       )
     )
   }
@@ -48,6 +54,7 @@ struct CollapsedIslandView: View {
     IslandHeaderView(
       session: session,
       usageText: usageText,
+      secondaryUsageValue: secondaryUsageValue,
       usageAccessibilityLabel: usageAccessibilityLabel,
       activeCount: activeCount,
       activeSubagentCount: activeSubagentCount,
@@ -70,7 +77,8 @@ struct CollapsedIslandView: View {
     session: AgentSession?,
     activeCount: Int,
     activeSubagentCount: Int,
-    usageLabel: String? = nil
+    usageLabel: String? = nil,
+    secondaryUsageLabel: String? = nil
   ) -> String {
     var parts: [String] = []
     if let session {
@@ -84,6 +92,7 @@ struct CollapsedIslandView: View {
       }
     }
     if let usageLabel { parts.append(usageLabel) }
+    if let secondaryUsageLabel { parts.append(secondaryUsageLabel) }
     return parts.joined(separator: ", ")
   }
 
@@ -103,11 +112,20 @@ struct CollapsedIslandView: View {
     )
   }
 
+  private var secondaryUsageValue: CompactUsageSecondaryValue? {
+    guard usageStore.settings.showCodexUsage else { return nil }
+    return CompactUsageSecondaryFormatter.value(
+      for: usageStore.settings.notchSecondaryMetric,
+      snapshot: usageStore.snapshot,
+      preference: usageStore.settings.usageMetricPreference,
+      forecast: usageStore.settings.showResetForecast ? usageStore.forecast : nil
+    )
+  }
+
   private var usageAccessibilityLabel: String? {
     guard usageText != nil else { return nil }
     return usageStore.primaryMetricAccessibilityLabel
   }
-
 }
 
 private struct IslandPressButtonStyle: ButtonStyle {

@@ -19,13 +19,12 @@ enum NotchTheme {
 
   static let compactSize = CGSize(width: 170, height: 34)
   static let maximumApprovalSize = CGSize(width: 380, height: 170)
-  static let attachedWingWidth: CGFloat = 72
+  static let attachedWingWidth: CGFloat = 48
   static let compactRadius: CGFloat = 14
   static let expandedBottomRadius: CGFloat = 22
   static let floatingRadius: CGFloat = 12
   static let reducedMotionFadeDuration = 0.12
   static let hoverFeedbackDuration = 0.12
-  static let hoverOpenDelay = 0.08
   static let hoverCloseDelay = 0.16
   // Surface springs follow Ping Island's fixed-shell engine. AppKit owns a
   // stable host window; SwiftUI retargets the complete notch surface.
@@ -58,7 +57,7 @@ enum NotchTheme {
     }
     return CGSize(
       width: max(baseSize.width, notchGapWidth + attachedWingWidth * 2),
-      height: max(baseSize.height, safeAreaTop)
+      height: safeAreaTop
     )
   }
 

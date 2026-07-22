@@ -6,13 +6,13 @@ struct NotchRootView: View {
   let presentation: NotchPanelPresentation
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Namespace private var islandMorph
-  @State private var hoverIntent: Task<Void, Never>?
+  @State private var collapseIntent: Task<Void, Never>?
   @GestureState private var pullDistance: CGFloat = 0
 
   var body: some View {
     notchSurface
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      .onDisappear { hoverIntent?.cancel() }
+      .onDisappear { collapseIntent?.cancel() }
       .onExitCommand { store.collapse() }
       .preferredColorScheme(presentation.isAttached ? .dark : nil)
   }
@@ -165,21 +165,18 @@ struct NotchRootView: View {
   }
 
   private func handleHover(_ isHovering: Bool) {
-    hoverIntent?.cancel()
+    collapseIntent?.cancel()
     #if DEBUG
       guard !CommandLine.arguments.contains("--disable-auto-hover") else { return }
     #endif
-    guard presentation.isAttached, store.currentApproval == nil, hasExpandableContent else { return }
+    guard !isHovering, presentation.isAttached, store.currentApproval == nil, isExpanded else {
+      return
+    }
 
-    hoverIntent = Task { @MainActor in
-      let delay = isHovering ? NotchTheme.hoverOpenDelay : NotchTheme.hoverCloseDelay
-      try? await Task.sleep(for: .seconds(delay))
+    collapseIntent = Task { @MainActor in
+      try? await Task.sleep(for: .seconds(NotchTheme.hoverCloseDelay))
       guard !Task.isCancelled else { return }
-      if isHovering {
-        expandSurface()
-      } else {
-        store.collapse()
-      }
+      store.collapse()
     }
   }
 

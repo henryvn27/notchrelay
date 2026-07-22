@@ -20,6 +20,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(first.apiCostWindow, .last30Days)
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
+    XCTAssertEqual(first.notchSecondaryMetric, .blank)
     XCTAssertEqual(first.presentationPreference, .automatic)
     XCTAssertEqual(first.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(first.integrationIntentionallyRemoved)
@@ -27,6 +28,7 @@ final class SettingsStoreTests: XCTestCase {
     first.showChatNames = false
     first.approvalTimeout = 35
     first.usageMetricPreference = .used
+    first.notchSecondaryMetric = .paceBalance
     first.showAPICostEstimate = true
     first.apiCostWindow = .today
     first.menuBarPresentation = .percentageOnly
@@ -38,6 +40,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertTrue(second.showPromptPreviews)
     XCTAssertEqual(second.approvalTimeout, 35)
     XCTAssertEqual(second.usageMetricPreference, .used)
+    XCTAssertEqual(second.notchSecondaryMetric, .paceBalance)
     XCTAssertTrue(second.showAPICostEstimate)
     XCTAssertEqual(second.apiCostWindow, .today)
     XCTAssertEqual(second.menuBarPresentation, .percentageOnly)
@@ -56,6 +59,7 @@ final class SettingsStoreTests: XCTestCase {
     settings.apiCostWindow = .monthToDate
     settings.showResetForecast = true
     settings.usageMetricPreference = .used
+    settings.notchSecondaryMetric = .resetProbability
     settings.menuBarPresentation = .statusAndPercentage
     settings.integrationIntentionallyRemoved = true
     settings.reset()
@@ -69,6 +73,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(settings.apiCostWindow, .last30Days)
     XCTAssertFalse(settings.showResetForecast)
     XCTAssertEqual(settings.usageMetricPreference, .remaining)
+    XCTAssertEqual(settings.notchSecondaryMetric, .blank)
     XCTAssertEqual(settings.presentationPreference, .automatic)
     XCTAssertEqual(settings.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(settings.integrationIntentionallyRemoved)
@@ -111,6 +116,15 @@ final class SettingsStoreTests: XCTestCase {
     defaults.set("sideways", forKey: SettingsStore.Key.usageMetricPreference)
 
     XCTAssertEqual(SettingsStore(defaults: defaults).usageMetricPreference, .remaining)
+  }
+
+  func testInvalidNotchSecondaryMetricFallsBackToBlank() {
+    let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defaults.set("horoscope", forKey: SettingsStore.Key.notchSecondaryMetric)
+
+    XCTAssertEqual(SettingsStore(defaults: defaults).notchSecondaryMetric, .blank)
   }
 
   func testInvalidMenuBarPresentationFallsBackToPercentageOnly() {

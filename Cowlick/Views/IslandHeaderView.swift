@@ -3,6 +3,7 @@ import SwiftUI
 struct IslandHeaderView: View {
   let session: AgentSession?
   let usageText: String?
+  let secondaryUsageValue: CompactUsageSecondaryValue?
   let usageAccessibilityLabel: String?
   let activeCount: Int
   let activeSubagentCount: Int
@@ -19,14 +20,14 @@ struct IslandHeaderView: View {
       if let notchGapWidth {
         HStack(spacing: 0) {
           statusGroup
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.trailing, 12)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .clipped()
           Color.clear.frame(width: notchGapWidth)
           projectLabel
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 12)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .clipped()
         }
-        .padding(.horizontal, 10)
+        .offset(y: -1)
       } else {
         HStack(spacing: 9) {
           statusGroup
@@ -41,7 +42,8 @@ struct IslandHeaderView: View {
         session: session,
         activeCount: activeCount,
         activeSubagentCount: activeSubagentCount,
-        usageLabel: usageAccessibilityLabel
+        usageLabel: usageAccessibilityLabel,
+        secondaryUsageLabel: session == nil ? secondaryUsageValue?.accessibilityLabel : nil
       ))
   }
 
@@ -56,17 +58,15 @@ struct IslandHeaderView: View {
         .frame(width: 16, height: 16)
         .matchedGeometryEffect(id: "island-status", in: namespace)
         .animation(statusAnimation, value: statusIdentity(for: session))
-      } else {
-        Image(systemName: "chart.bar")
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundStyle(secondaryTextColor)
       }
 
       if let usageText {
         Text(usageText)
-          .font(.system(size: 10, weight: .semibold))
+          .font(.system(size: session == nil ? 11 : 10, weight: .semibold))
           .monospacedDigit()
-          .foregroundStyle(secondaryTextColor)
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
+          .foregroundStyle(session == nil ? primaryTextColor : secondaryTextColor)
       }
 
       if session != nil, activeSubagentCount > 0 {
@@ -103,6 +103,14 @@ struct IslandHeaderView: View {
             .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
             .foregroundStyle(secondaryTextColor)
         }
+      } else if let secondaryUsageValue {
+        Text(secondaryUsageValue.text)
+          .font(.system(size: 11, weight: .semibold))
+          .monospacedDigit()
+          .foregroundStyle(color(for: secondaryUsageValue.tone))
+          .lineLimit(1)
+          .minimumScaleFactor(0.72)
+          .allowsTightening(true)
       }
     }
   }
@@ -157,6 +165,15 @@ struct IslandHeaderView: View {
 
   private var secondaryTextColor: Color {
     isAttached ? .white.opacity(increasedContrast ? 0.84 : 0.60) : .secondary
+  }
+
+  private func color(for tone: CompactUsageTone) -> Color {
+    switch tone {
+    case .neutral: secondaryTextColor
+    case .positive: NotchTheme.success
+    case .caution: NotchTheme.warning
+    case .critical: NotchTheme.failure
+    }
   }
 
   private var increasedContrast: Bool { colorSchemeContrast == .increased }

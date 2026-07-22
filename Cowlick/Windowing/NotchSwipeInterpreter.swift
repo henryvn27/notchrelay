@@ -157,6 +157,10 @@ final class NotchHostingView<Content: View>: NSHostingView<Content> {
 
   override var isOpaque: Bool { false }
 
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+    true
+  }
+
   override func hitTest(_ point: NSPoint) -> NSView? {
     guard interactiveRect().contains(point) else { return nil }
     return super.hitTest(point)

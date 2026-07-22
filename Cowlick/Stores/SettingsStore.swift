@@ -65,6 +65,7 @@ final class SettingsStore {
     static let apiCostWindow = "apiCostWindow"
     static let showResetForecast = "showResetForecast"
     static let usageMetricPreference = "usageMetricPreference"
+    static let notchSecondaryMetric = "notchSecondaryMetric"
     static let menuBarPresentation = "menuBarPresentation"
     static let selectedProviderAccountID = "selectedProviderAccountID"
     static let onboardingComplete = "onboardingComplete"
@@ -78,6 +79,7 @@ final class SettingsStore {
     Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
     Key.showAPICostEstimate, Key.apiCostWindow, Key.showResetForecast, Key.usageMetricPreference,
+    Key.notchSecondaryMetric,
     Key.menuBarPresentation,
     Key.selectedProviderAccountID, Key.onboardingComplete, Key.integrationIntentionallyRemoved,
   ]
@@ -135,6 +137,9 @@ final class SettingsStore {
   var usageMetricPreference: UsageMetricPreference {
     didSet { defaults.set(usageMetricPreference.rawValue, forKey: Key.usageMetricPreference) }
   }
+  var notchSecondaryMetric: NotchSecondaryMetric {
+    didSet { defaults.set(notchSecondaryMetric.rawValue, forKey: Key.notchSecondaryMetric) }
+  }
   var menuBarPresentation: MenuBarPresentation {
     didSet { defaults.set(menuBarPresentation.rawValue, forKey: Key.menuBarPresentation) }
   }
@@ -175,6 +180,7 @@ final class SettingsStore {
       Key.apiCostWindow: APICostWindow.last30Days.rawValue,
       Key.showResetForecast: false,
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
+      Key.notchSecondaryMetric: NotchSecondaryMetric.blank.rawValue,
       Key.menuBarPresentation: MenuBarPresentation.percentageOnly.rawValue,
       Key.onboardingComplete: false,
       Key.integrationIntentionallyRemoved: false,
@@ -207,6 +213,9 @@ final class SettingsStore {
     usageMetricPreference =
       UsageMetricPreference(rawValue: defaults.string(forKey: Key.usageMetricPreference) ?? "")
       ?? .remaining
+    notchSecondaryMetric =
+      NotchSecondaryMetric(rawValue: defaults.string(forKey: Key.notchSecondaryMetric) ?? "")
+      ?? .blank
     menuBarPresentation =
       MenuBarPresentation(rawValue: defaults.string(forKey: Key.menuBarPresentation) ?? "")
       ?? .percentageOnly
@@ -239,6 +248,7 @@ final class SettingsStore {
     apiCostWindow = replacement.apiCostWindow
     showResetForecast = replacement.showResetForecast
     usageMetricPreference = replacement.usageMetricPreference
+    notchSecondaryMetric = replacement.notchSecondaryMetric
     menuBarPresentation = replacement.menuBarPresentation
     selectedProviderAccountID = replacement.selectedProviderAccountID
     onboardingComplete = replacement.onboardingComplete

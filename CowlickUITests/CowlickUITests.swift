@@ -19,24 +19,15 @@ final class CowlickUITests: XCTestCase {
       app.buttons["Polish release onboarding, Scoutly, Working"].waitForExistence(timeout: 3))
   }
 
-  func testSimulatedNotchExpandsNaturallyOnHover() {
+  func testSimulatedNotchHoverStaysCompact() {
     let app = launch(
       arguments: ["--simulate-notch", "--state=working"], autoHoverEnabled: true)
     let expandedSession = sessionRow(in: app, id: "demo-visual-state")
-    if expandedSession.waitForExistence(timeout: 1) {
-      return
-    }
-
     let island = app.buttons["Polish release onboarding, Scoutly, Working"]
     XCTAssertTrue(island.waitForExistence(timeout: 3))
 
-    // Passive status panels deliberately remain nonactivating, so XCTest may
-    // report their accessibility elements as not hittable even though pointer
-    // routing is live. Exercise the same physical point without asking XCTest
-    // to activate the panel first.
-    island.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).hover()
-
-    XCTAssertTrue(expandedSession.waitForExistence(timeout: 2))
+    island.hover()
+    XCTAssertFalse(expandedSession.waitForExistence(timeout: 0.5))
   }
 
   func testApprovalActionsAreAccessibleAndAllowIsNotDefault() {

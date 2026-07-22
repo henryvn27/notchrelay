@@ -189,6 +189,199 @@ final class UsagePlanningTests: XCTestCase {
     XCTAssertEqual(pace.expectedDisplayedPercent(for: .remaining), 60)
   }
 
+  func testCompactSecondaryMetricsUseTheLongestQuotaWindow() throws {
+    let now = Date(timeIntervalSince1970: 10_000)
+    let snapshot = CodexUsageSnapshot(
+      limits: [
+        CodexUsageLimit(
+          id: "five-hour",
+          name: "5 hour",
+          usedPercent: 20,
+          resetsAt: now.addingTimeInterval(4 * 3_600),
+          windowDurationMinutes: 5 * 60
+        ),
+        CodexUsageLimit(
+          id: "weekly",
+          name: "Weekly",
+          usedPercent: 30,
+          resetsAt: now.addingTimeInterval(4 * 86_400),
+          windowDurationMinutes: 7 * 24 * 60
+        ),
+      ],
+      planType: "pro",
+      fetchedAt: now
+    )
+    let forecast = ResetForecast(
+      score: 73,
+      resetAnnounced: false,
+      fetchedAt: now,
+      nextRefreshAt: nil
+    )
+
+    XCTAssertNil(
+      CompactUsageSecondaryFormatter.value(
+        for: .blank,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      ))
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .usageMeaning,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      )?.text,
+      "left"
+    )
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .windowProgress,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      )?.text,
+      "43% thru"
+    )
+    let pace = try XCTUnwrap(
+      CompactUsageSecondaryFormatter.value(
+        for: .paceBalance,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      ))
+    XCTAssertEqual(pace.text, "+13%")
+    XCTAssertEqual(pace.tone, .positive)
+    let behind = try XCTUnwrap(
+      CompactUsageSecondaryFormatter.value(
+        for: .paceBalance,
+        snapshot: CodexUsageSnapshot(
+          limits: [
+            CodexUsageLimit(
+              id: "weekly",
+              name: "Weekly",
+              usedPercent: 55,
+              resetsAt: now.addingTimeInterval(4 * 86_400),
+              windowDurationMinutes: 7 * 24 * 60
+            )
+          ],
+          planType: "pro",
+          fetchedAt: now
+        ),
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      ))
+    XCTAssertEqual(behind.text, "-12%")
+    XCTAssertEqual(behind.tone, .caution)
+    let critical = try XCTUnwrap(
+      CompactUsageSecondaryFormatter.value(
+        for: .paceBalance,
+        snapshot: CodexUsageSnapshot(
+          limits: [
+            CodexUsageLimit(
+              id: "weekly",
+              name: "Weekly",
+              usedPercent: 58,
+              resetsAt: now.addingTimeInterval(4 * 86_400),
+              windowDurationMinutes: 7 * 24 * 60
+            )
+          ],
+          planType: "pro",
+          fetchedAt: now
+        ),
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      ))
+    XCTAssertEqual(critical.text, "-15%")
+    XCTAssertEqual(critical.tone, .critical)
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .resetCountdown,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      )?.text,
+      "reset 4d"
+    )
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .projectedRunway,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      )?.text,
+      "safe"
+    )
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .resetProbability,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      )?.text,
+      "73% reset"
+    )
+  }
+
+  func testCompactSecondaryMetricsStayBlankWhenTheirSourceIsUnavailable() {
+    for metric in NotchSecondaryMetric.allCases where metric != .blank {
+      XCTAssertNil(
+        CompactUsageSecondaryFormatter.value(
+          for: metric,
+          snapshot: nil,
+          preference: .remaining,
+          forecast: nil
+        ),
+        metric.rawValue
+      )
+    }
+  }
+
+  func testCompactResetCountdownDoesNotDependOnPaceConfidence() {
+    let now = Date(timeIntervalSince1970: 10_000)
+    let snapshot = CodexUsageSnapshot(
+      limits: [
+        CodexUsageLimit(
+          id: "weekly",
+          name: "Weekly",
+          usedPercent: 0,
+          resetsAt: now.addingTimeInterval(7 * 86_400 - 60),
+          windowDurationMinutes: 7 * 24 * 60
+        )
+      ],
+      planType: nil,
+      fetchedAt: now
+    )
+
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .resetCountdown,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: nil,
+        now: now
+      )?.text,
+      "reset 7d"
+    )
+    XCTAssertNil(
+      CompactUsageSecondaryFormatter.value(
+        for: .paceBalance,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: nil,
+        now: now
+      ))
+  }
+
   func testCostMeasurementsPreserveMeaningCoverageAndPricingDate() throws {
     let interval = DateInterval(
       start: Date(timeIntervalSince1970: 1_000),

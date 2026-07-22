@@ -169,6 +169,19 @@ struct SettingsView: View {
           Text("Cowlick uses this percentage in the menu bar and quota views.")
             .font(.caption)
             .foregroundStyle(.secondary)
+          Picker("Notch right wing", selection: $settings.notchSecondaryMetric) {
+            ForEach(NotchSecondaryMetric.allCases) { metric in
+              Text(metric.label).tag(metric)
+            }
+          }
+          .disabled(!settings.showCodexUsage)
+          Text(
+            settings.notchSecondaryMetric == .resetProbability && !settings.showResetForecast
+              ? "\(settings.notchSecondaryMetric.detail) Enable the unofficial forecast below."
+              : settings.notchSecondaryMetric.detail
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
           LabeledContent("Status", value: services.usageStore.officialStatus)
           Text(
             "Cowlick reads this from the Codex app installed on your Mac. It does not read your Codex account file or save quota history."
