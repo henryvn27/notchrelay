@@ -7,6 +7,7 @@ struct CollapsedIslandView: View {
   let activeSubagentCount: Int
   let notchGapWidth: CGFloat?
   let isAttached: Bool
+  let height: CGFloat
   let reducedAnimation: Bool
   let namespace: Namespace.ID
   let action: () -> Void
@@ -63,7 +64,8 @@ struct CollapsedIslandView: View {
       reducedAnimation: reducedAnimation,
       namespace: namespace
     )
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(height: height)
+    .frame(maxWidth: .infinity)
     .contentShape(Rectangle())
     .opacity(showsHoverFeedback && !isHovering ? 0.94 : 1)
   }

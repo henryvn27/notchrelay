@@ -34,6 +34,7 @@ struct NotchRootView: View {
             activeSubagentCount: store.activeSubagentCount,
             notchGapWidth: presentation.isAttached ? presentation.notchGapWidth : nil,
             isAttached: presentation.isAttached,
+            height: compactHeaderHeight,
             reducedAnimation: store.settings.reducedAnimation,
             namespace: islandMorph,
             action: handleHeaderAction
@@ -51,6 +52,7 @@ struct NotchRootView: View {
             activeSubagentCount: 0,
             notchGapWidth: presentation.isAttached ? presentation.notchGapWidth : nil,
             isAttached: presentation.isAttached,
+            height: compactHeaderHeight,
             reducedAnimation: store.settings.reducedAnimation,
             namespace: islandMorph,
             action: handleHeaderAction
@@ -97,6 +99,10 @@ struct NotchRootView: View {
 
   private var isExpanded: Bool {
     presentation.mode.isExpanded
+  }
+
+  private var compactHeaderHeight: CGFloat {
+    presentation.isAttached ? presentation.safeAreaTop : NotchTheme.compactSize.height
   }
 
   private var surfaceShape: UnevenRoundedRectangle {

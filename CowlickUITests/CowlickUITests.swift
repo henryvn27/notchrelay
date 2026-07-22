@@ -105,8 +105,11 @@ final class CowlickUITests: XCTestCase {
 
   func testExpandedNotchActionPaddingIsClickable() {
     let app = launch(state: "multiple")
+    let header = app.buttons["Prepare the release candidate, Scoutly, Working, 2 active sessions"]
     let settings = app.buttons["Settings"]
+    XCTAssertTrue(header.waitForExistence(timeout: 3))
     XCTAssertTrue(settings.waitForExistence(timeout: 3))
+    XCTAssertLessThanOrEqual(header.frame.maxY, settings.frame.minY)
     XCTAssertGreaterThanOrEqual(settings.frame.height, 27)
 
     let notch = app.windows.firstMatch
