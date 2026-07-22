@@ -47,12 +47,12 @@ struct SessionListView: View {
         .accessibilityIdentifier("session-row-\(session.id)")
       }
       if sessions.count > visibleSessionLimit {
-        Text("\(sessions.count - visibleSessionLimit) more in the menu bar")
+        Text(Self.overflowText(hiddenCount: sessions.count - visibleSessionLimit))
           .font(.system(size: 10.5, weight: .medium))
           .foregroundStyle(secondaryTextColor)
           .padding(.leading, 26)
           .accessibilityLabel(
-            "\(sessions.count - visibleSessionLimit) more sessions in the menu bar")
+            Self.overflowText(hiddenCount: sessions.count - visibleSessionLimit))
       }
       if sessions.contains(where: { session in
         if case .failed = session.presentationStatus { return true }
@@ -148,5 +148,9 @@ struct SessionListView: View {
       parts.append(semanticDetail)
     }
     return parts.joined(separator: ", ")
+  }
+
+  static func overflowText(hiddenCount: Int) -> String {
+    "\(hiddenCount) more active \(hiddenCount == 1 ? "session" : "sessions")"
   }
 }

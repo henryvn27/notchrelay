@@ -63,9 +63,13 @@ enum NotchTheme {
   }
 
   static func sessionListSize(sessionCount: Int) -> CGSize {
-    let visibleCount = sessionCount > 3 ? 2 : min(3, max(1, sessionCount))
+    let visibleCount = sessionCount > 3 ? 2 : min(3, sessionCount)
     let overflowHeight: CGFloat = sessionCount > visibleCount ? 20 : 0
-    return CGSize(width: 360, height: 20 + CGFloat(visibleCount) * 28 + overflowHeight)
+    let controlsHeight: CGFloat = 32
+    return CGSize(
+      width: 360,
+      height: 20 + CGFloat(visibleCount) * 28 + overflowHeight + controlsHeight
+    )
   }
 
   static func hostSize(notchGapWidth: CGFloat, safeAreaTop: CGFloat) -> CGSize {

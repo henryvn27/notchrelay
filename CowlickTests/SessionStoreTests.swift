@@ -735,6 +735,11 @@ final class SessionStoreTests: XCTestCase {
     )
   }
 
+  func testNotchOverflowCopyDoesNotDependOnMenuBar() {
+    XCTAssertEqual(SessionListView.overflowText(hiddenCount: 1), "1 more active session")
+    XCTAssertEqual(SessionListView.overflowText(hiddenCount: 3), "3 more active sessions")
+  }
+
   func testCompletionAutomaticallyExpiresObservedState() async throws {
     let settings = makeTestSettings()
     settings.completionVisibility = .twoSeconds

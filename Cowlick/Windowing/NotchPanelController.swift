@@ -229,7 +229,7 @@ final class NotchPanelController {
   }
 
   func open() {
-    guard !store.sessionSummaries.isEmpty else { return }
+    guard !store.sessionSummaries.isEmpty || hasUsagePresentation else { return }
     store.isExpanded = true
     schedulePresentationUpdate()
   }

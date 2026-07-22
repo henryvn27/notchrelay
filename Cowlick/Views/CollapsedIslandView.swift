@@ -27,7 +27,11 @@ struct CollapsedIslandView: View {
           value: isHovering
         )
       } else {
-        header(session: nil, showsHoverFeedback: false)
+        Button(action: action) {
+          header(session: nil, showsHoverFeedback: false)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Open Cowlick controls")
       }
     }
     .accessibilityLabel(

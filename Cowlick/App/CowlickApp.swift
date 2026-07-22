@@ -7,10 +7,9 @@ struct CowlickApp: App {
   private let services = AppServices.shared
 
   var body: some Scene {
-    let showsMenuBar = services.presentationCoordinator.showsMenuBar
     MenuBarExtra(
       isInserted: Binding(
-        get: { showsMenuBar },
+        get: { services.presentationCoordinator.showsMenuBar },
         set: { _ in }
       )
     ) {

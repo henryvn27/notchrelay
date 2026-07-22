@@ -53,7 +53,7 @@ struct NotchRootView: View {
             isAttached: presentation.isAttached,
             reducedAnimation: store.settings.reducedAnimation,
             namespace: islandMorph,
-            action: {}
+            action: handleHeaderAction
           )
           .frame(
             height: presentation.isAttached
@@ -158,7 +158,7 @@ struct NotchRootView: View {
           predictedDistance: value.predictedEndTranslation.height
         ) {
           withAnimation(motionReduced ? nil : NotchTheme.dragRelease) {
-            store.expand()
+            expandSurface()
           }
         }
       }
@@ -176,7 +176,7 @@ struct NotchRootView: View {
       try? await Task.sleep(for: .seconds(delay))
       guard !Task.isCancelled else { return }
       if isHovering {
-        store.expand()
+        expandSurface()
       } else {
         store.collapse()
       }
@@ -184,7 +184,7 @@ struct NotchRootView: View {
   }
 
   private var hasExpandableContent: Bool {
-    !store.sessionSummaries.isEmpty
+    hasUsage || !store.sessionSummaries.isEmpty
   }
 
   private func handleHeaderAction() {
@@ -194,6 +194,15 @@ struct NotchRootView: View {
       case .completed = session.presentationStatus
     {
       store.dismissCompletion(sessionID: session.id)
+    } else {
+      expandSurface()
+    }
+  }
+
+  private func expandSurface() {
+    if store.sessionSummaries.isEmpty {
+      guard hasUsage, !isExpanded else { return }
+      store.toggleExpanded()
     } else {
       store.expand()
     }
