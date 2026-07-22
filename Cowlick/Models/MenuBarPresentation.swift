@@ -12,7 +12,7 @@ enum MenuBarPresentation: String, CaseIterable, Identifiable, Sendable {
   var label: String {
     switch self {
     case .iconAndDetails: "Icon and details"
-    case .percentageOnly: "Percentage only"
+    case .percentageOnly: "Usage quota"
     case .iconOnly: "App icon only"
     case .statusOnly: "Activity icon only"
     case .statusAndPercentage: "Activity and percentage"
@@ -24,7 +24,7 @@ enum MenuBarPresentation: String, CaseIterable, Identifiable, Sendable {
     case .iconAndDetails:
       "Shows the Cowlick icon, multiple-session count, and primary quota percentage."
     case .percentageOnly:
-      "Shows only the primary quota percentage for the selected Used or Remaining metric. Shows --% while quota is unavailable."
+      "Shows a usage-chart symbol and the primary Codex quota as percent left or used."
     case .iconOnly:
       "Shows only the Cowlick app icon."
     case .statusOnly:
@@ -38,8 +38,8 @@ enum MenuBarPresentation: String, CaseIterable, Identifiable, Sendable {
 struct MenuBarLabelContent: Equatable {
   enum Icon: Equatable {
     case app
+    case usage
     case status(String)
-    case none
   }
 
   let icon: Icon
@@ -57,7 +57,7 @@ struct MenuBarLabelContent: Equatable {
       let text = [sessions, percentageText].compactMap { $0 }.joined(separator: " · ")
       return MenuBarLabelContent(icon: .app, text: text.isEmpty ? nil : text)
     case .percentageOnly:
-      return MenuBarLabelContent(icon: .none, text: percentageText ?? "--%")
+      return MenuBarLabelContent(icon: .usage, text: percentageText ?? "Quota —")
     case .iconOnly:
       return MenuBarLabelContent(icon: .app, text: nil)
     case .statusOnly:

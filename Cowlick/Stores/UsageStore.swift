@@ -60,7 +60,7 @@ final class UsageStore {
   var primaryMetricAccessibilityLabel: String? {
     guard let percent = primaryDisplayedPercent else { return nil }
     return
-      "Codex, \(Int(percent.rounded())) percent \(settings.usageMetricPreference.accessibilityLabel)"
+      "Codex quota, \(Int(percent.rounded())) percent \(settings.usageMetricPreference.accessibilityLabel)"
   }
 
   var officialStatus: String {

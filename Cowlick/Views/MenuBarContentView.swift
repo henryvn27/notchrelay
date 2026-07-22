@@ -117,12 +117,14 @@ struct MenuBarLabelView: View {
     case .app:
       Image(nsImage: Self.menuBarIcon)
         .renderingMode(.template)
+    case .usage:
+      Image(systemName: "chart.bar.fill")
+        .font(.system(size: 12, weight: .semibold))
+        .symbolRenderingMode(.monochrome)
     case .status(let systemName):
       Image(systemName: systemName)
         .font(.system(size: 13, weight: .semibold))
         .symbolRenderingMode(.monochrome)
-    case .none:
-      EmptyView()
     }
   }
 
@@ -130,7 +132,8 @@ struct MenuBarLabelView: View {
     guard settings.showCodexUsage, let percent = usageStore.primaryDisplayedPercent else {
       return nil
     }
-    return "\(Int(percent.rounded()))%"
+    let suffix = settings.usageMetricPreference == .remaining ? "left" : "used"
+    return "\(Int(percent.rounded()))% \(suffix)"
   }
 
   private var accessibilityText: String {

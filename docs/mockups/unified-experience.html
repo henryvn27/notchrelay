@@ -370,6 +370,12 @@
         background: rgb(255 255 255 / 43%);
       }
 
+      .usage-glyph {
+        width: 13px;
+        height: 13px;
+        fill: currentColor;
+      }
+
       .status-tick {
         width: 7px;
         height: 7px;
@@ -1930,8 +1936,19 @@
               <span>Finder</span><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span>
             </div>
             <div class="menu-right">
-              <button class="cowlick-status-item" id="menu-status" type="button" aria-expanded="true">
-                <span class="status-tick"></span><span id="menu-status-text">78%</span>
+              <button
+                class="cowlick-status-item"
+                id="menu-status"
+                type="button"
+                aria-expanded="true"
+                aria-label="Codex quota, 78 percent remaining"
+              >
+                <svg class="usage-glyph" viewBox="0 0 16 16" aria-hidden="true">
+                  <rect x="1" y="9" width="3" height="6" rx="1" />
+                  <rect x="6.5" y="5" width="3" height="10" rx="1" />
+                  <rect x="12" y="1" width="3" height="14" rx="1" />
+                </svg>
+                <span id="menu-status-text">78% left</span>
               </button>
               <span class="system-glyph">
                 <svg viewBox="0 0 24 24"><path d="M3 9c5-4 13-4 18 0M6 13c3.4-2.7 8.6-2.7 12 0M9.5 17c1.4-1 3.6-1 5 0M12 20h.01" /></svg>
@@ -2500,7 +2517,11 @@
         els.compactUsage.textContent = state.usage;
         els.compactSymbol.className = `state-symbol ${app.state === 'working' || app.state === 'multi' ? 'working' : ''}`;
         els.notchSummary.textContent = `${state.usage} left`;
-        els.menuStatusText.textContent = app.state === 'approval' ? 'Review' : state.usage;
+        els.menuStatusText.textContent = `${state.usage} left`;
+        els.menuStatus.setAttribute(
+          'aria-label',
+          `Codex quota, ${state.usage.replace('%', ' percent')} remaining`,
+        );
         els.menuSummary.textContent = `${state.usage} weekly left`;
         els.popoverState.textContent = state.label;
         els.popoverSubtitle.textContent = state.now;
