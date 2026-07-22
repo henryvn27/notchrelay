@@ -11,7 +11,7 @@
 | [007](007-adopt-ping-island-surface-engine.md) | Adopt Ping Island's fixed-shell notch engine | HIGH | DONE — motion verified |
 | [008](008-tighten-notch-motion.md) | Tighten the notch morph | HIGH | DONE — motion verified |
 | [009](009-show-usage-in-notch.md) | Show Codex usage in the compact notch | MEDIUM | DONE — visual verified |
-| [010](010-make-compact-notch-quiet.md) | Make the compact notch quiet and hover-revealed | HIGH | TODO |
+| [010](010-make-compact-notch-quiet.md) | Make the compact notch quiet and hover-revealed | HIGH | DONE |
 
 Plans 001 and 002 record the first motion pass at `b009140`. The July 21 audit at `a937b39` found that pass insufficient: presentation ownership is still duplicated, the shell and content still run on separate timelines, and the threshold gesture is not direct manipulation. Plans 003–006 supersede the earlier motion assumptions without rewriting their historical record.
 

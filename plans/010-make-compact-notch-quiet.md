@@ -1,7 +1,7 @@
 # 010 — Make the compact notch quiet and hover-revealed
 
-- **Status**: TODO
-- **Commit**: 251661f
+- **Status**: DONE
+- **Commit**: 6fdead0
 - **Severity**: HIGH
 - **Category**: Purpose and frequency; easing and duration; missed opportunity
 - **Estimated scope**: 8 files, medium
@@ -184,3 +184,24 @@ static let surfaceClose = Animation.spring(duration: 0.24, bounce: 0)
 - **Done when**: compact Cowlick is a quiet quota surface, task details appear only on explicit
   hover/click expansion, scroll cannot change state, completion is a temporary minimal check, and
   the installed exact build passes runtime, hit-testing, and visual verification.
+
+## Result
+
+Implemented in `6fdead0`. Compact mode now renders quota only, attached hover expands after 80 ms,
+exit collapses after 160 ms, compact click opens recent activity immediately, and scroll events no
+longer control the notch. A completed display session temporarily substitutes a 10-point green
+checkmark on the secondary wing; clicking it dismisses the compact indicator while preserving the
+completed row in expanded activity.
+
+Verification completed:
+
+- strict recursive `swift-format` and `git diff --check` passed;
+- 429 unit tests and the four focused hover/quota/completion/scroll UI tests passed;
+- normal-speed screen recording confirmed compact → hover-open → exit-collapse → click-open;
+- deterministic working and completed screenshots confirmed the quota-only compact view and the
+  minimal completion indicator;
+- the local Release install reported source commit `6fdead0`, healthy Codex hooks and bridge, and
+  restored the exact 281×32 compact geometry on the physical display;
+- the installed app repeated the real hover-open and exit-collapse behavior over another app.
+
+Final closeout evidence is recorded in Linear issue CS-2083.
