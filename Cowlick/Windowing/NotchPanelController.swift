@@ -80,9 +80,11 @@ final class NotchPanelController {
   private let usageStore: UsageStore
   private let panel: NotchPanel
   private let presentation = NotchPanelPresentation()
+  private let hostingView: NotchHostingView<NotchRootView>
   private var observers: [NSObjectProtocol] = []
   private var presentationUpdateScheduled = false
   private var geometryTransitionTask: Task<Void, Never>?
+  private var hoverIntent: Task<Void, Never>?
   private var lastAnnouncedApprovalID: UUID?
   private var presentationEnabled = false
   private(set) var currentGeometry: ResolvedNotchGeometry?
@@ -96,8 +98,7 @@ final class NotchPanelController {
       backing: .buffered,
       defer: false
     )
-    configurePanel()
-    let hostingView = NotchHostingView(
+    hostingView = NotchHostingView(
       rootView: NotchRootView(
         store: store,
         usageStore: usageStore,
@@ -106,6 +107,9 @@ final class NotchPanelController {
     hostingView.handlePointerDown = { [weak self] in
       self?.activateApprovalForUserInteraction()
     }
+    hostingView.handlePointerPresenceChange = { [weak self] isInside in
+      self?.handlePointerPresenceChange(isInside)
+    }
     hostingView.interactiveRect = { [weak hostingView, weak presentation] in
       guard let hostingView, let presentation else { return .zero }
       return presentation.interactiveRect(
@@ -113,6 +117,7 @@ final class NotchPanelController {
         isFlipped: hostingView.isFlipped
       )
     }
+    configurePanel()
     panel.contentView = hostingView
     installObservers()
     observeUsageChanges()
@@ -152,7 +157,8 @@ final class NotchPanelController {
         baseSize: baseSize,
         notchGapWidth: metrics.gapWidth,
         safeAreaTop: metrics.safeAreaTop,
-        expanded: isExpanded
+        expanded: isExpanded,
+        allowsWidthGrowth: mode == .approval
       )
     } else {
       contentSize = baseSize
@@ -196,16 +202,16 @@ final class NotchPanelController {
       if panel.frame != geometry.panelFrame {
         panel.setFrame(geometry.panelFrame, display: false)
       }
-      presentation.update(from: geometry, surfaceSize: contentSize, mode: mode)
+      updatePresentationModel(from: geometry, surfaceSize: contentSize, mode: mode)
     } else if growsHost {
       panel.setFrame(geometry.panelFrame, display: false)
       geometryTransitionTask = Task { @MainActor [weak self] in
         await Task.yield()
         guard let self, !Task.isCancelled, self.currentGeometry == geometry else { return }
-        self.presentation.update(from: geometry, surfaceSize: contentSize, mode: mode)
+        self.updatePresentationModel(from: geometry, surfaceSize: contentSize, mode: mode)
       }
     } else {
-      presentation.update(from: geometry, surfaceSize: contentSize, mode: mode)
+      updatePresentationModel(from: geometry, surfaceSize: contentSize, mode: mode)
       if shrinksHost {
         geometryTransitionTask = Task { @MainActor [weak self] in
           try? await Task.sleep(for: .seconds(NotchTheme.surfaceCloseDuration))
@@ -234,8 +240,53 @@ final class NotchPanelController {
       schedulePresentationUpdate()
     } else {
       geometryTransitionTask?.cancel()
+      hoverIntent?.cancel()
       panel.orderOut(nil)
       currentGeometry = nil
+    }
+  }
+
+  private func updatePresentationModel(
+    from geometry: ResolvedNotchGeometry,
+    surfaceSize: CGSize,
+    mode: NotchSurfaceMode
+  ) {
+    presentation.update(from: geometry, surfaceSize: surfaceSize, mode: mode)
+    hostingView.refreshPointerTrackingArea()
+  }
+
+  private func handlePointerPresenceChange(_ isInside: Bool) {
+    hoverIntent?.cancel()
+    #if DEBUG
+      guard !CommandLine.arguments.contains("--disable-auto-hover") else { return }
+    #endif
+    guard presentation.isAttached, store.currentApproval == nil else { return }
+
+    let delay: TimeInterval
+    if isInside {
+      guard !store.isExpanded, !store.sessionSummaries.isEmpty else { return }
+      delay = NotchTheme.hoverOpenDelay
+    } else {
+      guard store.isExpanded else { return }
+      delay = NotchTheme.hoverCloseDelay
+    }
+
+    hoverIntent = Task { @MainActor [weak self] in
+      try? await Task.sleep(for: .seconds(delay))
+      guard let self, !Task.isCancelled else { return }
+      let isActuallyInside = NotchSurfaceLayout.hoverScreenRect(
+        panelFrame: self.panel.frame,
+        surfaceSize: self.presentation.surfaceSize
+      ).contains(NSEvent.mouseLocation)
+      if isInside {
+        guard isActuallyInside, !self.store.isExpanded,
+          !self.store.sessionSummaries.isEmpty
+        else { return }
+        self.store.expand()
+      } else {
+        guard !isActuallyInside, self.store.isExpanded else { return }
+        self.store.collapse()
+      }
     }
   }
 

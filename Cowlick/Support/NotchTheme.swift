@@ -25,22 +25,22 @@ enum NotchTheme {
   static let floatingRadius: CGFloat = 12
   static let reducedMotionFadeDuration = 0.12
   static let hoverFeedbackDuration = 0.12
-  static let hoverOpenDelay = 0.08
+  static let hoverOpenDelay = 0.05
   static let hoverCloseDelay = 0.16
-  static let surfaceOpenDuration = 0.34
-  static let surfaceCloseDuration = 0.28
+  static let surfaceOpenDuration = 0.32
+  static let surfaceCloseDuration = 0.24
   static let maximumVisibleSessionCount = 3
-  static let sessionRowHeight: CGFloat = 32
+  static let sessionRowHeight: CGFloat = 30
   static let sessionRowSpacing: CGFloat = 4
-  static let sessionListVerticalPadding: CGFloat = 20
-  static let actionBarHeight: CGFloat = 32
+  static let sessionListVerticalPadding: CGFloat = 10
+  static let actionBarHeight: CGFloat = 28
   // SwiftUI owns the visible surface morph. AppKit only prepares the opening
   // host and retains it until closing finishes; hit testing follows the
   // requested compact or expanded surface rather than the transparent host.
   static let surfaceOpen = Animation.timingCurve(
-    0.42, 0, 0.58, 1, duration: surfaceOpenDuration)
+    0.22, 0.72, 0.24, 1, duration: surfaceOpenDuration)
   static let surfaceClose = Animation.timingCurve(
-    0.42, 0, 0.58, 1, duration: surfaceCloseDuration)
+    0.42, 0, 0.76, 1, duration: surfaceCloseDuration)
   static let statusChange = Animation.timingCurve(
     0.23, 1.00, 0.32, 1.00, duration: 0.16)
   static let contentReveal = Animation.timingCurve(
@@ -60,16 +60,18 @@ enum NotchTheme {
     baseSize: CGSize,
     notchGapWidth: CGFloat,
     safeAreaTop: CGFloat,
-    expanded: Bool
+    expanded: Bool,
+    allowsWidthGrowth: Bool = true
   ) -> CGSize {
+    let compactWidth = notchGapWidth + attachedWingWidth * 2
     if expanded {
       return CGSize(
-        width: max(baseSize.width, notchGapWidth + attachedWingWidth * 2),
+        width: allowsWidthGrowth ? max(baseSize.width, compactWidth) : compactWidth,
         height: baseSize.height + safeAreaTop
       )
     }
     return CGSize(
-      width: max(baseSize.width, notchGapWidth + attachedWingWidth * 2),
+      width: max(baseSize.width, compactWidth),
       height: safeAreaTop
     )
   }

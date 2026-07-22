@@ -23,6 +23,10 @@ struct IslandHeaderView: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .clipped()
         }
+        // Keep the two compact usage wings physically attached to the hardware notch while the
+        // activity drawer opens below them. Wider approval surfaces may grow around this header,
+        // but the metrics themselves never slide sideways during the transition.
+        .frame(width: notchGapWidth + NotchTheme.attachedWingWidth * 2)
         .offset(y: -1)
       } else {
         HStack(spacing: 9) {

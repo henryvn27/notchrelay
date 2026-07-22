@@ -17,7 +17,7 @@ struct SessionListView: View {
       sessionViewport
     }
     .padding(.horizontal, 14)
-    .padding(.vertical, 10)
+    .padding(.vertical, 5)
   }
 
   @ViewBuilder

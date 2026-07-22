@@ -23,8 +23,12 @@ final class AppServices {
   let localLifecycleObserver: CodexSessionObserver
 
   private init() {
-    LegacyMigrationService.migratePreferencesIfNeeded()
-    settings = SettingsStore()
+    if CommandLine.arguments.contains("--ui-testing") {
+      settings = Self.makeUITestingSettingsStore()
+    } else {
+      LegacyMigrationService.migratePreferencesIfNeeded()
+      settings = SettingsStore()
+    }
     presentationCoordinator = PresentationCoordinator(settings: settings)
     eventLogger = EventLogger()
     approvalCoordinator = ApprovalCoordinator()
@@ -78,6 +82,16 @@ final class AppServices {
       automaticChecks: settings.automaticUpdateChecks,
       automaticDownloads: settings.automaticUpdateDownloads
     )
+  }
+
+  static func makeUITestingSettingsStore(
+    suiteName: String = "com.henryvn27.Cowlick.UITesting"
+  ) -> SettingsStore {
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+      preconditionFailure("Could not create isolated Cowlick UI-testing defaults")
+    }
+    defaults.removePersistentDomain(forName: suiteName)
+    return SettingsStore(defaults: defaults)
   }
 
   static func makeProviderAccountServices(

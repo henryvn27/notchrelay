@@ -5,13 +5,11 @@ struct NotchRootView: View {
   let usageStore: UsageStore
   let presentation: NotchPanelPresentation
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var hoverIntent: Task<Void, Never>?
   @GestureState private var pullDistance: CGFloat = 0
 
   var body: some View {
     notchSurface
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      .onDisappear { hoverIntent?.cancel() }
       .onExitCommand { store.collapse() }
       .preferredColorScheme(presentation.isAttached ? .dark : nil)
   }
@@ -97,7 +95,6 @@ struct NotchRootView: View {
       animatedSurfaceShape.fill(.white)
         .animation(surfaceAnimation, value: presentation.state)
     }
-    .onHover(perform: handleHover)
     .simultaneousGesture(pullDownGesture)
   }
 
@@ -173,34 +170,6 @@ struct NotchRootView: View {
           }
         }
       }
-  }
-
-  private func handleHover(_ isHovering: Bool) {
-    hoverIntent?.cancel()
-    #if DEBUG
-      guard !CommandLine.arguments.contains("--disable-auto-hover") else { return }
-    #endif
-    guard presentation.isAttached, store.currentApproval == nil else { return }
-
-    let delay: TimeInterval
-    if isHovering {
-      guard !isExpanded, !store.sessionSummaries.isEmpty else { return }
-      delay = NotchTheme.hoverOpenDelay
-    } else {
-      guard isExpanded else { return }
-      delay = NotchTheme.hoverCloseDelay
-    }
-
-    hoverIntent = Task { @MainActor in
-      try? await Task.sleep(for: .seconds(delay))
-      guard !Task.isCancelled else { return }
-      if isHovering {
-        guard !store.isExpanded, !store.sessionSummaries.isEmpty else { return }
-        store.expand()
-      } else if store.isExpanded {
-        store.collapse()
-      }
-    }
   }
 
   private var hasExpandableContent: Bool {

@@ -40,4 +40,14 @@ final class NotchSurfaceEngineTests: XCTestCase {
     XCTAssertTrue(NotchSurfaceMode.sessions.isExpanded)
     XCTAssertTrue(NotchSurfaceMode.approval.isExpanded)
   }
+
+  func testHoverScreenRectIncludesThePhysicalTopScreenEdge() {
+    let hoverRect = NotchSurfaceLayout.hoverScreenRect(
+      panelFrame: CGRect(x: 602, y: 860, width: 308, height: 122),
+      surfaceSize: CGSize(width: 308, height: 122)
+    )
+
+    XCTAssertTrue(hoverRect.contains(CGPoint(x: 625, y: 982)))
+    XCTAssertFalse(hoverRect.contains(CGPoint(x: 250, y: 450)))
+  }
 }

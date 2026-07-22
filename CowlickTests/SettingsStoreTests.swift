@@ -4,6 +4,18 @@ import XCTest
 
 @MainActor
 final class SettingsStoreTests: XCTestCase {
+  @MainActor
+  func testUITestingSettingsDoNotReuseTheRealApplicationDefaults() {
+    let suite = "CowlickUITestingSettingsTests-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.set(true, forKey: SettingsStore.Key.reducedAnimation)
+
+    let settings = AppServices.makeUITestingSettingsStore(suiteName: suite)
+
+    XCTAssertFalse(settings.reducedAnimation)
+    defaults.removePersistentDomain(forName: suite)
+  }
+
   func testPrivacyDefaultsAndPersistence() {
     let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!

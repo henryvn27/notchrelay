@@ -50,7 +50,7 @@ enum NotchSecondaryMetric: String, CaseIterable, Identifiable, Sendable {
     case .windowProgress: "Shows how far through the longest quota window you are."
     case .paceBalance: "Shows points banked (+) or behind pace (-)."
     case .resetCountdown: "Shows the time until the longest quota window resets."
-    case .projectedRunway: "Shows whether current usage should last until reset."
+    case .projectedRunway: "Shows projected cushion (+) or shortfall (-) at reset."
     case .resetProbability: "Shows the optional Will Codex Reset? forecast."
     }
   }
@@ -128,17 +128,24 @@ enum CompactUsageSecondaryFormatter {
         let exhaustion = planningContext(snapshot: snapshot, now: now)?.pace.exhaustionForecast
       else { return nil }
       if exhaustion.willLastThroughReset {
+        guard let duration = compactDuration(exhaustion.timeAfterReset) else {
+          return .init(
+            text: "on pace",
+            accessibilityLabel: "Current usage is projected to last until reset",
+            tone: .neutral
+          )
+        }
         return .init(
-          text: "safe",
-          accessibilityLabel: "Current usage is projected to last through reset",
+          text: "+\(duration)",
+          accessibilityLabel: "Usage is projected to last \(duration) beyond reset",
           tone: .positive
         )
       }
       guard let duration = compactDuration(exhaustion.timeBeforeReset) else { return nil }
       return .init(
-        text: "empty \(duration)",
+        text: "-\(duration)",
         accessibilityLabel: "Usage is projected to run out \(duration) before reset",
-        tone: .caution
+        tone: exhaustion.timeBeforeReset >= 86_400 ? .critical : .caution
       )
     case .resetProbability:
       guard let forecast else { return nil }
@@ -208,6 +215,7 @@ struct QuotaExhaustionForecast: Equatable, Codable, Sendable {
 
   var willLastThroughReset: Bool { estimatedAt >= resetsAt }
   var timeBeforeReset: TimeInterval { max(0, resetsAt.timeIntervalSince(estimatedAt)) }
+  var timeAfterReset: TimeInterval { max(0, estimatedAt.timeIntervalSince(resetsAt)) }
 }
 
 struct QuotaPace: Equatable, Codable, Sendable {

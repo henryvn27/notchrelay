@@ -27,8 +27,8 @@ final class CowlickUITests: XCTestCase {
     let island = app.buttons["compact-notch-button"]
     XCTAssertTrue(island.waitForExistence(timeout: 3))
 
-    island.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 2)).hover()
-    island.hover()
+    // Hover a visible wing, not the physical camera housing in the center of a real notch.
+    island.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).hover()
     XCTAssertTrue(expandedSession.waitForExistence(timeout: 2))
   }
 

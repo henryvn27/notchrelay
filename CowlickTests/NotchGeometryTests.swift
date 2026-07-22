@@ -197,20 +197,20 @@ final class NotchGeometryTests: XCTestCase {
 
   func testNotchMotionUsesPromptHoverAndInterruptibleSurfaceTokens() {
     XCTAssertEqual(NotchTheme.hoverFeedbackDuration, 0.12)
-    XCTAssertEqual(NotchTheme.hoverOpenDelay, 0.08)
+    XCTAssertEqual(NotchTheme.hoverOpenDelay, 0.05)
     XCTAssertEqual(NotchTheme.hoverCloseDelay, 0.16)
-    XCTAssertEqual(NotchTheme.surfaceOpenDuration, 0.34)
-    XCTAssertEqual(NotchTheme.surfaceCloseDuration, 0.28)
+    XCTAssertEqual(NotchTheme.surfaceOpenDuration, 0.32)
+    XCTAssertEqual(NotchTheme.surfaceCloseDuration, 0.24)
     XCTAssertEqual(NotchTheme.reducedMotionFadeDuration, 0.12)
   }
 
   func testSessionListHeightGrowsThroughThreeRowsThenCaps() {
-    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 0), CGSize(width: 360, height: 52))
-    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 1), CGSize(width: 360, height: 84))
-    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 2), CGSize(width: 360, height: 120))
-    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 3), CGSize(width: 360, height: 156))
-    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 4), CGSize(width: 360, height: 156))
-    XCTAssertEqual(NotchTheme.maximumSessionViewportHeight, 104)
+    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 0), CGSize(width: 360, height: 38))
+    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 1), CGSize(width: 360, height: 68))
+    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 2), CGSize(width: 360, height: 102))
+    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 3), CGSize(width: 360, height: 136))
+    XCTAssertEqual(NotchTheme.sessionListSize(sessionCount: 4), CGSize(width: 360, height: 136))
+    XCTAssertEqual(NotchTheme.maximumSessionViewportHeight, 98)
   }
 
   func testAnimatedSurfacePathKeepsItsTopEdgeFixed() {
@@ -287,6 +287,26 @@ final class NotchGeometryTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(expanded.panelFrame.width, compact.panelFrame.width)
     XCTAssertLessThan(expanded.panelFrame.minY, compact.panelFrame.minY)
     XCTAssertEqual(expanded.panelFrame.height, 208)
+  }
+
+  func testAttachedSessionDrawerKeepsCompactWidthWhileOpeningDownward() {
+    let compact = NotchTheme.attachedSize(
+      baseSize: NotchTheme.compactSize,
+      notchGapWidth: 212,
+      safeAreaTop: 38,
+      expanded: false
+    )
+    let sessions = NotchTheme.attachedSize(
+      baseSize: NotchTheme.sessionListSize(sessionCount: 3),
+      notchGapWidth: 212,
+      safeAreaTop: 38,
+      expanded: true,
+      allowsWidthGrowth: false
+    )
+
+    XCTAssertEqual(compact.width, 308)
+    XCTAssertEqual(sessions.width, compact.width)
+    XCTAssertEqual(sessions.height, 174)
   }
 
   func testNonNotchFallbackSitsBelowMenuBar() throws {

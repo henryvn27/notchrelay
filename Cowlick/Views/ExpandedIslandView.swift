@@ -36,7 +36,7 @@ private struct NotchActionBar: View {
   let isAttached: Bool
 
   var body: some View {
-    HStack(spacing: 14) {
+    HStack(spacing: 2) {
       action("Open Codex", systemImage: "macwindow") {
         CodexActivationService.openCodex(fallbackDirectory: store.displaySession?.workingDirectory)
       }
@@ -50,8 +50,8 @@ private struct NotchActionBar: View {
         NSApplication.shared.terminate(nil)
       }
     }
-    .frame(maxWidth: .infinity)
-    .padding(.horizontal, 14)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(.horizontal, 8)
     .overlay(alignment: .top) {
       Rectangle()
         .fill(isAttached ? NotchTheme.hairline : Color.secondary.opacity(0.18))
@@ -65,12 +65,18 @@ private struct NotchActionBar: View {
     perform: @escaping () -> Void
   ) -> some View {
     Button(action: perform) {
-      Label(title, systemImage: systemImage)
-        .font(.system(size: 10.5, weight: .medium))
-        .foregroundStyle(isAttached ? Color.white.opacity(0.72) : Color.secondary)
-        .padding(.vertical, 7)
-        .contentShape(Rectangle())
+      HStack(spacing: 3) {
+        Image(systemName: systemImage)
+        Text(title)
+          .lineLimit(1)
+          .fixedSize(horizontal: true, vertical: false)
+      }
+      .font(.system(size: 10, weight: .medium))
+      .foregroundStyle(isAttached ? Color.white.opacity(0.72) : Color.secondary)
+      .padding(.vertical, 7)
+      .contentShape(Rectangle())
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .buttonStyle(.plain)
     .help(title)
     .accessibilityLabel(title)

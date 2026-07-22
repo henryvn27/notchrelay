@@ -318,8 +318,30 @@ final class UsagePlanningTests: XCTestCase {
         forecast: forecast,
         now: now
       )?.text,
-      "safe"
+      "+3d"
     )
+    let runwayShortfall = try XCTUnwrap(
+      CompactUsageSecondaryFormatter.value(
+        for: .projectedRunway,
+        snapshot: CodexUsageSnapshot(
+          limits: [
+            CodexUsageLimit(
+              id: "weekly",
+              name: "Weekly",
+              usedPercent: 80,
+              resetsAt: now.addingTimeInterval(4 * 86_400),
+              windowDurationMinutes: 7 * 24 * 60
+            )
+          ],
+          planType: "pro",
+          fetchedAt: now
+        ),
+        preference: .remaining,
+        forecast: forecast,
+        now: now
+      ))
+    XCTAssertEqual(runwayShortfall.text, "-3d")
+    XCTAssertEqual(runwayShortfall.tone, .critical)
     XCTAssertEqual(
       CompactUsageSecondaryFormatter.value(
         for: .resetProbability,
