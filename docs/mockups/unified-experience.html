@@ -1,0 +1,2636 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Interactive Cowlick product blueprint for unified notch and menu-bar modes."
+    />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%2311110f%22/><path d=%22M7 9h18v7c-4 3-8 3-12 0v9H7z%22 fill=%22%23e9e6de%22/></svg>" />
+    <title>Cowlick — unified experience blueprint</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #e9e6de;
+        --paper-raised: #f3f0e9;
+        --paper-deep: #d7d2c7;
+        --ink: #11110f;
+        --muted: #68655d;
+        --quiet: #8b877e;
+        --island: #000;
+        --island-raised: #131311;
+        --island-soft: #1d1d1a;
+        --white: #f8f6f1;
+        --white-2: #b9b7b1;
+        --line: rgb(17 17 15 / 13%);
+        --line-dark: rgb(255 255 255 / 12%);
+        --focus: #bd741f;
+        --success: #87c39e;
+        --warning: #e1ad61;
+        --failure: #d77b70;
+        --blue: #8aa9ce;
+        --ease: cubic-bezier(0.23, 1, 0.32, 1);
+        --spring: cubic-bezier(0.22, 1, 0.36, 1);
+        --display: ui-rounded, "SF Pro Rounded", "SF Pro Display", -apple-system,
+          BlinkMacSystemFont, sans-serif;
+        --body: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+        --mono: "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+        background: var(--paper);
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--body);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      button {
+        color: inherit;
+        font: inherit;
+      }
+
+      button:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .blueprint {
+        width: min(100% - 40px, 1560px);
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .blueprint-header {
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) auto;
+        gap: 32px;
+        align-items: end;
+        margin-bottom: 20px;
+      }
+
+      .eyebrow {
+        margin: 0 0 7px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 850px;
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(29px, 3.25vw, 54px);
+        font-weight: 730;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+      }
+
+      .header-note {
+        max-width: 550px;
+        margin: 13px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .header-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(108px, 1fr));
+        gap: 1px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .meta-cell {
+        min-height: 64px;
+        padding: 11px 14px;
+        background: var(--paper-raised);
+      }
+
+      .meta-cell span {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--quiet);
+        font-size: 10px;
+        font-weight: 650;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .meta-cell strong {
+        font-family: var(--display);
+        font-size: 13px;
+      }
+
+      .controls {
+        display: flex;
+        min-height: 58px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 12px;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        background: var(--paper-raised);
+      }
+
+      .control-cluster {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .control-label {
+        margin: 0 3px 0 1px;
+        color: var(--quiet);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .segmented,
+      .state-strip {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .segment,
+      .state-button,
+      .view-button {
+        min-height: 34px;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 650;
+        transition:
+          color 140ms ease,
+          background-color 140ms ease,
+          transform 90ms ease;
+      }
+
+      .segment {
+        padding: 0 13px;
+      }
+
+      .segment[aria-pressed="true"] {
+        background: var(--ink);
+        color: var(--paper-raised);
+      }
+
+      .state-button {
+        padding: 0 11px;
+        color: var(--muted);
+      }
+
+      .state-button[aria-pressed="true"] {
+        background: var(--paper-deep);
+        color: var(--ink);
+      }
+
+      .segment:active,
+      .state-button:active,
+      .view-button:active,
+      .icon-button:active,
+      .action-button:active,
+      .page-button:active,
+      .provider-button:active {
+        transform: scale(0.97);
+      }
+
+      .view-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 13px;
+        border: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .view-button svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .stage-shell {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgb(0 0 0 / 24%);
+        background: #aaa69d;
+        box-shadow:
+          0 40px 90px rgb(28 25 19 / 15%),
+          0 2px 0 rgb(255 255 255 / 40%) inset;
+      }
+
+      .desktop {
+        position: relative;
+        aspect-ratio: 1512 / 900;
+        min-height: 650px;
+        overflow: hidden;
+        background: #a8a59e;
+        isolation: isolate;
+      }
+
+      .wallpaper-mark {
+        position: absolute;
+        border: 1px solid rgb(17 17 15 / 14%);
+        background: rgb(241 238 231 / 27%);
+        transform: rotate(-13deg);
+      }
+
+      .wallpaper-mark.one {
+        top: 14%;
+        left: -5%;
+        width: 49%;
+        height: 78%;
+      }
+
+      .wallpaper-mark.two {
+        right: 9%;
+        bottom: -15%;
+        width: 32%;
+        height: 68%;
+        background: rgb(35 35 32 / 12%);
+        transform: rotate(21deg);
+      }
+
+      .wallpaper-mark.three {
+        top: 27%;
+        right: 25%;
+        width: 17%;
+        height: 38%;
+        background: rgb(245 241 233 / 19%);
+        transform: rotate(6deg);
+      }
+
+      .desktop-menu {
+        position: absolute;
+        z-index: 50;
+        inset: 0 0 auto;
+        display: flex;
+        height: 34px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 13px 0 15px;
+        border-bottom: 1px solid rgb(255 255 255 / 14%);
+        background: rgb(231 228 220 / 72%);
+        color: #171714;
+        font-size: 12px;
+        font-weight: 570;
+        -webkit-backdrop-filter: blur(18px) saturate(120%);
+        backdrop-filter: blur(18px) saturate(120%);
+      }
+
+      .menu-left,
+      .menu-right {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .apple-mark {
+        width: 12px;
+        height: 15px;
+        fill: currentColor;
+      }
+
+      .menu-right {
+        gap: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .system-glyph {
+        display: inline-flex;
+        width: 16px;
+        height: 16px;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .system-glyph svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.7;
+      }
+
+      .cowlick-status-item {
+        display: none;
+        height: 26px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        color: #141411;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .cowlick-status-item:hover,
+      .cowlick-status-item[aria-expanded="true"] {
+        background: rgb(255 255 255 / 43%);
+      }
+
+      .status-tick {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--state-color, var(--blue));
+      }
+
+      .hardware-notch {
+        position: absolute;
+        z-index: 72;
+        top: 0;
+        left: 50%;
+        width: 166px;
+        height: 34px;
+        border-radius: 0 0 15px 15px;
+        background: #000;
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      .hardware-notch::after {
+        position: absolute;
+        top: 9px;
+        left: 50%;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #161616;
+        box-shadow: 0 0 0 1px #090909, 0 0 5px rgb(74 102 87 / 30%);
+        content: "";
+        transform: translateX(-50%);
+      }
+
+      .notch-host {
+        position: absolute;
+        z-index: 70;
+        top: 0;
+        left: 50%;
+        display: flex;
+        width: min(600px, calc(100% - 60px));
+        height: 590px;
+        align-items: flex-start;
+        justify-content: center;
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      .notch-surface {
+        --surface-w: 330px;
+        --surface-h: 40px;
+        width: var(--surface-w);
+        height: var(--surface-h);
+        overflow: hidden;
+        border-radius: 0 0 17px 17px;
+        background: var(--island);
+        box-shadow: 0 20px 48px rgb(0 0 0 / 0%);
+        color: var(--white);
+        pointer-events: auto;
+        transition:
+          width 420ms var(--spring),
+          height 420ms var(--spring),
+          border-radius 420ms var(--spring),
+          box-shadow 220ms ease;
+      }
+
+      .notch-surface.is-expanded {
+        --surface-w: 590px;
+        --surface-h: 548px;
+        border-radius: 0 0 25px 25px;
+        box-shadow: 0 25px 65px rgb(0 0 0 / 34%);
+      }
+
+      .notch-compact {
+        position: relative;
+        z-index: 3;
+        display: grid;
+        width: 100%;
+        height: 40px;
+        grid-template-columns: minmax(0, 1fr) 166px minmax(0, 1fr);
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .notch-wing {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 7px;
+        font-size: 10px;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+
+      .notch-wing.left {
+        justify-content: flex-end;
+        padding-left: 13px;
+      }
+
+      .notch-wing.right {
+        justify-content: flex-start;
+        padding-right: 13px;
+      }
+
+      .notch-wing .truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .notch-wing .usage-number {
+        color: var(--white-2);
+        font-family: var(--mono);
+        font-size: 9.5px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .state-symbol {
+        position: relative;
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--state-color, var(--blue));
+      }
+
+      .state-symbol.working::after {
+        position: absolute;
+        inset: -4px;
+        border: 1px solid var(--state-color, var(--blue));
+        border-radius: inherit;
+        content: "";
+        opacity: 0;
+        animation: breathe 2s ease-out infinite;
+      }
+
+      @keyframes breathe {
+        0% {
+          transform: scale(0.55);
+          opacity: 0;
+        }
+        20% {
+          opacity: 0.45;
+        }
+        100% {
+          transform: scale(1.3);
+          opacity: 0;
+        }
+      }
+
+      .notch-body {
+        height: calc(100% - 40px);
+        opacity: 0;
+        transform: translateY(-4px);
+        transition:
+          opacity 160ms var(--ease),
+          transform 160ms var(--ease);
+      }
+
+      .notch-surface.is-expanded .notch-body {
+        opacity: 1;
+        transform: translateY(0);
+        transition-delay: 90ms;
+      }
+
+      .surface-frame {
+        display: grid;
+        height: 100%;
+        grid-template-rows: 48px 1fr 48px;
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .surface-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line-dark);
+      }
+
+      .page-tabs {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .page-button {
+        display: inline-flex;
+        min-height: 30px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #888781;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 650;
+        transition:
+          background-color 140ms ease,
+          color 140ms ease,
+          transform 90ms ease;
+      }
+
+      .page-button[aria-selected="true"] {
+        background: #1d1d1a;
+        color: var(--white);
+      }
+
+      .page-button[aria-disabled="true"] {
+        cursor: not-allowed;
+        opacity: 0.38;
+      }
+
+      .page-button svg {
+        width: 13px;
+        height: 13px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .surface-summary {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #8e8d87;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .surface-content {
+        min-height: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        scrollbar-color: #383833 transparent;
+        scrollbar-width: thin;
+      }
+
+      .surface-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .action-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .action-button,
+      .icon-button {
+        min-height: 30px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #8f8e88;
+        cursor: pointer;
+        font-size: 10.5px;
+        font-weight: 600;
+        transition:
+          background-color 140ms ease,
+          color 140ms ease,
+          transform 90ms ease;
+      }
+
+      .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 9px;
+      }
+
+      .icon-button {
+        display: inline-grid;
+        width: 30px;
+        place-items: center;
+      }
+
+      .action-button:hover,
+      .icon-button:hover {
+        background: #1b1b19;
+        color: var(--white);
+      }
+
+      .action-button svg,
+      .icon-button svg {
+        width: 13px;
+        height: 13px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.7;
+      }
+
+      .menu-popover {
+        position: absolute;
+        z-index: 68;
+        top: 42px;
+        right: 48px;
+        display: none;
+        width: 390px;
+        height: 590px;
+        overflow: hidden;
+        border: 1px solid rgb(255 255 255 / 12%);
+        border-radius: 16px;
+        background: rgb(19 19 17 / 96%);
+        box-shadow: 0 27px 72px rgb(0 0 0 / 38%);
+        color: var(--white);
+        -webkit-backdrop-filter: blur(25px) saturate(120%);
+        backdrop-filter: blur(25px) saturate(120%);
+        transform: translateY(-6px) scale(0.985);
+        transform-origin: 90% 0;
+        opacity: 0;
+        transition:
+          opacity 160ms var(--ease),
+          transform 220ms var(--spring);
+      }
+
+      .menu-popover.is-expanded {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+
+      .menu-popover .surface-frame {
+        grid-template-rows: 62px 44px 1fr 49px;
+        border-top: 0;
+      }
+
+      .menu-popover-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line-dark);
+      }
+
+      .mini-logo {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #ddd9cf;
+      }
+
+      .mini-logo::before {
+        position: absolute;
+        inset: 4px 2px 13px;
+        border-radius: 50%;
+        background: #10100e;
+        content: "";
+      }
+
+      .mini-logo::after {
+        position: absolute;
+        right: 3px;
+        bottom: 3px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ddd9cf;
+        box-shadow: -2px 0 0 #10100e inset;
+        content: "";
+      }
+
+      .popover-heading {
+        min-width: 0;
+      }
+
+      .popover-heading strong,
+      .popover-heading span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .popover-heading strong {
+        font-family: var(--display);
+        font-size: 13px;
+      }
+
+      .popover-heading span {
+        margin-top: 2px;
+        color: #8c8b85;
+        font-size: 10px;
+      }
+
+      .menu-popover-header .status-badge {
+        margin-left: auto;
+      }
+
+      .menu-popover .surface-nav {
+        border-bottom: 1px solid var(--line-dark);
+      }
+
+      .surface-page {
+        min-height: 100%;
+        animation: page-in 170ms var(--ease) both;
+      }
+
+      @keyframes page-in {
+        from {
+          opacity: 0;
+          transform: translateY(3px);
+        }
+      }
+
+      .work-page {
+        padding: 17px 18px 15px;
+      }
+
+      .project-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 15px;
+      }
+
+      .project-identity {
+        min-width: 0;
+      }
+
+      .project-kicker,
+      .data-label {
+        display: block;
+        margin-bottom: 5px;
+        color: #77766f;
+        font-family: var(--mono);
+        font-size: 8.5px;
+        font-weight: 650;
+        letter-spacing: 0.085em;
+        text-transform: uppercase;
+      }
+
+      .project-name {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 22px;
+        font-weight: 720;
+        letter-spacing: -0.025em;
+        line-height: 1.05;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        min-height: 25px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 6px;
+        padding: 0 9px;
+        border: 1px solid color-mix(in srgb, var(--state-color) 45%, transparent);
+        border-radius: 999px;
+        color: var(--state-color);
+        font-size: 9.5px;
+        font-weight: 700;
+      }
+
+      .status-badge .status-tick {
+        width: 6px;
+        height: 6px;
+      }
+
+      .activity-hierarchy {
+        border-top: 1px solid var(--line-dark);
+        border-bottom: 1px solid var(--line-dark);
+      }
+
+      .activity-row {
+        display: grid;
+        grid-template-columns: 55px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+        padding: 12px 0;
+      }
+
+      .activity-row + .activity-row {
+        border-top: 1px solid rgb(255 255 255 / 7%);
+      }
+
+      .activity-row .data-label {
+        margin: 2px 0 0;
+      }
+
+      .activity-value {
+        min-width: 0;
+        color: #d9d7d1;
+        font-size: 12px;
+        font-weight: 560;
+        line-height: 1.35;
+      }
+
+      .activity-row.now .activity-value {
+        color: var(--white);
+        font-size: 13px;
+        font-weight: 680;
+      }
+
+      .source-label {
+        margin-top: 2px;
+        color: #6f6e68;
+        font-family: var(--mono);
+        font-size: 8px;
+        white-space: nowrap;
+      }
+
+      .phase-track {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+        margin: 14px 0 15px;
+      }
+
+      .phase-step {
+        height: 3px;
+        background: #262622;
+      }
+
+      .phase-step.done {
+        background: #6f8580;
+      }
+
+      .phase-step.active {
+        background: var(--state-color);
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin: 0 0 8px;
+      }
+
+      .section-heading h3 {
+        margin: 0;
+        color: #a7a59f;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .section-heading span {
+        color: #6f6e68;
+        font-family: var(--mono);
+        font-size: 8.5px;
+      }
+
+      .agent-list {
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .agent-row {
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        min-height: 39px;
+        border-bottom: 1px solid rgb(255 255 255 / 7%);
+      }
+
+      .agent-icon {
+        display: grid;
+        width: 18px;
+        height: 18px;
+        border: 1px solid #373731;
+        border-radius: 50%;
+        place-items: center;
+        color: #8f8d86;
+        font-family: var(--mono);
+        font-size: 7px;
+      }
+
+      .agent-copy {
+        min-width: 0;
+      }
+
+      .agent-copy strong,
+      .agent-copy span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .agent-copy strong {
+        color: #c9c7c1;
+        font-size: 10.5px;
+        font-weight: 650;
+      }
+
+      .agent-copy span {
+        margin-top: 2px;
+        color: #6f6e68;
+        font-size: 9px;
+      }
+
+      .agent-time {
+        color: #696862;
+        font-family: var(--mono);
+        font-size: 8px;
+      }
+
+      .approval-page {
+        display: grid;
+        min-height: 100%;
+        grid-template-rows: auto 1fr auto;
+        padding: 18px;
+      }
+
+      .approval-mark {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 14px;
+        border: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
+        border-radius: 50%;
+        place-items: center;
+        color: var(--warning);
+      }
+
+      .approval-mark svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .approval-page h2 {
+        max-width: 430px;
+        margin: 0 0 7px;
+        font-family: var(--display);
+        font-size: 23px;
+        font-weight: 710;
+        letter-spacing: -0.03em;
+      }
+
+      .approval-page > div > p {
+        max-width: 440px;
+        margin: 0;
+        color: #888781;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .approval-details {
+        align-self: center;
+        border-top: 1px solid var(--line-dark);
+        border-bottom: 1px solid var(--line-dark);
+      }
+
+      .approval-detail {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 12px;
+        padding: 10px 0;
+        font-size: 10.5px;
+      }
+
+      .approval-detail + .approval-detail {
+        border-top: 1px solid rgb(255 255 255 / 7%);
+      }
+
+      .approval-detail span {
+        color: #73726c;
+      }
+
+      .approval-detail strong {
+        color: #d4d2cc;
+        font-weight: 590;
+      }
+
+      .approval-actions {
+        display: grid;
+        grid-template-columns: 1fr 1.35fr;
+        gap: 8px;
+        padding-top: 15px;
+      }
+
+      .decision-button {
+        min-height: 36px;
+        border: 1px solid #353530;
+        border-radius: 10px;
+        background: transparent;
+        color: #b7b5af;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .decision-button.primary {
+        border-color: #d3cec3;
+        background: #d9d4c9;
+        color: #151512;
+      }
+
+      .usage-page {
+        padding: 14px 16px 18px;
+      }
+
+      .provider-switcher {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 14px;
+      }
+
+      .provider-button {
+        display: inline-flex;
+        min-height: 29px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 9px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: #77766f;
+        cursor: pointer;
+        font-size: 9.5px;
+        font-weight: 650;
+      }
+
+      .provider-button[aria-pressed="true"] {
+        border-color: #353530;
+        background: #1e1e1b;
+        color: var(--white);
+      }
+
+      .provider-logo {
+        display: grid;
+        width: 14px;
+        height: 14px;
+        border: 1px solid currentColor;
+        border-radius: 50%;
+        place-items: center;
+        font-family: var(--mono);
+        font-size: 6.5px;
+      }
+
+      .usage-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 15px;
+      }
+
+      .usage-hero strong {
+        display: block;
+        color: var(--white);
+        font-family: var(--display);
+        font-size: 34px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 710;
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+
+      .usage-hero span {
+        display: block;
+        margin-top: 5px;
+        color: #77766f;
+        font-size: 9.5px;
+      }
+
+      .pace-summary {
+        padding-bottom: 2px;
+        text-align: right;
+      }
+
+      .pace-summary strong {
+        color: var(--success);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .quota-list {
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .quota-row {
+        display: grid;
+        grid-template-columns: 75px minmax(0, 1fr) 64px;
+        gap: 11px;
+        align-items: center;
+        min-height: 44px;
+        border-bottom: 1px solid rgb(255 255 255 / 7%);
+      }
+
+      .quota-name strong,
+      .quota-name span {
+        display: block;
+      }
+
+      .quota-name strong {
+        color: #bbb9b3;
+        font-size: 10px;
+      }
+
+      .quota-name span {
+        margin-top: 2px;
+        color: #686761;
+        font-family: var(--mono);
+        font-size: 7.5px;
+      }
+
+      .meter {
+        position: relative;
+        height: 4px;
+        background: #282824;
+      }
+
+      .meter > span {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--meter, 70%);
+        background: var(--meter-color, #a9b9ad);
+      }
+
+      .meter > i {
+        position: absolute;
+        top: -3px;
+        left: var(--pace, 45%);
+        width: 1px;
+        height: 10px;
+        background: #72716b;
+      }
+
+      .quota-value {
+        text-align: right;
+      }
+
+      .quota-value strong,
+      .quota-value span {
+        display: block;
+      }
+
+      .quota-value strong {
+        color: #d2d0ca;
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .quota-value span {
+        margin-top: 2px;
+        color: #696862;
+        font-size: 7.5px;
+      }
+
+      .usage-lower {
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;
+        gap: 15px;
+        margin-top: 15px;
+      }
+
+      .history {
+        border-right: 1px solid var(--line-dark);
+        padding-right: 15px;
+      }
+
+      .history-bars {
+        display: flex;
+        height: 57px;
+        align-items: end;
+        gap: 5px;
+        padding-top: 6px;
+        border-bottom: 1px solid #343430;
+      }
+
+      .history-bar {
+        width: 100%;
+        height: var(--h);
+        background: #57645d;
+      }
+
+      .history-bar.today {
+        background: var(--success);
+      }
+
+      .history-legend {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 5px;
+        color: #62615b;
+        font-family: var(--mono);
+        font-size: 7px;
+      }
+
+      .cost-summary {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+      }
+
+      .cost-line {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .cost-line span {
+        color: #77766f;
+        font-size: 8.5px;
+      }
+
+      .cost-line strong {
+        color: #c5c3bd;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .source-footnote {
+        margin-top: 12px;
+        color: #5f5e59;
+        font-size: 7.5px;
+        line-height: 1.45;
+      }
+
+      .nook-page {
+        padding: 14px 16px 18px;
+      }
+
+      .module-list {
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .nook-module {
+        display: grid;
+        min-height: 64px;
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        gap: 11px;
+        align-items: center;
+        border-bottom: 1px solid rgb(255 255 255 / 8%);
+      }
+
+      .module-art {
+        position: relative;
+        display: grid;
+        width: 42px;
+        height: 42px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #c8c1b4;
+        color: #26241f;
+        place-items: center;
+      }
+
+      .module-art.album::before,
+      .module-art.album::after {
+        position: absolute;
+        border-radius: 50%;
+        background: #24231f;
+        content: "";
+      }
+
+      .module-art.album::before {
+        width: 22px;
+        height: 22px;
+      }
+
+      .module-art.album::after {
+        width: 7px;
+        height: 7px;
+        background: #c8c1b4;
+      }
+
+      .module-art.calendar {
+        background: #d9d4ca;
+        font-family: var(--display);
+        font-size: 18px;
+        font-weight: 760;
+      }
+
+      .module-art.mirror {
+        background: #363a38;
+      }
+
+      .module-art.mirror::before {
+        position: absolute;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #9c9d98;
+        content: "";
+      }
+
+      .module-art.mirror::after {
+        position: absolute;
+        bottom: 5px;
+        width: 27px;
+        height: 15px;
+        border-radius: 50% 50% 8px 8px;
+        background: #777a76;
+        content: "";
+      }
+
+      .module-copy {
+        min-width: 0;
+      }
+
+      .module-copy strong,
+      .module-copy span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .module-copy strong {
+        color: #d4d2cc;
+        font-size: 11px;
+      }
+
+      .module-copy span {
+        margin-top: 3px;
+        color: #74736d;
+        font-size: 8.5px;
+      }
+
+      .module-controls {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+
+      .tiny-control {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 50%;
+        background: #242421;
+        color: #a5a39d;
+        cursor: pointer;
+        place-items: center;
+      }
+
+      .tiny-control:hover {
+        background: #31312d;
+        color: var(--white);
+      }
+
+      .tiny-control svg {
+        width: 11px;
+        height: 11px;
+        fill: currentColor;
+      }
+
+      .shortcut-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+        margin-top: 14px;
+      }
+
+      .shortcut {
+        min-height: 52px;
+        padding: 8px;
+        border: 1px solid #2c2c28;
+        border-radius: 9px;
+        background: #151513;
+        color: #817f79;
+        text-align: left;
+        cursor: pointer;
+        font-size: 8px;
+        font-weight: 650;
+      }
+
+      .shortcut svg {
+        display: block;
+        width: 14px;
+        height: 14px;
+        margin-bottom: 8px;
+        fill: none;
+        stroke: #adaba5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .tray-page {
+        display: grid;
+        min-height: 100%;
+        grid-template-rows: auto 1fr auto;
+        padding: 15px 16px 18px;
+      }
+
+      .tray-intro {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 12px;
+      }
+
+      .tray-intro h2 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+      }
+
+      .tray-intro p {
+        margin: 4px 0 0;
+        color: #73726c;
+        font-size: 8.5px;
+      }
+
+      .drop-sample {
+        min-height: 28px;
+        padding: 0 9px;
+        border: 1px solid #343430;
+        border-radius: 8px;
+        background: transparent;
+        color: #98968f;
+        cursor: pointer;
+        font-size: 8.5px;
+        font-weight: 650;
+      }
+
+      .tray-well {
+        display: grid;
+        min-height: 230px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 9px;
+        align-content: start;
+        padding: 11px;
+        border: 1px dashed #3b3b36;
+        border-radius: 12px;
+        background: #10100e;
+        transition:
+          border-color 140ms ease,
+          background-color 140ms ease;
+      }
+
+      .tray-well.is-dragging {
+        border-color: var(--warning);
+        background: #17140f;
+      }
+
+      .empty-tray {
+        grid-column: 1 / -1;
+        align-self: center;
+        color: #62615b;
+        text-align: center;
+        font-size: 9px;
+      }
+
+      .file-tile {
+        position: relative;
+        min-width: 0;
+        min-height: 94px;
+        padding: 9px;
+        border: 1px solid #2a2a27;
+        border-radius: 9px;
+        background: #171715;
+      }
+
+      .file-preview {
+        display: grid;
+        height: 49px;
+        margin-bottom: 7px;
+        border-radius: 5px;
+        background: var(--file-color, #c7c1b6);
+        color: #24231f;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 760;
+        place-items: center;
+      }
+
+      .file-tile strong {
+        display: block;
+        overflow: hidden;
+        color: #a9a7a1;
+        font-size: 8px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-tile span {
+        color: #5f5e59;
+        font-family: var(--mono);
+        font-size: 6.5px;
+      }
+
+      .file-remove {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        display: grid;
+        width: 18px;
+        height: 18px;
+        border: 0;
+        border-radius: 50%;
+        background: rgb(0 0 0 / 70%);
+        color: #aaa8a2;
+        cursor: pointer;
+        font-size: 11px;
+        place-items: center;
+      }
+
+      .tray-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 12px;
+        color: #66655f;
+        font-size: 8px;
+      }
+
+      .tray-actions button {
+        min-height: 28px;
+        padding: 0 9px;
+        border: 1px solid #343430;
+        border-radius: 8px;
+        background: transparent;
+        color: #9b9993;
+        cursor: pointer;
+        font-size: 8.5px;
+        font-weight: 650;
+      }
+
+      .result-banner {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 11px;
+        align-items: center;
+        margin-top: 13px;
+        padding: 11px 0 0;
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .result-mark {
+        display: grid;
+        width: 31px;
+        height: 31px;
+        border: 1px solid color-mix(in srgb, var(--state-color) 50%, transparent);
+        border-radius: 50%;
+        color: var(--state-color);
+        place-items: center;
+      }
+
+      .result-mark svg {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .result-copy strong,
+      .result-copy span {
+        display: block;
+      }
+
+      .result-copy strong {
+        color: #c8c6c0;
+        font-size: 10.5px;
+      }
+
+      .result-copy span {
+        margin-top: 3px;
+        color: #6e6d67;
+        font-size: 8.5px;
+      }
+
+      .stage-caption {
+        position: absolute;
+        z-index: 12;
+        right: 20px;
+        bottom: 18px;
+        display: flex;
+        max-width: 440px;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid rgb(17 17 15 / 13%);
+        background: rgb(235 232 224 / 79%);
+        color: #4f4c45;
+        font-size: 10px;
+        line-height: 1.35;
+        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(15px);
+      }
+
+      .stage-caption strong {
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .decision-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .decision {
+        min-height: 92px;
+        padding: 14px;
+        background: var(--paper-raised);
+      }
+
+      .decision span {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--quiet);
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .decision strong {
+        display: block;
+        font-family: var(--display);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      .decision p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.35;
+      }
+
+      body[data-mode="menu"] .notch-host {
+        display: none;
+      }
+
+      body[data-mode="menu"] .cowlick-status-item,
+      body[data-mode="menu"] .menu-popover {
+        display: flex;
+      }
+
+      body[data-mode="menu"] .menu-popover {
+        display: block;
+      }
+
+      body[data-mode="notch"] .menu-popover {
+        display: none;
+      }
+
+      body[data-state="approval"] {
+        --state-color: var(--warning);
+      }
+
+      body[data-state="complete"] {
+        --state-color: var(--success);
+      }
+
+      body[data-state="failure"] {
+        --state-color: var(--failure);
+      }
+
+      body[data-state="idle"] {
+        --state-color: #77766f;
+      }
+
+      body[data-state="working"],
+      body[data-state="multi"] {
+        --state-color: var(--blue);
+      }
+
+      @media (max-width: 1120px) {
+        .blueprint-header {
+          grid-template-columns: 1fr;
+        }
+
+        .header-meta {
+          width: min(100%, 420px);
+        }
+
+        .controls {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .control-cluster.states {
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        .desktop {
+          min-height: 610px;
+        }
+
+        .decision-strip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .stage-caption {
+          display: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .blueprint {
+          width: min(100% - 20px, 1560px);
+          padding-top: 18px;
+        }
+
+        .blueprint-header {
+          gap: 18px;
+        }
+
+        .header-meta {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .control-cluster:first-child {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .desktop {
+          min-height: 640px;
+        }
+
+        .menu-left span:not(:first-of-type),
+        .menu-right > .system-glyph,
+        .menu-right > span:last-child {
+          display: none;
+        }
+
+        .notch-host {
+          width: 100%;
+        }
+
+        .notch-surface.is-expanded {
+          --surface-w: calc(100vw - 32px);
+        }
+
+        .page-button {
+          padding-inline: 7px;
+        }
+
+        .page-button svg,
+        .surface-summary,
+        .stage-caption,
+        .decision-strip {
+          display: none;
+        }
+
+        .menu-popover {
+          right: 10px;
+          width: calc(100% - 20px);
+        }
+
+        .activity-row {
+          grid-template-columns: 48px minmax(0, 1fr);
+        }
+
+        .source-label {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-mode="notch" data-state="working">
+    <main class="blueprint">
+      <header class="blueprint-header">
+        <div>
+          <p class="eyebrow">CS-2080 · interaction blueprint</p>
+          <h1>One command surface.<br />Two physical homes.</h1>
+          <p class="header-note">
+            Project, Goal, Now, State, agents, approvals, and usage are shared. The hardware notch
+            adds live utilities and a file tray; the menu bar remains the complete fallback.
+          </p>
+        </div>
+        <div class="header-meta" aria-label="Prototype principles">
+          <div class="meta-cell"><span>Default</span><strong>Notch on this Mac</strong></div>
+          <div class="meta-cell"><span>Surface count</span><strong>Exactly one</strong></div>
+          <div class="meta-cell"><span>Live hierarchy</span><strong>Project → Goal → Now</strong></div>
+          <div class="meta-cell"><span>Usage</span><strong>Visible by default</strong></div>
+        </div>
+      </header>
+
+      <section class="controls" aria-label="Prototype controls">
+        <div class="control-cluster">
+          <span class="control-label">Surface</span>
+          <div class="segmented" role="group" aria-label="Presentation surface">
+            <button class="segment mode-button" type="button" data-mode="notch" aria-pressed="true">
+              Notch
+            </button>
+            <button class="segment mode-button" type="button" data-mode="menu" aria-pressed="false">
+              Menu bar
+            </button>
+          </div>
+          <button class="view-button" id="toggle-surface" type="button" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+            <span>Expanded</span>
+          </button>
+        </div>
+        <div class="control-cluster states">
+          <span class="control-label">State</span>
+          <div class="state-strip" role="group" aria-label="Codex state">
+            <button class="state-button" type="button" data-state="idle" aria-pressed="false">Idle</button>
+            <button class="state-button" type="button" data-state="working" aria-pressed="true">Working</button>
+            <button class="state-button" type="button" data-state="multi" aria-pressed="false">Multi-agent</button>
+            <button class="state-button" type="button" data-state="approval" aria-pressed="false">Approval</button>
+            <button class="state-button" type="button" data-state="complete" aria-pressed="false">Complete</button>
+            <button class="state-button" type="button" data-state="failure" aria-pressed="false">Failure</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="stage-shell" aria-label="Cowlick interactive desktop prototype">
+        <div class="desktop" id="desktop">
+          <div class="wallpaper-mark one"></div>
+          <div class="wallpaper-mark two"></div>
+          <div class="wallpaper-mark three"></div>
+
+          <div class="desktop-menu" aria-hidden="true">
+            <div class="menu-left">
+              <svg class="apple-mark" viewBox="0 0 24 24">
+                <path d="M16.7 12.8c0-2.7 2.2-4 2.3-4.1-1.3-1.9-3.3-2.1-4-2.1-1.7-.2-3.3 1-4.1 1-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.3 2.5 1.3-.1 1.8-.8 3.4-.8s2.1.8 3.4.8c1.4 0 2.3-1.2 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.6-1-2.6-3.7zM13.9 4.8c.7-.9 1.2-2.1 1.1-3.3-1 .1-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.2 1.2.1 2.3-.6 3-1.5z" />
+              </svg>
+              <span>Finder</span><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span>
+            </div>
+            <div class="menu-right">
+              <button class="cowlick-status-item" id="menu-status" type="button" aria-expanded="true">
+                <span class="status-tick"></span><span id="menu-status-text">78%</span>
+              </button>
+              <span class="system-glyph">
+                <svg viewBox="0 0 24 24"><path d="M3 9c5-4 13-4 18 0M6 13c3.4-2.7 8.6-2.7 12 0M9.5 17c1.4-1 3.6-1 5 0M12 20h.01" /></svg>
+              </span>
+              <span class="system-glyph">
+                <svg viewBox="0 0 24 24"><rect x="3" y="7" width="17" height="10" rx="2" /><path d="M21 10v4M6 10v4M9 10v4M12 10v4M15 10v4" /></svg>
+              </span>
+              <span>Wed Jul 22&nbsp;&nbsp;11:26 AM</span>
+            </div>
+          </div>
+
+          <div class="hardware-notch" aria-hidden="true"></div>
+
+          <div class="notch-host">
+            <section class="notch-surface is-expanded" id="notch-surface" aria-label="Cowlick notch">
+              <div
+                class="notch-compact"
+                id="notch-compact"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+              >
+                <div class="notch-wing left">
+                  <span class="state-symbol working" id="compact-state-symbol"></span>
+                  <span class="usage-number" id="compact-usage">78%</span>
+                </div>
+                <span aria-hidden="true"></span>
+                <div class="notch-wing right">
+                  <span class="truncate" id="compact-copy">Cowlick · Rendering mockups</span>
+                </div>
+              </div>
+              <div class="notch-body">
+                <div class="surface-frame">
+                  <nav class="surface-nav" aria-label="Notch pages">
+                <div class="page-tabs" id="notch-tabs" role="tablist"></div>
+                    <div class="surface-summary"><span class="status-tick"></span><span id="notch-summary">78% left</span></div>
+                  </nav>
+                  <div class="surface-content" id="notch-content" role="tabpanel"></div>
+                  <footer class="surface-actions">
+                    <div class="action-group">
+                      <button class="action-button" type="button" data-toast="Opened Codex">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="2" /><path d="M8 21h8M12 19v2" /></svg>
+                        Open Codex
+                      </button>
+                      <button class="action-button" type="button" data-toast="Opened Settings">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5.1 11A7 7 0 0 0 5 12c0 .3 0 .7.1 1L3 14.5l2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 3.1h5l.4-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2.1-1.5c.1-.3.1-.7.1-1z" /></svg>
+                        Settings
+                      </button>
+                    </div>
+                    <div class="action-group">
+                      <button class="icon-button" type="button" aria-label="Open diagnostics" data-toast="Opened Diagnostics">
+                        <svg viewBox="0 0 24 24"><path d="M4 13h3l2-7 4 13 2-6h5" /></svg>
+                      </button>
+                      <button class="icon-button" type="button" aria-label="Quit Cowlick" data-toast="Quit is available without a menu-bar item">
+                        <svg viewBox="0 0 24 24"><path d="M12 2v10M5.6 5.6a9 9 0 1 0 12.8 0" /></svg>
+                      </button>
+                    </div>
+                  </footer>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="menu-popover is-expanded" id="menu-popover" aria-label="Cowlick menu-bar popover">
+            <div class="surface-frame">
+              <header class="menu-popover-header">
+                <div class="mini-logo" aria-hidden="true"></div>
+                <div class="popover-heading">
+                  <strong id="popover-title">Cowlick</strong>
+                  <span id="popover-subtitle">Rendering the interactive approval state</span>
+                </div>
+                <span class="status-badge"><span class="status-tick"></span><span id="popover-state">Working</span></span>
+              </header>
+              <nav class="surface-nav" aria-label="Menu pages">
+                <div class="page-tabs" id="menu-tabs" role="tablist"></div>
+                <div class="surface-summary"><span id="menu-summary">78% left</span></div>
+              </nav>
+              <div class="surface-content" id="menu-content" role="tabpanel"></div>
+              <footer class="surface-actions">
+                <div class="action-group">
+                  <button class="action-button" type="button" data-toast="Opened Codex">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="2" /><path d="M8 21h8M12 19v2" /></svg>
+                    Open Codex
+                  </button>
+                  <button class="action-button" type="button" data-toast="Opened Settings">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5.1 11A7 7 0 0 0 5 12c0 .3 0 .7.1 1L3 14.5l2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 3.1h5l.4-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2.1-1.5c.1-.3.1-.7.1-1z" /></svg>
+                    Settings
+                  </button>
+                </div>
+                <div class="action-group">
+                  <button class="icon-button" type="button" aria-label="Open diagnostics" data-toast="Opened Diagnostics">
+                    <svg viewBox="0 0 24 24"><path d="M4 13h3l2-7 4 13 2-6h5" /></svg>
+                  </button>
+                  <button class="icon-button" type="button" aria-label="Quit Cowlick" data-toast="Quit Cowlick">
+                    <svg viewBox="0 0 24 24"><path d="M12 2v10M5.6 5.6a9 9 0 1 0 12.8 0" /></svg>
+                  </button>
+                </div>
+              </footer>
+            </div>
+          </section>
+
+          <div class="stage-caption" aria-live="polite">
+            <strong id="caption-title">Notch · Work</strong>
+            <span id="caption-copy">The session title is absent. Project, Goal, and Now carry the hierarchy.</span>
+          </div>
+          <p class="sr-only" id="live-region" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="decision-strip" aria-label="Locked product decisions">
+        <article class="decision">
+          <span>01 · ownership</span><strong>Notch or menu bar—never both</strong>
+          <p>The active presentation owns every required Cowlick action.</p>
+        </article>
+        <article class="decision">
+          <span>02 · status</span><strong>Goal and Now replace chat-title primacy</strong>
+          <p>Local deterministic sources preserve detail without an AI summarizer.</p>
+        </article>
+        <article class="decision">
+          <span>03 · breadth</span><strong>CodexBar depth is shared</strong>
+          <p>Providers, pace, history, spend, incidents, CLI, widgets, and alerts.</p>
+        </article>
+        <article class="decision">
+          <span>04 · notch</span><strong>Utilities stay hardware-specific</strong>
+          <p>Media, calendar, live actions, shortcuts, Mirror, Tray, and AirDrop.</p>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const icons = {
+        work: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h6l2 2h8v10H4z"/></svg>',
+        usage: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V4M16 19v-7M22 19H2"/></svg>',
+        nook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg>',
+        tray: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 14h5l2 2h2l2-2h5"/></svg>',
+      };
+
+      const states = {
+        idle: {
+          label: 'Idle',
+          compact: 'Ready · Next reset 2h 14m',
+          goal: 'No active Codex goal',
+          now: 'No active Codex work',
+          phase: 'Ready',
+          source: 'Lifecycle',
+          usage: '78%',
+          caption: 'Idle remains useful through usage and reset timing without inventing a task.',
+        },
+        working: {
+          label: 'Working',
+          compact: 'Cowlick · Rendering mockups',
+          goal: 'Design the unified notch and menu-bar experience',
+          now: 'Rendering the interactive approval state',
+          phase: 'Testing interaction',
+          source: 'Commentary · now',
+          usage: '78%',
+          caption: 'The session title is absent. Project, Goal, and Now carry the hierarchy.',
+        },
+        multi: {
+          label: '3 sessions',
+          compact: 'Cowlick · Coordinating 3 sessions',
+          goal: 'Finish Cowlick across product, website, and release gates',
+          now: 'Coordinating research, UI verification, and release evidence',
+          phase: 'Delegating',
+          source: 'Subagent events',
+          usage: '74%',
+          caption: 'One compact priority signal expands into parent/child activity without merging identities.',
+        },
+        approval: {
+          label: 'Approval needed',
+          compact: 'Review · Publish verified branch',
+          goal: 'Deliver the verified Cowlick product blueprint',
+          now: 'Waiting to publish the verified branch',
+          phase: 'Waiting for Henry',
+          source: 'Permission hook',
+          usage: '74%',
+          caption: 'Approval interrupts every utility page and preserves Cowlick’s exact-request safety.',
+        },
+        complete: {
+          label: 'Complete',
+          compact: 'Cowlick · Prototype verified',
+          goal: 'Design the unified notch and menu-bar experience',
+          now: 'Prototype rendered and inspected',
+          phase: 'Done',
+          source: 'Stop hook',
+          usage: '72%',
+          caption: 'Completion is concise in compact form and expands into evidence and next actions.',
+        },
+        failure: {
+          label: 'Failed',
+          compact: 'Cowlick · UI automation blocked',
+          goal: 'Verify the unified experience on representative hardware',
+          now: 'Mac mini UI automation could not start',
+          phase: 'Needs attention',
+          source: 'Lifecycle · sanitized',
+          usage: '72%',
+          caption: 'Failure states explain what is blocked without exposing command output or private paths.',
+        },
+      };
+
+      const app = {
+        mode: 'notch',
+        state: 'working',
+        expanded: true,
+        notchPage: 'work',
+        menuPage: 'work',
+        provider: 'codex',
+        playing: true,
+        files: [],
+      };
+
+      const els = {
+        body: document.body,
+        notch: document.querySelector('#notch-surface'),
+        notchCompact: document.querySelector('#notch-compact'),
+        notchTabs: document.querySelector('#notch-tabs'),
+        notchContent: document.querySelector('#notch-content'),
+        notchSummary: document.querySelector('#notch-summary'),
+        menuTabs: document.querySelector('#menu-tabs'),
+        menuContent: document.querySelector('#menu-content'),
+        menuPopover: document.querySelector('#menu-popover'),
+        menuStatus: document.querySelector('#menu-status'),
+        menuStatusText: document.querySelector('#menu-status-text'),
+        menuSummary: document.querySelector('#menu-summary'),
+        toggle: document.querySelector('#toggle-surface'),
+        compactCopy: document.querySelector('#compact-copy'),
+        compactUsage: document.querySelector('#compact-usage'),
+        compactSymbol: document.querySelector('#compact-state-symbol'),
+        popoverState: document.querySelector('#popover-state'),
+        popoverSubtitle: document.querySelector('#popover-subtitle'),
+        captionTitle: document.querySelector('#caption-title'),
+        captionCopy: document.querySelector('#caption-copy'),
+        live: document.querySelector('#live-region'),
+      };
+
+      const pageNames = { work: 'Work', usage: 'Usage', nook: 'Nook', tray: 'Tray' };
+
+      function renderTabs(target, pages, selected, surface) {
+        target.innerHTML = pages
+          .map(
+            (page) => `
+              <button
+                class="page-button"
+                type="button"
+                role="tab"
+                data-page="${page}"
+                data-surface="${surface}"
+                aria-selected="${selected === page}"
+                aria-disabled="${app.state === 'approval' && page !== 'work'}"
+              >${icons[page]}<span>${pageNames[page]}</span></button>`,
+          )
+          .join('');
+      }
+
+      function agentsForState(state) {
+        if (state === 'multi') {
+          return [
+            ['PR', 'Product researcher', 'Comparing CodexBar provider behavior', 'now'],
+            ['UI', 'Interaction verifier', 'Checking notch motion and focus order', '18s'],
+            ['RL', 'Release checker', 'Auditing signing and delivery gates', '42s'],
+          ];
+        }
+        if (state === 'failure') {
+          return [['UI', 'Remote UI test', 'Blocked before checkout · disk full', '2m']];
+        }
+        if (state === 'idle') return [];
+        return [
+          ['UX', 'Current activity', states[state].phase, 'now'],
+          ['PR', 'Product research', 'Feature inventory complete', '4m'],
+        ];
+      }
+
+      function workMarkup(stateKey) {
+        const state = states[stateKey];
+        if (stateKey === 'approval') return approvalMarkup();
+        const agents = agentsForState(stateKey);
+        const terminal = stateKey === 'complete' || stateKey === 'failure';
+        const resultIcon =
+          stateKey === 'failure'
+            ? '<path d="M8 8l8 8M16 8l-8 8" />'
+            : '<path d="M6 12l4 4 8-8" />';
+        return `
+          <article class="surface-page work-page">
+            <div class="project-line">
+              <div class="project-identity">
+                <span class="project-kicker">Project</span>
+                <h2 class="project-name">Cowlick</h2>
+              </div>
+              <span class="status-badge"><span class="status-tick"></span>${state.label}</span>
+            </div>
+            <div class="activity-hierarchy">
+              <div class="activity-row">
+                <span class="data-label">Goal</span>
+                <span class="activity-value">${state.goal}</span>
+                <span class="source-label">${stateKey === 'idle' ? 'No source' : 'Prompt-derived'}</span>
+              </div>
+              <div class="activity-row now">
+                <span class="data-label">Now</span>
+                <span class="activity-value">${state.now}</span>
+                <span class="source-label">${state.source}</span>
+              </div>
+            </div>
+            <div class="phase-track" aria-label="Work phase">
+              <span class="phase-step done"></span>
+              <span class="phase-step done"></span>
+              <span class="phase-step ${stateKey === 'idle' ? '' : 'active'}"></span>
+              <span class="phase-step ${terminal ? 'done' : ''}"></span>
+              <span class="phase-step ${stateKey === 'complete' ? 'done' : ''}"></span>
+            </div>
+            <div class="section-heading">
+              <h3>${agents.length ? 'Activity' : 'Recent activity'}</h3>
+              <span>${agents.length ? `${agents.length} ${agents.length === 1 ? 'agent' : 'agents'}` : 'Nothing active'}</span>
+            </div>
+            <div class="agent-list">
+              ${
+                agents.length
+                  ? agents
+                      .map(
+                        ([initials, title, detail, time]) => `
+                          <div class="agent-row">
+                            <span class="agent-icon">${initials}</span>
+                            <span class="agent-copy"><strong>${title}</strong><span>${detail}</span></span>
+                            <span class="agent-time">${time}</span>
+                          </div>`,
+                      )
+                      .join('')
+                  : '<div class="agent-row"><span class="agent-icon">—</span><span class="agent-copy"><strong>Cowlick is ready</strong><span>Usage stays visible without a fake session</span></span><span class="agent-time">idle</span></div>'
+              }
+            </div>
+            ${
+              terminal
+                ? `<div class="result-banner">
+                    <span class="result-mark"><svg viewBox="0 0 24 24">${resultIcon}</svg></span>
+                    <span class="result-copy">
+                      <strong>${stateKey === 'failure' ? 'Strongest proof completed locally' : 'Plan and prototype ready for review'}</strong>
+                      <span>${stateKey === 'failure' ? 'Open Diagnostics · retry remote UI after storage cleanup' : 'Interactive states · accessibility · reduced motion verified'}</span>
+                    </span>
+                  </div>`
+                : ''
+            }
+          </article>`;
+      }
+
+      function approvalMarkup() {
+        return `
+          <article class="surface-page approval-page">
+            <div>
+              <span class="approval-mark">
+                <svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7zM12 8v5M12 17h.01" /></svg>
+              </span>
+              <h2>Publish the verified Cowlick branch?</h2>
+              <p>Codex requested one privileged action. Cowlick will return a decision only for this exact request.</p>
+            </div>
+            <div class="approval-details">
+              <div class="approval-detail"><span>Project</span><strong>Cowlick</strong></div>
+              <div class="approval-detail"><span>Tool</span><strong>Git · network access</strong></div>
+              <div class="approval-detail"><span>Operation</span><strong>Push integrate/cs-2051-final-candidate to origin</strong></div>
+              <div class="approval-detail"><span>Fallback</span><strong>Defer to Codex in 27 seconds</strong></div>
+            </div>
+            <div class="approval-actions">
+              <button class="decision-button" type="button" data-decision="deny">Deny</button>
+              <button class="decision-button primary" type="button" data-decision="allow">Allow once</button>
+            </div>
+          </article>`;
+      }
+
+      function usageMarkup() {
+        const providers = [
+          ['codex', 'CX', 'Codex'],
+          ['claude', 'CL', 'Claude'],
+          ['openai', 'OA', 'OpenAI API'],
+        ];
+        const providerLabel = providers.find(([id]) => id === app.provider)?.[2] ?? 'Codex';
+        const values =
+          app.provider === 'codex'
+            ? { left: 78, short: 62, weekly: 78, cost: '$14.82', status: 'Operational' }
+            : app.provider === 'claude'
+              ? { left: 64, short: 41, weekly: 64, cost: '$9.36', status: 'Operational' }
+              : { left: 81, short: 81, weekly: 57, cost: '$42.17', status: 'Operational' };
+        return `
+          <article class="surface-page usage-page">
+            <div class="provider-switcher" role="group" aria-label="Usage provider">
+              ${providers
+                .map(
+                  ([id, mark, label]) => `
+                    <button class="provider-button" type="button" data-provider="${id}" aria-pressed="${app.provider === id}">
+                      <span class="provider-logo">${mark}</span>${label}
+                    </button>`,
+                )
+                .join('')}
+            </div>
+            <div class="usage-hero">
+              <div><strong>${values.left}%</strong><span>${providerLabel} weekly remaining · resets Sunday 3:00 AM</span></div>
+              <div class="pace-summary"><strong>On pace</strong><span>18% reserve at reset</span></div>
+            </div>
+            <div class="quota-list">
+              <div class="quota-row">
+                <span class="quota-name"><strong>5-hour</strong><span>2h 14m</span></span>
+                <span class="meter" style="--meter:${values.short}%;--pace:48%;--meter-color:#91a8a0"><span></span><i></i></span>
+                <span class="quota-value"><strong>${values.short}% left</strong><span>on pace</span></span>
+              </div>
+              <div class="quota-row">
+                <span class="quota-name"><strong>Weekly</strong><span>4d 15h</span></span>
+                <span class="meter" style="--meter:${values.weekly}%;--pace:61%;--meter-color:#87c39e"><span></span><i></i></span>
+                <span class="quota-value"><strong>${values.weekly}% left</strong><span>+18 reserve</span></span>
+              </div>
+              <div class="quota-row">
+                <span class="quota-name"><strong>Review</strong><span>Thu 9 AM</span></span>
+                <span class="meter" style="--meter:92%;--pace:70%;--meter-color:#8aa9ce"><span></span><i></i></span>
+                <span class="quota-value"><strong>92% left</strong><span>4 reviews</span></span>
+              </div>
+            </div>
+            <div class="usage-lower">
+              <div class="history">
+                <div class="section-heading"><h3>Usage history</h3><span>7 days</span></div>
+                <div class="history-bars" aria-label="Seven-day usage history">
+                  <span class="history-bar" style="--h:34%"></span><span class="history-bar" style="--h:58%"></span>
+                  <span class="history-bar" style="--h:42%"></span><span class="history-bar" style="--h:71%"></span>
+                  <span class="history-bar" style="--h:49%"></span><span class="history-bar" style="--h:64%"></span>
+                  <span class="history-bar today" style="--h:38%"></span>
+                </div>
+                <div class="history-legend"><span>Thu</span><span>Today</span></div>
+              </div>
+              <div class="cost-summary">
+                <div class="section-heading"><h3>Spend</h3><span>local</span></div>
+                <div class="cost-line"><span>Today</span><strong>${values.cost}</strong></div>
+                <div class="cost-line"><span>30 days</span><strong>$186.40</strong></div>
+                <div class="cost-line"><span>Status</span><strong style="color:var(--success)">${values.status}</strong></div>
+              </div>
+            </div>
+            <p class="source-footnote">Official quota from the selected provider · local cost is an API-price equivalent, not a subscription bill · refreshed 18 seconds ago</p>
+          </article>`;
+      }
+
+      function nookMarkup() {
+        return `
+          <article class="surface-page nook-page">
+            <div class="section-heading"><h3>Live utilities</h3><span>drag to reorder</span></div>
+            <div class="module-list">
+              <div class="nook-module">
+                <span class="module-art album" aria-hidden="true"></span>
+                <span class="module-copy"><strong>Slow Burn · Kacey Musgraves</strong><span>System Now Playing · 2:14 remaining</span></span>
+                <span class="module-controls">
+                  <button class="tiny-control" type="button" aria-label="Previous track"><svg viewBox="0 0 24 24"><path d="M7 5v14M18 6l-8 6 8 6z" /></svg></button>
+                  <button class="tiny-control play-toggle" type="button" aria-label="Pause media"><svg viewBox="0 0 24 24"><path d="M8 5h3v14H8zM14 5h3v14h-3z" /></svg></button>
+                  <button class="tiny-control" type="button" aria-label="Next track"><svg viewBox="0 0 24 24"><path d="M17 5v14M6 6l8 6-8 6z" /></svg></button>
+                </span>
+              </div>
+              <div class="nook-module">
+                <span class="module-art calendar">22</span>
+                <span class="module-copy"><strong>Cowlick design review · 1:30 PM</strong><span>in 2 hours · Calendar access only while enabled</span></span>
+                <button class="tiny-control" type="button" aria-label="Open calendar" data-toast="Opened Calendar"><svg viewBox="0 0 24 24"><path d="M8 5h11v11H8zM5 8h3v11h11v-3" fill="none" stroke="currentColor" stroke-width="2" /></svg></button>
+              </div>
+              <div class="nook-module">
+                <span class="module-art mirror" aria-hidden="true"></span>
+                <span class="module-copy"><strong>Mirror</strong><span class="mirror-copy">Camera remains off until you click</span></span>
+                <button class="tiny-control mirror-toggle" type="button" aria-label="Start mirror"><svg viewBox="0 0 24 24"><path d="M5 7h10v10H5zM15 10l4-2v8l-4-2z" fill="none" stroke="currentColor" stroke-width="2" /></svg></button>
+              </div>
+            </div>
+            <div class="shortcut-strip" aria-label="Shortcuts">
+              <button class="shortcut" type="button" data-toast="Opened a new Codex task"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>New task</button>
+              <button class="shortcut" type="button" data-toast="Opened current pull request"><svg viewBox="0 0 24 24"><path d="M7 5v14M17 5v5a2 2 0 0 1-2 2H9M14 7l3-3 3 3" /></svg>Open PR</button>
+              <button class="shortcut" type="button" data-toast="Started focus mode"><svg viewBox="0 0 24 24"><path d="M12 4v8l5 3M12 21a9 9 0 1 0 0-18" /></svg>Focus 25m</button>
+              <button class="shortcut" type="button" data-toast="Opened shortcut settings"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 16h14M9 5v6M15 13v6" /></svg>Customize</button>
+            </div>
+          </article>`;
+      }
+
+      function trayMarkup() {
+        const tiles = app.files.length
+          ? app.files
+              .map(
+                (file, index) => `
+                  <div class="file-tile">
+                    <button class="file-remove" type="button" data-remove-file="${index}" aria-label="Remove ${file.name}">×</button>
+                    <div class="file-preview" style="--file-color:${file.color}">${file.type}</div>
+                    <strong>${file.name}</strong><span>${file.size}</span>
+                  </div>`,
+              )
+              .join('')
+          : '<p class="empty-tray">Drop files on the hardware notch to hold them here temporarily.</p>';
+        return `
+          <article class="surface-page tray-page">
+            <div class="tray-intro">
+              <div><h2>Tray</h2><p>Local temporary shelf · nothing uploads to Cowlick</p></div>
+              <button class="drop-sample" type="button">Drop sample files</button>
+            </div>
+            <div class="tray-well">${tiles}</div>
+            <div class="tray-actions">
+              <span>${app.files.length ? `${app.files.length} items · 9.8 MB` : 'Empty · clears on quit by default'}</span>
+              <div><button type="button" data-toast="Opened macOS share picker">Share / AirDrop</button></div>
+            </div>
+          </article>`;
+      }
+
+      function pageMarkup(page) {
+        if (page === 'usage') return usageMarkup();
+        if (page === 'nook') return nookMarkup();
+        if (page === 'tray') return trayMarkup();
+        return workMarkup(app.state);
+      }
+
+      function currentPage() {
+        if (app.state === 'approval') return 'work';
+        return app.mode === 'notch' ? app.notchPage : app.menuPage;
+      }
+
+      function setExpanded(expanded) {
+        app.expanded = expanded;
+        els.notch.classList.toggle('is-expanded', expanded);
+        els.menuPopover.classList.toggle('is-expanded', expanded);
+        els.notchCompact.setAttribute('aria-expanded', String(expanded));
+        els.menuStatus.setAttribute('aria-expanded', String(expanded));
+        els.toggle.setAttribute('aria-pressed', String(expanded));
+        els.toggle.querySelector('span').textContent = expanded ? 'Expanded' : 'Compact';
+        els.toggle.querySelector('svg').style.transform = expanded ? 'rotate(0deg)' : 'rotate(-90deg)';
+        announce(expanded ? 'Cowlick expanded' : 'Cowlick compact');
+      }
+
+      function setMode(mode) {
+        app.mode = mode;
+        els.body.dataset.mode = mode;
+        document.querySelectorAll('.mode-button').forEach((button) => {
+          button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+        });
+        if (mode === 'menu' && (app.menuPage === 'nook' || app.menuPage === 'tray')) app.menuPage = 'work';
+        render();
+        announce(mode === 'notch' ? 'Notch mode only' : 'Menu bar mode only');
+      }
+
+      function setState(state) {
+        app.state = state;
+        els.body.dataset.state = state;
+        if (state === 'approval') {
+          app.notchPage = 'work';
+          app.menuPage = 'work';
+          setExpanded(true);
+        }
+        document.querySelectorAll('.state-button').forEach((button) => {
+          button.setAttribute('aria-pressed', String(button.dataset.state === state));
+        });
+        render();
+        announce(`State: ${states[state].label}. ${states[state].now}`);
+      }
+
+      function setPage(page, surface) {
+        if (app.state === 'approval' && page !== 'work') {
+          announce('Resolve the approval before opening another page');
+          return;
+        }
+        if (surface === 'notch') app.notchPage = page;
+        else app.menuPage = page;
+        render();
+        announce(`${pageNames[page]} page`);
+      }
+
+      function render() {
+        const state = states[app.state];
+        const notchPage = app.state === 'approval' ? 'work' : app.notchPage;
+        const menuPage = app.state === 'approval' ? 'work' : app.menuPage;
+        renderTabs(els.notchTabs, ['work', 'usage', 'nook', 'tray'], notchPage, 'notch');
+        renderTabs(els.menuTabs, ['work', 'usage'], menuPage, 'menu');
+        els.notchContent.innerHTML = pageMarkup(notchPage);
+        els.menuContent.innerHTML = pageMarkup(menuPage);
+        els.compactCopy.textContent = state.compact;
+        els.compactUsage.textContent = state.usage;
+        els.compactSymbol.className = `state-symbol ${app.state === 'working' || app.state === 'multi' ? 'working' : ''}`;
+        els.notchSummary.textContent = `${state.usage} left`;
+        els.menuStatusText.textContent = app.state === 'approval' ? 'Review' : state.usage;
+        els.menuSummary.textContent = `${state.usage} weekly left`;
+        els.popoverState.textContent = state.label;
+        els.popoverSubtitle.textContent = state.now;
+        const page = currentPage();
+        els.captionTitle.textContent = `${app.mode === 'notch' ? 'Notch' : 'Menu bar'} · ${pageNames[page]}`;
+        const pageCaptions = {
+          work: state.caption,
+          usage: 'Provider meters, pace, reset, history, spend, incidents, CLI, and widgets share one usage engine.',
+          nook: 'Media, Calendar, live actions, shortcuts, and Mirror stay in notch mode and request access only when used.',
+          tray: 'The hardware notch becomes a local drag target with temporary storage and the native Share / AirDrop picker.',
+        };
+        els.captionCopy.textContent = pageCaptions[page];
+        bindDynamicActions();
+      }
+
+      function bindDynamicActions() {
+        document.querySelectorAll('[data-page]').forEach((button) => {
+          button.addEventListener('click', () => setPage(button.dataset.page, button.dataset.surface));
+        });
+        document.querySelectorAll('[data-provider]').forEach((button) => {
+          button.addEventListener('click', () => {
+            app.provider = button.dataset.provider;
+            render();
+            announce(`${button.textContent.trim()} usage selected`);
+          });
+        });
+        document.querySelectorAll('[data-decision]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const allowed = button.dataset.decision === 'allow';
+            app.state = allowed ? 'complete' : 'failure';
+            els.body.dataset.state = app.state;
+            document.querySelectorAll('.state-button').forEach((stateButton) => {
+              stateButton.setAttribute('aria-pressed', String(stateButton.dataset.state === app.state));
+            });
+            render();
+            announce(allowed ? 'Allowed once. Exact request resolved.' : 'Denied. Exact request resolved.');
+          });
+        });
+        document.querySelectorAll('[data-toast]').forEach((button) => {
+          button.addEventListener('click', () => announce(button.dataset.toast));
+        });
+        document.querySelectorAll('[data-remove-file]').forEach((button) => {
+          button.addEventListener('click', () => {
+            app.files.splice(Number(button.dataset.removeFile), 1);
+            render();
+            announce('File removed from Tray');
+          });
+        });
+        document.querySelectorAll('.drop-sample').forEach((button) => {
+          button.addEventListener('click', addSampleFiles);
+        });
+        document.querySelectorAll('.play-toggle').forEach((button) => {
+          button.addEventListener('click', () => {
+            app.playing = !app.playing;
+            button.setAttribute('aria-label', app.playing ? 'Pause media' : 'Play media');
+            button.innerHTML = app.playing
+              ? '<svg viewBox="0 0 24 24"><path d="M8 5h3v14H8zM14 5h3v14h-3z" /></svg>'
+              : '<svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" /></svg>';
+            announce(app.playing ? 'Media playing' : 'Media paused');
+          });
+        });
+        document.querySelectorAll('.mirror-toggle').forEach((button) => {
+          button.addEventListener('click', () => {
+            const copy = button.closest('.nook-module').querySelector('.mirror-copy');
+            const active = button.getAttribute('aria-pressed') === 'true';
+            button.setAttribute('aria-pressed', String(!active));
+            button.setAttribute('aria-label', active ? 'Start mirror' : 'Stop mirror');
+            copy.textContent = active ? 'Camera remains off until you click' : 'Preview active · stops when this page closes';
+            announce(active ? 'Mirror stopped' : 'Mirror started for this visible page');
+          });
+        });
+        document.querySelectorAll('.tray-well').forEach((well) => {
+          well.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            well.classList.add('is-dragging');
+          });
+          well.addEventListener('dragleave', () => well.classList.remove('is-dragging'));
+          well.addEventListener('drop', (event) => {
+            event.preventDefault();
+            addSampleFiles();
+          });
+        });
+      }
+
+      function addSampleFiles() {
+        app.files = [
+          { name: 'unified-plan.md', type: 'MD', size: '18 KB', color: '#c8c1b6' },
+          { name: 'notch-flow.mov', type: 'MOV', size: '8.6 MB', color: '#89938d' },
+          { name: 'approval.png', type: 'PNG', size: '1.2 MB', color: '#b8a584' },
+        ];
+        render();
+        announce('Three sample files added to the local Tray');
+      }
+
+      function announce(message) {
+        els.live.textContent = '';
+        window.requestAnimationFrame(() => {
+          els.live.textContent = message;
+        });
+      }
+
+      document.querySelectorAll('.mode-button').forEach((button) => {
+        button.addEventListener('click', () => setMode(button.dataset.mode));
+      });
+      document.querySelectorAll('.state-button').forEach((button) => {
+        button.addEventListener('click', () => setState(button.dataset.state));
+      });
+      els.toggle.addEventListener('click', () => setExpanded(!app.expanded));
+      els.notchCompact.addEventListener('click', () => setExpanded(!app.expanded));
+      els.notchCompact.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setExpanded(!app.expanded);
+        }
+      });
+      els.menuStatus.addEventListener('click', () => setExpanded(!app.expanded));
+
+      document.addEventListener('keydown', (event) => {
+        if (event.target instanceof HTMLButtonElement) return;
+        const stateKeys = ['idle', 'working', 'multi', 'approval', 'complete', 'failure'];
+        if (/^[1-6]$/.test(event.key)) setState(stateKeys[Number(event.key) - 1]);
+        if (event.key.toLowerCase() === 'n') setMode('notch');
+        if (event.key.toLowerCase() === 'm') setMode('menu');
+        if (event.key === ' ') {
+          event.preventDefault();
+          setExpanded(!app.expanded);
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>
