@@ -158,14 +158,17 @@ final class UsagePlanningTests: XCTestCase {
     }
   }
 
-  func testPaceRequiresAtLeastThreePercentElapsed() throws {
+  func testPaceReportsBalanceImmediatelyButWaitsThreePercentToForecast() throws {
     let now = Date(timeIntervalSince1970: 1_000)
-    XCTAssertNil(
+    let opening = try XCTUnwrap(
       QuotaPaceCalculator.pace(
         for: QuotaWindow(
           usedPercent: 1, duration: 1_000, resetsAt: now.addingTimeInterval(971)),
         now: now
       ))
+    XCTAssertEqual(opening.expectedUsedPercent, 2.9, accuracy: 0.000_001)
+    XCTAssertEqual(opening.balancePercent, 1.9, accuracy: 0.000_001)
+    XCTAssertNil(opening.exhaustionForecast)
 
     let threshold = try XCTUnwrap(
       QuotaPaceCalculator.pace(
@@ -174,6 +177,7 @@ final class UsagePlanningTests: XCTestCase {
         now: now
       ))
     XCTAssertEqual(threshold.expectedUsedPercent, 3, accuracy: 0.000_001)
+    XCTAssertNotNil(threshold.exhaustionForecast)
   }
 
   func testExpectedPaceMarkerMirrorsSelectedMetric() throws {
@@ -394,14 +398,64 @@ final class UsagePlanningTests: XCTestCase {
       )?.text,
       "7d"
     )
-    XCTAssertNil(
+    XCTAssertEqual(
       CompactUsageSecondaryFormatter.value(
         for: .paceBalance,
         snapshot: snapshot,
         preference: .remaining,
         forecast: nil,
         now: now
-      ))
+      )?.text,
+      "on pace"
+    )
+  }
+
+  func testCompactMetricsStayVisibleAtTheStartOfAQuotaWindow() {
+    let now = Date(timeIntervalSince1970: 10_000)
+    let snapshot = CodexUsageSnapshot(
+      limits: [
+        CodexUsageLimit(
+          id: "weekly",
+          name: "Weekly",
+          usedPercent: 2,
+          resetsAt: now.addingTimeInterval(7 * 86_400 - 16 * 60),
+          windowDurationMinutes: 7 * 24 * 60
+        )
+      ],
+      planType: "pro",
+      fetchedAt: now
+    )
+
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .windowProgress,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: nil,
+        now: now
+      )?.text,
+      "0% thru"
+    )
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .paceBalance,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: nil,
+        now: now
+      )?.text,
+      "-2%"
+    )
+    XCTAssertEqual(
+      CompactUsageSecondaryFormatter.value(
+        for: .projectedRunway,
+        snapshot: snapshot,
+        preference: .remaining,
+        forecast: nil,
+        now: now
+      )?.text,
+      "measuring"
+    )
   }
 
   func testCostMeasurementsPreserveMeaningCoverageAndPricingDate() throws {

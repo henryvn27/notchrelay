@@ -137,9 +137,14 @@ enum CompactUsageSecondaryFormatter {
         tone: .neutral
       )
     case .projectedRunway:
-      guard
-        let exhaustion = planningContext(snapshot: snapshot, now: now)?.pace.exhaustionForecast
-      else { return nil }
+      guard let pace = planningContext(snapshot: snapshot, now: now)?.pace else { return nil }
+      guard let exhaustion = pace.exhaustionForecast else {
+        return .init(
+          text: "measuring",
+          accessibilityLabel: "Projected runway is measuring this new quota window",
+          tone: .neutral
+        )
+      }
       if exhaustion.willLastThroughReset {
         guard let duration = compactDuration(exhaustion.timeAfterReset) else {
           return .init(
@@ -267,8 +272,6 @@ enum QuotaPaceCalculator {
     guard remaining.isFinite, remaining > 0, remaining <= duration else { return nil }
 
     let elapsedFraction = (1 - remaining / duration).clamped(to: 0...1)
-    guard elapsedFraction >= minimumElapsedFraction else { return nil }
-
     let expected = elapsedFraction * 100
     let actual = window.usedPercent.clamped(to: 0...100)
     let balance = expected - actual
@@ -284,7 +287,9 @@ enum QuotaPaceCalculator {
     let observationDate = observedAt ?? now
     let observedElapsed = duration - resetsAt.timeIntervalSince(observationDate)
     let exhaustionForecast: QuotaExhaustionForecast? =
-      if actual >= minimumObservedUsagePercent {
+      if elapsedFraction >= minimumElapsedFraction
+        && actual >= minimumObservedUsagePercent
+      {
         forecast(
           actualUsedPercent: actual,
           elapsed: observedElapsed,
