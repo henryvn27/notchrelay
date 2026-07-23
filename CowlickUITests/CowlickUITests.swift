@@ -168,7 +168,7 @@ final class CowlickUITests: XCTestCase {
         .waitForExistence(timeout: 3))
     XCTAssertTrue(app.staticTexts["Codex quota"].exists)
     XCTAssertTrue(app.staticTexts["API-price estimate"].exists)
-    XCTAssertTrue(app.staticTexts["Reset forecast"].exists)
+    XCTAssertTrue(app.staticTexts["Reset likelihood"].exists)
     XCTAssertTrue(app.staticTexts["API billing"].waitForExistence(timeout: 3))
     XCTAssertTrue(
       app.descendants(matching: .any).matching(identifier: "provider-billing-account").firstMatch
@@ -201,7 +201,7 @@ final class CowlickUITests: XCTestCase {
     XCTAssertFalse(sessionRow(in: app, id: "demo-visual-state").exists)
     XCTAssertFalse(app.staticTexts["Codex quota"].exists)
     XCTAssertFalse(app.staticTexts["API-price estimate"].exists)
-    XCTAssertFalse(app.staticTexts["Reset forecast"].exists)
+    XCTAssertFalse(app.staticTexts["Reset likelihood"].exists)
     XCTAssertFalse(app.staticTexts["API billing"].exists)
     XCTAssertFalse(
       app.descendants(matching: .any).matching(identifier: "codex-integration-attention")

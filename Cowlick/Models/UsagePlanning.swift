@@ -88,7 +88,7 @@ enum CompactUsageSecondaryFormatter {
       let percent = Int(limit.displayedPercent(for: preference).rounded())
       return .init(
         text: "\(percent)%",
-        accessibilityLabel: "Primary quota, \(percent) percent \(preference.accessibilityLabel)",
+        accessibilityLabel: "Codex quota, \(percent) percent \(preference.accessibilityLabel)",
         tone: .neutral
       )
     case .blank:

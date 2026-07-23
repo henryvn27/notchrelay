@@ -105,7 +105,7 @@ final class CompactNotchPresentationTests: XCTestCase {
         now: now
       ))
     XCTAssertEqual(percentage.text, "75%")
-    XCTAssertEqual(percentage.accessibilityLabel, "Primary quota, 75 percent remaining")
+    XCTAssertEqual(percentage.accessibilityLabel, "Codex quota, 75 percent remaining")
 
     let reset = try XCTUnwrap(
       CompactUsageSecondaryFormatter.value(
