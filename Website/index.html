@@ -211,11 +211,11 @@
         <div class="simulator-frame">
           <header class="simulator-toolbar">
             <div>
-              <p class="simulator-kicker">Interactive product demo</p>
-              <h2 id="simulator-title">A MacBook, with Cowlick attached.</h2>
+              <p class="simulator-kicker">Live demo</p>
+              <h2 id="simulator-title">Try Cowlick at the notch.</h2>
             </div>
             <div class="simulator-toolbar-actions">
-              <p id="simulator-help">Hover or select the notch to open it. Escape collapses first.</p>
+              <p id="simulator-help">Hover or click the notch to open it.</p>
               <button class="simulator-close" type="button" data-close-simulator>
                 <span aria-hidden="true">×</span>
                 <span class="sr-only">Close interactive MacBook</span>
@@ -291,26 +291,26 @@
                       <div class="sim-section-heading">
                         <span class="sim-working-mark" aria-hidden="true"></span>
                         <div>
-                          <h3 id="sim-activity-title">Codex is working</h3>
-                          <p>2 sessions · 1 subagent</p>
+                          <h3 id="sim-activity-title">Working</h3>
+                          <p>2 active sessions</p>
                         </div>
                       </div>
                       <div class="sim-session-viewport" data-session-scroll tabindex="0">
                         <div class="sim-session is-current">
                           <span class="sim-session-status is-working" aria-hidden="true"></span>
-                          <span><strong>Cowlick</strong><small>Website · Building the interactive MacBook</small></span>
+                          <span><strong>Polish the website demo</strong><small>Cowlick · Working</small></span>
                         </div>
                         <div class="sim-session">
                           <span class="sim-session-status is-waiting" aria-hidden="true">!</span>
-                          <span><strong>Scoutly</strong><small>Waiting for your response</small></span>
+                          <span><strong>Review release diagnostics</strong><small>Scoutly · Waiting for your response</small></span>
                         </div>
                         <div class="sim-session">
                           <span class="sim-session-status is-complete" aria-hidden="true">✓</span>
-                          <span><strong>ActivityPilot</strong><small>Release verification complete</small></span>
+                          <span><strong>Verify the release build</strong><small>ActivityPilot · Complete</small></span>
                         </div>
                         <div class="sim-session">
                           <span class="sim-session-status" aria-hidden="true"></span>
-                          <span><strong>Meetily</strong><small>Idle · ready for work</small></span>
+                          <span><strong>Prepare meeting notes</strong><small>Meetily · Idle</small></span>
                         </div>
                       </div>
                     </section>
@@ -320,32 +320,38 @@
                         <h3 id="sim-quota-title">Codex quota</h3>
                         <time data-sim-updated>Updated just now</time>
                       </div>
-                      <div class="sim-quota-window">
+                      <div class="sim-quota-window sim-quota-primary">
                         <div><span>Weekly</span><strong>78% left</strong></div>
                         <div class="sim-quota-track sim-quota-weekly"><span></span><i></i></div>
-                        <small class="is-ahead">+11% vs pace · resets in 2d 4h</small>
+                        <small class="is-ahead">+11% ahead · resets in 2d 4h</small>
                       </div>
-                      <div class="sim-quota-window">
-                        <div><span>5 hour</span><strong>64% left</strong></div>
-                        <div class="sim-quota-track sim-quota-five-hour"><span></span><i></i></div>
-                        <small class="is-ahead">+6% vs pace · resets in 1h 18m</small>
-                      </div>
-                      <div class="sim-quota-window">
-                        <div><span>GPT-5.3-Codex Spark</span><strong>91% left</strong></div>
-                        <div class="sim-quota-track sim-quota-spark"><span></span><i></i></div>
-                        <small class="is-ahead">+7% vs pace · resets tomorrow</small>
+                      <div class="sim-quota-summaries">
+                        <div>
+                          <span>5 hour</span>
+                          <strong>64%</strong>
+                          <small>Resets in 1h 18m</small>
+                        </div>
+                        <div>
+                          <span>Codex Spark</span>
+                          <strong>91%</strong>
+                          <small>Resets tomorrow</small>
+                        </div>
                       </div>
                     </section>
 
-                    <section class="sim-compact-row" aria-label="API price estimate">
-                      <span><strong>API-price estimate</strong><small>This week · partial · not a bill</small></span>
-                      <strong>$18.42</strong>
-                    </section>
+                    <div class="sim-insight-grid">
+                      <section class="sim-insight" aria-label="API price estimate">
+                        <span>API estimate</span>
+                        <strong>$18.42</strong>
+                        <small>Partial · not a bill</small>
+                      </section>
 
-                    <section class="sim-compact-row" aria-label="Unofficial reset forecast">
-                      <span><strong>Reset likelihood</strong><small>Unofficial · next 48h</small></span>
-                      <strong>32%</strong>
-                    </section>
+                      <section class="sim-insight" aria-label="Unofficial reset forecast">
+                        <span>Reset likelihood</span>
+                        <strong>32%</strong>
+                        <small>Unofficial · next 48h</small>
+                      </section>
+                    </div>
 
                     <div class="sim-end-actions" aria-label="Cowlick controls">
                       <button type="button" data-sim-action="settings">
@@ -360,17 +366,8 @@
               </div>
 
               <p class="simulator-toast" data-sim-toast role="status" aria-live="polite"></p>
-              <div class="simulator-dock" aria-hidden="true">
-                <span></span><span></span><span class="is-active"></span><span></span><span></span>
-              </div>
             </div>
           </div>
-
-          <footer class="simulator-note">
-            <span><strong>Compact:</strong> 296 × 38 pt</span>
-            <span><strong>Hardware gap:</strong> 212 pt</span>
-            <span><strong>Expanded:</strong> 332 pt · 400 pt max</span>
-          </footer>
         </div>
       </dialog>
 

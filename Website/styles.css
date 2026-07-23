@@ -650,7 +650,7 @@ button {
   padding: 0;
   overflow: hidden;
   border: 0;
-  background: #d8d5cd;
+  background: #e3e0d8;
   color: #171714;
 }
 
@@ -666,13 +666,13 @@ button {
   display: grid;
   height: 100%;
   padding: var(--space-4);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-3);
 }
 
 .simulator-toolbar {
   display: flex;
-  width: min(100%, 88rem);
+  width: min(100%, 74rem);
   min-height: 3.5rem;
   margin-inline: auto;
   align-items: center;
@@ -687,7 +687,7 @@ button {
 
 .simulator-toolbar h2 {
   font-family: var(--display);
-  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-size: clamp(1rem, 2vw, 1.25rem);
   letter-spacing: -0.025em;
 }
 
@@ -738,14 +738,14 @@ button {
 }
 
 .simulator-bezel {
-  width: min(calc(100vw - 2rem), calc((100dvh - 8.75rem) * 1.6), 88rem);
+  width: min(calc(100vw - 2rem), calc((100dvh - 6.5rem) * 1.6), 74rem);
   min-width: 0;
   margin: auto;
-  padding: 0.45rem;
+  padding: 0.4rem;
   border: 1px solid #30302d;
   border-radius: 0.85rem;
   background: #151513;
-  box-shadow: 0 2rem 5rem rgb(17 17 15 / 24%);
+  box-shadow: 0 1.5rem 4rem rgb(17 17 15 / 18%);
 }
 
 .simulator-display {
@@ -754,7 +754,7 @@ button {
   aspect-ratio: 16 / 10;
   overflow: hidden;
   border-radius: 0.48rem;
-  background: #c8c5bd;
+  background: #c9c6be;
   box-shadow: inset 0 0 0 1px rgb(241 238 231 / 7%);
 }
 
@@ -793,7 +793,7 @@ button {
   position: absolute;
   inset: 1.75rem 0 0;
   overflow: hidden;
-  background: #b7b4ac;
+  background: #bbb8b0;
 }
 
 .simulator-wallpaper span {
@@ -801,7 +801,7 @@ button {
   display: block;
   width: 58%;
   height: 72%;
-  background: #cbc8c0;
+  background: #cfccc4;
   transform: rotate(-14deg);
 }
 
@@ -828,19 +828,26 @@ button {
 
 .simulator-workspace {
   position: absolute;
-  top: 17%;
+  top: 24%;
   left: 50%;
   z-index: 2;
   display: grid;
-  width: min(58%, 42rem);
-  height: 62%;
+  width: min(58%, 38rem);
+  height: 56%;
   overflow: hidden;
   border: 1px solid rgb(17 17 15 / 14%);
   border-radius: 0.75rem;
-  background: rgb(235 232 225 / 88%);
-  box-shadow: 0 1.5rem 3rem rgb(17 17 15 / 12%);
+  background: rgb(235 232 225 / 78%);
+  box-shadow: 0 1.25rem 3rem rgb(17 17 15 / 8%);
+  opacity: 0.82;
   transform: translateX(-50%);
+  transition: opacity 260ms ease, transform 320ms var(--ease-out);
   grid-template-columns: 28% 1fr;
+}
+
+.simulator-display:has(.sim-cowlick[data-expanded="true"]) .simulator-workspace {
+  opacity: 0.34;
+  transform: translateX(-50%) translateY(0.5rem) scale(0.985);
 }
 
 .simulator-sidebar {
@@ -1022,7 +1029,7 @@ button {
   width: 332px;
   max-height: 0;
   overflow: hidden;
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 20px 20px;
   background: #000;
   box-shadow: 0 1rem 2.6rem rgb(17 17 15 / 22%);
   opacity: 0;
@@ -1044,7 +1051,7 @@ button {
   max-height: min(366px, calc(100dvh - 10rem));
   overflow-x: hidden;
   overflow-y: auto;
-  padding-top: 4px;
+  padding-top: 6px;
   overscroll-behavior: contain;
   scrollbar-width: none;
 }
@@ -1063,21 +1070,21 @@ button {
 
 .sim-activity,
 .sim-quota,
-.sim-compact-row,
+.sim-insight-grid,
 .sim-end-actions {
   border-top: 1px solid rgb(255 255 255 / 12%);
 }
 
 .sim-activity {
-  padding-top: 2px;
+  padding-top: 0;
 }
 
 .sim-section-heading {
   display: flex;
-  height: 40px;
-  padding-inline: 14px;
+  height: 44px;
+  padding-inline: 16px;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
 }
 
 .sim-section-heading h3,
@@ -1088,21 +1095,21 @@ button {
 
 .sim-section-heading h3 {
   color: rgb(255 255 255 / 94%);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 650;
   line-height: 1.1;
 }
 
 .sim-section-heading p {
-  margin-top: 2px;
+  margin-top: 3px;
   color: rgb(255 255 255 / 58%);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.1;
 }
 
 .sim-working-mark {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   flex: 0 0 auto;
   border: 2px solid #8bc39c;
   border-top-color: transparent;
@@ -1111,8 +1118,8 @@ button {
 }
 
 .sim-session-viewport {
-  max-height: 93px;
-  padding: 4px 14px 6px;
+  max-height: 72px;
+  padding: 0 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -1121,14 +1128,14 @@ button {
 .sim-session {
   display: grid;
   width: 100%;
-  height: 31px;
+  height: 36px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: 7px;
   align-items: center;
   background: transparent;
   color: rgb(255 255 255 / 94%);
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr);
   text-align: left;
 }
 
@@ -1145,8 +1152,8 @@ button {
 
 .sim-session strong {
   overflow: hidden;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 650;
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1154,23 +1161,23 @@ button {
 
 .sim-session small {
   overflow: hidden;
-  margin-top: 1px;
+  margin-top: 2px;
   color: rgb(255 255 255 / 56%);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sim-session-status {
-  width: 7px;
-  height: 7px;
-  margin-left: 4px;
+  width: 8px;
+  height: 8px;
+  margin-left: 5px;
   border: 1px solid rgb(255 255 255 / 32%);
   border-radius: 50%;
   color: #e2b367;
-  font-size: 9px;
-  line-height: 7px;
+  font-size: 10px;
+  line-height: 8px;
   text-align: center;
 }
 
@@ -1189,7 +1196,7 @@ button {
 }
 
 .sim-quota {
-  padding: 7px 14px 8px;
+  padding: 10px 16px 12px;
 }
 
 .sim-section-title-row,
@@ -1200,14 +1207,14 @@ button {
 }
 
 .sim-section-title-row {
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .sim-section-title-row h3,
 .sim-quota-window span,
 .sim-quota-window strong {
   color: rgb(255 255 255 / 92%);
-  font-size: 10px;
+  font-size: 11.5px;
 }
 
 .sim-section-title-row h3,
@@ -1219,19 +1226,19 @@ button {
 .sim-section-title-row > time,
 .sim-quota-window small {
   color: rgb(255 255 255 / 54%);
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
-.sim-quota-window + .sim-quota-window {
-  margin-top: 6px;
+.sim-quota-primary {
+  margin-bottom: 10px;
 }
 
 .sim-quota-track {
   --quota: 50%;
   --pace: 50%;
   position: relative;
-  height: 4px;
-  margin-block: 3px 2px;
+  height: 5px;
+  margin-block: 4px;
   overflow: visible;
   border-radius: 2px;
   background: rgb(255 255 255 / 13%);
@@ -1247,10 +1254,10 @@ button {
 
 .sim-quota-track > i {
   position: absolute;
-  top: -2px;
+  top: -3px;
   left: var(--pace);
   width: 1px;
-  height: 8px;
+  height: 11px;
   background: rgb(255 255 255 / 56%);
 }
 
@@ -1259,52 +1266,101 @@ button {
   --pace: 67%;
 }
 
-.sim-quota-five-hour {
-  --quota: 64%;
-  --pace: 58%;
-}
-
-.sim-quota-spark {
-  --quota: 91%;
-  --pace: 84%;
-}
-
 .sim-quota-window .is-ahead {
   color: #8bc39c;
 }
 
-.sim-compact-row {
-  display: flex;
-  min-height: 38px;
-  padding: 6px 14px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.sim-quota-summaries,
+.sim-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.sim-compact-row span,
-.sim-compact-row strong,
-.sim-compact-row small {
+.sim-quota-summaries {
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 8px;
+}
+
+.sim-quota-summaries > div {
+  display: grid;
+  min-width: 0;
+  padding: 8px 10px;
+  align-items: baseline;
+  gap: 3px 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.sim-quota-summaries > div + div {
+  border-left: 1px solid rgb(255 255 255 / 11%);
+}
+
+.sim-quota-summaries span,
+.sim-quota-summaries strong,
+.sim-quota-summaries small,
+.sim-insight span,
+.sim-insight strong,
+.sim-insight small {
   display: block;
 }
 
-.sim-compact-row strong {
-  color: rgb(255 255 255 / 92%);
+.sim-quota-summaries span,
+.sim-insight span {
+  color: rgb(255 255 255 / 58%);
   font-size: 10px;
+}
+
+.sim-quota-summaries strong {
+  margin-top: 0;
+  color: rgb(255 255 255 / 92%);
+  font-size: 14px;
   font-weight: 650;
+}
+
+.sim-quota-summaries small {
+  overflow: hidden;
+  margin-top: 0;
+  color: rgb(255 255 255 / 54%);
+  font-size: 9.5px;
+  grid-column: 1 / -1;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sim-compact-row small {
-  margin-top: 2px;
+.sim-insight-grid {
+  background: rgb(255 255 255 / 12%);
+  gap: 1px;
+}
+
+.sim-insight {
+  min-width: 0;
+  min-height: 68px;
+  padding: 9px 16px;
+  background: #000;
+}
+
+.sim-insight strong {
+  margin-top: 4px;
+  color: rgb(255 255 255 / 94%);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.sim-insight small {
+  overflow: hidden;
+  margin-top: 6px;
   color: rgb(255 255 255 / 54%);
-  font-size: 8.5px;
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sim-end-actions {
   display: flex;
-  min-height: 28px;
-  padding-inline: 10px;
+  min-height: 48px;
+  margin-top: 8px;
+  padding-inline: 12px;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
@@ -1312,8 +1368,9 @@ button {
 
 .sim-end-actions button {
   display: inline-flex;
-  min-height: 28px;
-  padding: 7px 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 6px;
   border: 0;
   border-radius: 4px;
   align-items: center;
@@ -1321,7 +1378,7 @@ button {
   color: rgb(255 255 255 / 72%);
   cursor: pointer;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1;
   transition: background-color 150ms ease, color 150ms ease;
@@ -1360,75 +1417,6 @@ button {
 .simulator-toast:not(:empty) {
   opacity: 1;
   transform: translateY(0);
-}
-
-.simulator-dock {
-  position: absolute;
-  bottom: 1.1rem;
-  left: 50%;
-  z-index: 3;
-  display: flex;
-  padding: 0.4rem;
-  border: 1px solid rgb(255 255 255 / 36%);
-  border-radius: 0.7rem;
-  background: rgb(229 226 219 / 62%);
-  box-shadow: 0 0.6rem 1.5rem rgb(17 17 15 / 10%);
-  gap: 0.35rem;
-  transform: translateX(-50%);
-}
-
-.simulator-dock span {
-  position: relative;
-  display: block;
-  width: 1.45rem;
-  height: 1.45rem;
-  border-radius: 0.35rem;
-  background: #77746d;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
-}
-
-.simulator-dock span:nth-child(2) {
-  background: #565c57;
-}
-
-.simulator-dock span:nth-child(3) {
-  background: #191917;
-}
-
-.simulator-dock span:nth-child(4) {
-  background: #8a8176;
-}
-
-.simulator-dock span:last-child {
-  background: #6d7476;
-}
-
-.simulator-dock .is-active::after {
-  position: absolute;
-  right: 0;
-  bottom: -0.27rem;
-  left: 0;
-  width: 0.2rem;
-  height: 0.2rem;
-  margin: auto;
-  border-radius: 50%;
-  background: #292824;
-  content: "";
-}
-
-.simulator-note {
-  display: flex;
-  min-height: 1.75rem;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-5);
-  color: #69665f;
-  font-family: var(--mono);
-  font-size: 0.625rem;
-}
-
-.simulator-note strong {
-  color: #2b2a26;
 }
 
 html[data-simulator-open] {
@@ -2189,11 +2177,6 @@ html[data-simulator-open] {
     width: min(calc(100vw - 1.5rem), calc((100dvh - 8rem) * 1.6));
   }
 
-  .simulator-note {
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-4);
-  }
-
   .state-proof {
     grid-template-columns: 1fr;
   }
@@ -2248,8 +2231,7 @@ html[data-simulator-open] {
     font-size: 0.95rem;
   }
 
-  .simulator-kicker,
-  .simulator-note {
+  .simulator-kicker {
     font-size: 0.52rem;
   }
 
@@ -2260,8 +2242,15 @@ html[data-simulator-open] {
 
   .simulator-bezel {
     width: calc(100vw - 1rem);
+    height: min(64dvh, 32rem);
+    margin: var(--space-5) auto 0;
     padding: 0.3rem;
     border-radius: 0.65rem;
+  }
+
+  .simulator-display {
+    height: 100%;
+    aspect-ratio: auto;
   }
 
   .simulator-menubar {
@@ -2284,9 +2273,9 @@ html[data-simulator-open] {
   }
 
   .simulator-workspace {
-    top: 20%;
+    top: 28%;
     width: 76%;
-    height: 59%;
+    height: 58%;
     grid-template-columns: 1fr;
   }
 
@@ -2294,7 +2283,6 @@ html[data-simulator-open] {
     display: none;
   }
 
-  .simulator-dock,
   .simulator-toast {
     transform: translateX(-50%) scale(0.78);
     transform-origin: bottom center;
@@ -2466,9 +2454,6 @@ html[data-simulator-open] {
     transform: translateX(-50%) scale(0.82);
   }
 
-  .simulator-note span:last-child {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

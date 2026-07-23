@@ -109,7 +109,7 @@ try {
   await assertMinimumTarget(macbookLauncher);
   await macbookLauncher.press("Enter");
 
-  const simulator = page.getByRole("dialog", { name: "A MacBook, with Cowlick attached." });
+  const simulator = page.getByRole("dialog", { name: "Try Cowlick at the notch." });
   await simulator.waitFor();
   await simulator.evaluate((dialog) =>
     Promise.all(dialog.getAnimations().map((animation) => animation.finished)),
@@ -149,15 +149,29 @@ try {
   await simulatedTrigger.focus();
   await simulatedTrigger.press("Enter");
   await page.locator("[data-sim-cowlick][data-expanded='true']").waitFor();
+  await page.waitForTimeout(350);
   assert.equal(await simulatedTrigger.getAttribute("aria-expanded"), "true");
   assert.equal(await simulatedDrawer.getAttribute("aria-hidden"), "false");
   assert.match(await simulator.locator("[data-sim-updated]").textContent(), /Updated just now/);
   const resetLikelihood = simulator.getByLabel("Unofficial reset forecast");
   assert.match(
     await resetLikelihood.textContent(),
-    /Reset likelihood.*Unofficial · next 48h.*32%/s,
+    /Reset likelihood.*32%.*Unofficial · next 48h/s,
   );
   assert.doesNotMatch(await resetLikelihood.textContent(), /Will Codex Reset/);
+
+  const initialDrawerComposition = await simulator.evaluate(() => {
+    const drawer = document.querySelector("[data-sim-drawer]").getBoundingClientRect();
+    const insights = document.querySelector(".sim-insight-grid").getBoundingClientRect();
+    const controls = document.querySelector(".sim-end-actions").getBoundingClientRect();
+    return {
+      drawerBottom: drawer.bottom,
+      insightsBottom: insights.bottom,
+      controlsTop: controls.top,
+    };
+  });
+  assert(initialDrawerComposition.insightsBottom <= initialDrawerComposition.drawerBottom);
+  assert(initialDrawerComposition.controlsTop > initialDrawerComposition.drawerBottom);
 
   const expandedGeometry = await simulatedCowlick.boundingBox();
   assert(expandedGeometry);
