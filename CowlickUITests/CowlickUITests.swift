@@ -143,6 +143,21 @@ final class CowlickUITests: XCTestCase {
 
   }
 
+  func testPinnedOnlyPreferenceFiltersActiveSessions() {
+    let app = launch(
+      arguments: ["--simulate-notch", "--state=multiple", "--pinned-sessions-only"])
+    let scoutly = sessionRow(in: app, id: "demo-primary")
+
+    XCTAssertTrue(scoutly.waitForExistence(timeout: 3))
+    XCTAssertFalse(sessionRow(in: app, id: "demo-secondary").exists)
+    XCTAssertTrue(app.staticTexts["1 active session"].exists)
+
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.name = "pinned-only-active-sessions"
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
   func testOverflowSessionListKeepsEndActionsAtTheLogicalBottom() {
     let app = launch(state: "overflow")
     let scrollView = app.scrollViews["session-scroll-view"]
@@ -251,6 +266,7 @@ final class CowlickUITests: XCTestCase {
       "settings-notch-api-cost",
       "settings-notch-reset-forecast",
       "settings-notch-provider-billing",
+      "settings-pinned-sessions-only",
     ]
 
     for identifier in identifiers {
@@ -260,6 +276,16 @@ final class CowlickUITests: XCTestCase {
         "Missing expanded-notch setting: \(identifier)"
       )
     }
+
+    let pinnedOnlyToggle = app.descendants(matching: .any)
+      .matching(identifier: "settings-pinned-sessions-only").firstMatch
+    app.scrollViews.firstMatch.scroll(byDeltaX: 0, deltaY: -300)
+    XCTAssertTrue(pinnedOnlyToggle.isHittable)
+
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.name = "pinned-only-setting"
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
   }
 
   func testAccountsSettingsOpens() {

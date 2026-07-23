@@ -130,3 +130,59 @@ struct CodexThreadTitleReader: Sendable {
     return true
   }
 }
+
+struct CodexPinnedThreadReader: Sendable {
+  static let maximumStateFileSize = 2 * 1_048_576
+  static let maximumPinnedThreadCount = 1_024
+  static let defaultStateURL = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(".codex", isDirectory: true)
+    .appendingPathComponent(".codex-global-state.json")
+
+  private let stateURL: URL
+
+  init(stateURL: URL = Self.defaultStateURL) {
+    self.stateURL = stateURL
+  }
+
+  func threadIDs() -> Set<String>? {
+    guard Self.isOwnedRegularFile(stateURL),
+      let attributes = try? FileManager.default.attributesOfItem(atPath: stateURL.path),
+      let fileSize = (attributes[.size] as? NSNumber)?.intValue,
+      fileSize > 0,
+      fileSize <= Self.maximumStateFileSize,
+      let data = try? Data(contentsOf: stateURL, options: .mappedIfSafe),
+      data.count == fileSize,
+      let state = try? JSONDecoder().decode(State.self, from: data),
+      state.pinnedThreadIDs.count <= Self.maximumPinnedThreadCount
+    else { return nil }
+
+    var validated = Set<String>()
+    for rawID in state.pinnedThreadIDs {
+      guard rawID.count == 36, UUID(uuidString: rawID) != nil else { return nil }
+      validated.insert(rawID.lowercased())
+    }
+    return validated
+  }
+
+  private struct State: Decodable {
+    let pinnedThreadIDs: [String]
+
+    enum CodingKeys: String, CodingKey {
+      case pinnedThreadIDs = "pinned-thread-ids"
+    }
+
+    init(from decoder: Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+      pinnedThreadIDs = try container.decodeIfPresent([String].self, forKey: .pinnedThreadIDs) ?? []
+    }
+  }
+
+  private static func isOwnedRegularFile(_ url: URL) -> Bool {
+    var info = stat()
+    guard lstat(url.path, &info) == 0,
+      info.st_mode & S_IFMT == S_IFREG,
+      info.st_uid == getuid()
+    else { return false }
+    return true
+  }
+}

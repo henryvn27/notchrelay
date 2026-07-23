@@ -46,6 +46,9 @@ final class SessionStore {
   private var unreadCompletionSessionIDs: Set<String> = []
   private var capsLockAttentionPattern: CapsLockPattern?
   private var chatTitleRefreshGeneration: UInt64 = 0
+  private var pinnedThreadRefreshGeneration: UInt64 = 0
+  private var pinnedThreadIDs: Set<String> = []
+  private var pinnedThreadStateIsAvailable = false
   var isExpanded = false
   var presentationDidChange: (() -> Void)?
 
@@ -54,6 +57,7 @@ final class SessionStore {
   let approvalCoordinator: ApprovalCoordinator
   let capsLockService: any CapsLockSignalService
   private let resolveChatTitle: @Sendable (String, Bool) -> String?
+  private let resolvePinnedThreadIDs: @Sendable () -> Set<String>?
 
   init(
     settings: SettingsStore = SettingsStore(),
@@ -62,6 +66,9 @@ final class SessionStore {
     capsLockService: any CapsLockSignalService = NativeCapsLockSignalService(),
     resolveChatTitle: @escaping @Sendable (String, Bool) -> String? = {
       CodexThreadTitleReader().title(for: $0, allowPromptDerivedFallback: $1)
+    },
+    resolvePinnedThreadIDs: @escaping @Sendable () -> Set<String>? = {
+      CodexPinnedThreadReader().threadIDs()
     }
   ) {
     self.settings = settings
@@ -69,6 +76,7 @@ final class SessionStore {
     self.approvalCoordinator = approvalCoordinator
     self.capsLockService = capsLockService
     self.resolveChatTitle = resolveChatTitle
+    self.resolvePinnedThreadIDs = resolvePinnedThreadIDs
   }
 
   var currentApproval: ApprovalRequest? { approvalQueue.first }
@@ -76,11 +84,12 @@ final class SessionStore {
   var integrationSelfTestInProgress: Bool { integrationSelfTestLease != nil }
 
   var activeSessionCount: Int {
-    sessions.values.filter(\.isActive).count
+    sessions.values.filter { $0.isActive && isVisibleSession($0) }.count
   }
 
   var activeSubagentCount: Int {
-    sessions.values.filter { !$0.isRecovered }.reduce(0) { $0 + $1.subagents.count }
+    sessions.values.filter { !$0.isRecovered && isVisibleSession($0) }
+      .reduce(0) { $0 + $1.subagents.count }
   }
 
   var canPreviewTestStates: Bool {
@@ -97,6 +106,7 @@ final class SessionStore {
   var displaySession: AgentSession? {
     sessions.values
       .filter { session in
+        guard isVisibleSession(session) else { return false }
         if session.isRecovered { return false }
         if case .completed = session.presentationStatus {
           return (session.completionVisibleUntil ?? .distantPast) > Date()
@@ -114,6 +124,7 @@ final class SessionStore {
     let recoveredCutoff = now.addingTimeInterval(-LifecycleLedger.staleInterval)
     return sessions.values
       .filter { session in
+        guard isVisibleSession(session) else { return false }
         if case .idle = session.presentationStatus { return false }
         if session.isRecovered { return session.updatedAt >= recoveredCutoff }
         return session.updatedAt >= cutoff
@@ -258,6 +269,25 @@ final class SessionStore {
     return nil
   }
 
+  func refreshPinnedThreadIDs() async {
+    pinnedThreadRefreshGeneration &+= 1
+    let generation = pinnedThreadRefreshGeneration
+    let resolver = resolvePinnedThreadIDs
+    let resolved = await Task.detached(priority: .utility) { resolver() }.value
+    guard generation == pinnedThreadRefreshGeneration else { return }
+    guard let resolved else {
+      if pinnedThreadStateIsAvailable {
+        pinnedThreadStateIsAvailable = false
+        notifyPresentationChanged()
+      }
+      return
+    }
+    let changed = !pinnedThreadStateIsAvailable || pinnedThreadIDs != resolved
+    pinnedThreadIDs = resolved
+    pinnedThreadStateIsAvailable = true
+    if changed { notifyPresentationChanged() }
+  }
+
   @discardableResult
   func decide(requestID: UUID, decision: ApprovalDecision) -> Bool {
     guard let currentApproval,
@@ -382,6 +412,12 @@ final class SessionStore {
     for index in approvalQueue.indices {
       approvalQueue[index] = approvalQueue[index].with(chatTitle: nil)
     }
+  }
+
+  private func isVisibleSession(_ session: AgentSession) -> Bool {
+    guard settings.showOnlyPinnedSessions, pinnedThreadStateIsAvailable else { return true }
+    if case .awaitingApproval = session.presentationStatus { return true }
+    return pinnedThreadIDs.contains(session.id.lowercased())
   }
 
   func expireLocalObservation(sessionID: String, turnID: String?) {

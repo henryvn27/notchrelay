@@ -119,6 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     services.settings.showPromptPreviews =
       CommandLine.arguments.contains("--show-prompt-previews")
     services.settings.showResultPreviews = CommandLine.arguments.contains("--show-result-previews")
+    services.settings.showOnlyPinnedSessions =
+      CommandLine.arguments.contains("--pinned-sessions-only")
     services.settings.showNotchCurrentWork =
       !CommandLine.arguments.contains("--hide-notch-current-work")
     services.settings.showNotchIntegrationAlerts =
@@ -144,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let stateName = CommandLine.arguments.first(where: { $0.hasPrefix("--state=") })
       .map { String($0.dropFirst("--state=".count)) }
     Task { @MainActor in
+      await services.sessionStore.refreshPinnedThreadIDs()
       try? await Task.sleep(for: .milliseconds(300))
       if CommandLine.arguments.contains("--billing-demo") {
         _ = try? await services.providerAccountsController.addAccount(

@@ -5,6 +5,39 @@ import XCTest
 @testable import Cowlick
 
 final class CodexThreadTitleReaderTests: XCTestCase {
+  func testReadsValidatedPinnedThreadIDsFromCodexGlobalState() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "Cowlick-Pinned-Threads-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let firstID = UUID().uuidString.lowercased()
+    let secondID = UUID().uuidString.lowercased()
+    let stateURL = directory.appendingPathComponent(".codex-global-state.json")
+    let data = try JSONSerialization.data(withJSONObject: [
+      "pinned-thread-ids": [firstID, secondID, firstID],
+      "unrelated-setting": true,
+    ])
+    try data.write(to: stateURL)
+
+    XCTAssertEqual(
+      CodexPinnedThreadReader(stateURL: stateURL).threadIDs(),
+      Set([firstID, secondID]))
+  }
+
+  func testPinnedThreadReaderFailsOpenForUnsafeOrMalformedState() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "Cowlick-Pinned-Threads-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let stateURL = directory.appendingPathComponent("state.json")
+    try Data(#"{"pinned-thread-ids":["not-a-thread"]}"#.utf8).write(to: stateURL)
+    XCTAssertNil(CodexPinnedThreadReader(stateURL: stateURL).threadIDs())
+
+    let linkURL = directory.appendingPathComponent("linked.json")
+    try FileManager.default.createSymbolicLink(at: linkURL, withDestinationURL: stateURL)
+    XCTAssertNil(CodexPinnedThreadReader(stateURL: linkURL).threadIDs())
+  }
+
   func testReadsLatestLocalTitleForExactSession() throws {
     let fixture = try Fixture()
     defer { fixture.remove() }

@@ -33,11 +33,18 @@ final class AppServices {
     eventLogger = EventLogger()
     approvalCoordinator = ApprovalCoordinator()
     capsLockService = NativeCapsLockSignalService()
+    let pinnedThreadResolver: @Sendable () -> Set<String>?
+    if CommandLine.arguments.contains("--ui-testing") {
+      pinnedThreadResolver = { Set(["demo-primary"]) }
+    } else {
+      pinnedThreadResolver = { CodexPinnedThreadReader().threadIDs() }
+    }
     let store = SessionStore(
       settings: settings,
       eventLogger: eventLogger,
       approvalCoordinator: approvalCoordinator,
-      capsLockService: capsLockService
+      capsLockService: capsLockService,
+      resolvePinnedThreadIDs: pinnedThreadResolver
     )
     sessionStore = store
     let resolvedUsageStore: UsageStore
@@ -54,18 +61,22 @@ final class AppServices {
       resolvedUsageStore = UsageStore(settings: settings, apiCostService: apiCostService)
     }
     usageStore = resolvedUsageStore
-    localLifecycleObserver = CodexSessionObserver { event in
-      Task { @MainActor in
-        if event.kind == .stale, event.parentSessionID == nil {
-          store.expireLocalObservation(sessionID: event.sessionID, turnID: event.turnID)
-        } else if let bridgeEvent = event.bridgeEvent {
-          _ = await store.receive(bridgeEvent)
+    localLifecycleObserver = CodexSessionObserver(
+      pinnedThreadsDidChange: {
+        Task { @MainActor in await store.refreshPinnedThreadIDs() }
+      },
+      handler: { event in
+        Task { @MainActor in
+          if event.kind == .stale, event.parentSessionID == nil {
+            store.expireLocalObservation(sessionID: event.sessionID, turnID: event.turnID)
+          } else if let bridgeEvent = event.bridgeEvent {
+            _ = await store.receive(bridgeEvent)
+          }
+          if event.shouldRefreshUsage {
+            resolvedUsageStore.refreshAfterActivity()
+          }
         }
-        if event.shouldRefreshUsage {
-          resolvedUsageStore.refreshAfterActivity()
-        }
-      }
-    }
+      })
     let providerServices = Self.makeProviderAccountServices(arguments: CommandLine.arguments)
     credentialStore = providerServices.credentialStore
     providerAccountStore = providerServices.accountStore
@@ -82,6 +93,7 @@ final class AppServices {
       automaticChecks: settings.automaticUpdateChecks,
       automaticDownloads: settings.automaticUpdateDownloads
     )
+    Task { await store.refreshPinnedThreadIDs() }
   }
 
   static func makeUITestingSettingsStore(

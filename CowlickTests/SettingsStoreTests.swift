@@ -39,6 +39,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(first.notchLeftWingMetric, .quotaPercentage)
     XCTAssertEqual(first.notchSecondaryMetric, .blank)
     XCTAssertTrue(first.showNotchCurrentWork)
+    XCTAssertFalse(first.showOnlyPinnedSessions)
     XCTAssertTrue(first.showNotchIntegrationAlerts)
     XCTAssertTrue(first.showNotchCodexUsage)
     XCTAssertTrue(first.showNotchAPICostEstimate)
@@ -63,6 +64,7 @@ final class SettingsStoreTests: XCTestCase {
     first.presentationPreference = .menuBar
     first.integrationIntentionallyRemoved = true
     first.showNotchCurrentWork = false
+    first.showOnlyPinnedSessions = true
     first.showNotchIntegrationAlerts = false
     first.showNotchCodexUsage = false
     first.showNotchAPICostEstimate = false
@@ -86,6 +88,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(second.presentationPreference, .menuBar)
     XCTAssertTrue(second.integrationIntentionallyRemoved)
     XCTAssertFalse(second.showNotchCurrentWork)
+    XCTAssertTrue(second.showOnlyPinnedSessions)
     XCTAssertFalse(second.showNotchIntegrationAlerts)
     XCTAssertFalse(second.showNotchCodexUsage)
     XCTAssertFalse(second.showNotchAPICostEstimate)
@@ -113,6 +116,7 @@ final class SettingsStoreTests: XCTestCase {
     settings.menuBarPresentation = .statusAndPercentage
     settings.integrationIntentionallyRemoved = true
     settings.showNotchCurrentWork = false
+    settings.showOnlyPinnedSessions = true
     settings.showNotchIntegrationAlerts = false
     settings.showNotchCodexUsage = false
     settings.showNotchAPICostEstimate = false
@@ -139,6 +143,7 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(settings.menuBarPresentation, .percentageOnly)
     XCTAssertFalse(settings.integrationIntentionallyRemoved)
     XCTAssertTrue(settings.showNotchCurrentWork)
+    XCTAssertFalse(settings.showOnlyPinnedSessions)
     XCTAssertTrue(settings.showNotchIntegrationAlerts)
     XCTAssertTrue(settings.showNotchCodexUsage)
     XCTAssertTrue(settings.showNotchAPICostEstimate)

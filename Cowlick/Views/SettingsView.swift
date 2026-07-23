@@ -69,6 +69,24 @@ struct SettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+        Section("Active sessions") {
+          Toggle(
+            "Only show pinned Codex tasks",
+            isOn: Binding(
+              get: { settings.showOnlyPinnedSessions },
+              set: { value in
+                settings.showOnlyPinnedSessions = value
+                Task { await services.sessionStore.refreshPinnedThreadIDs() }
+              }
+            )
+          )
+          .accessibilityIdentifier("settings-pinned-sessions-only")
+          Text(
+            "Uses the tasks pinned in Codex. Approval requests always remain visible."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
         Section("Menu bar") {
           Picker("Display", selection: $settings.menuBarPresentation) {
             ForEach(MenuBarPresentation.allCases) { presentation in

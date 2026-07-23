@@ -28,6 +28,77 @@ final class SessionStoreTests: XCTestCase {
     XCTAssertEqual(store.sessionSummaries.count, 2)
   }
 
+  func testPinnedOnlyPreferenceFiltersRowsCountsAndPrimarySession() async {
+    let settings = makeTestSettings()
+    settings.showOnlyPinnedSessions = true
+    let store = SessionStore(
+      settings: settings,
+      resolvePinnedThreadIDs: { ["a"] }
+    )
+    await store.refreshPinnedThreadIDs()
+    _ = await store.receive(makeBridgeEvent(event: .working, sessionID: "a"))
+    _ = await store.receive(
+      makeBridgeEvent(
+        event: .working, sessionID: "b", timestamp: Date().addingTimeInterval(1)))
+
+    XCTAssertEqual(store.activeSessionCount, 1)
+    XCTAssertEqual(store.displaySession?.id, "a")
+    XCTAssertEqual(store.sessionSummaries.map(\.id), ["a"])
+  }
+
+  func testPinnedOnlyPreferenceFailsOpenWhenCodexPinStateIsUnavailable() async {
+    let settings = makeTestSettings()
+    settings.showOnlyPinnedSessions = true
+    let store = SessionStore(settings: settings, resolvePinnedThreadIDs: { nil })
+    await store.refreshPinnedThreadIDs()
+    _ = await store.receive(makeBridgeEvent(event: .working, sessionID: "a"))
+    _ = await store.receive(makeBridgeEvent(event: .working, sessionID: "b"))
+
+    XCTAssertEqual(store.activeSessionCount, 2)
+    XCTAssertEqual(Set(store.sessionSummaries.map(\.id)), Set(["a", "b"]))
+  }
+
+  func testPinnedOnlyPreferenceFailsOpenWhenCachedPinStateBecomesUnavailable() async {
+    let settings = makeTestSettings()
+    settings.showOnlyPinnedSessions = true
+    let pins = LockedPinnedThreadIDs(["a"])
+    let store = SessionStore(settings: settings, resolvePinnedThreadIDs: { pins.value })
+    await store.refreshPinnedThreadIDs()
+    _ = await store.receive(makeBridgeEvent(event: .working, sessionID: "a"))
+    _ = await store.receive(makeBridgeEvent(event: .working, sessionID: "b"))
+    XCTAssertEqual(store.activeSessionCount, 1)
+
+    pins.value = nil
+    await store.refreshPinnedThreadIDs()
+
+    XCTAssertEqual(store.activeSessionCount, 2)
+    XCTAssertEqual(Set(store.sessionSummaries.map(\.id)), Set(["a", "b"]))
+  }
+
+  func testPinnedOnlyPreferenceNeverHidesAnApprovalRequest() async {
+    let settings = makeTestSettings()
+    settings.approvalTimeout = 10
+    settings.autoExpandApprovals = false
+    settings.showOnlyPinnedSessions = true
+    let store = SessionStore(settings: settings, resolvePinnedThreadIDs: { [] })
+    await store.refreshPinnedThreadIDs()
+    let event = makeBridgeEvent(
+      event: .approvalRequested,
+      sessionID: "unpinned",
+      toolName: "Bash",
+      toolInput: .object(["command": .string("git push")])
+    )
+
+    let decisionTask = Task { await store.receive(event) }
+    let approvalBecameVisible = await waitUntil { store.currentApproval != nil }
+    XCTAssertTrue(approvalBecameVisible)
+    XCTAssertEqual(store.displaySession?.id, "unpinned")
+    XCTAssertEqual(store.sessionSummaries.map(\.id), ["unpinned"])
+    XCTAssertTrue(store.decide(requestID: event.requestId, decision: .deny))
+    let decision = await decisionTask.value
+    XCTAssertEqual(decision, .deny)
+  }
+
   func testSubagentsRemainChildActivityWithoutInflatingSessionCount() async {
     let store = SessionStore(settings: makeTestSettings())
     _ = await store.receive(
@@ -885,5 +956,19 @@ final class SessionStoreTests: XCTestCase {
       fullOperation: "swift test",
       requestedAt: Date(), expiresAt: Date().addingTimeInterval(60)
     )
+  }
+}
+
+private final class LockedPinnedThreadIDs: @unchecked Sendable {
+  private let lock = NSLock()
+  private var storedValue: Set<String>?
+
+  init(_ value: Set<String>?) {
+    storedValue = value
+  }
+
+  var value: Set<String>? {
+    get { lock.withLock { storedValue } }
+    set { lock.withLock { storedValue = newValue } }
   }
 }

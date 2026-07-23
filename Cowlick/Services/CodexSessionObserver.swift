@@ -150,7 +150,9 @@ final class CodexSessionObserver: @unchecked Sendable {
 
   private let sessionsRoot: URL
   private let codexHome: URL
+  private let pinnedThreadsStateURL: URL
   private let handler: @Sendable (ObservedCodexLifecycleEvent) -> Void
+  private let pinnedThreadsDidChange: @Sendable () -> Void
   private let now: @Sendable () -> Date
   private let queue = DispatchQueue(
     label: "com.henryvn27.Cowlick.CodexSessionObserver", qos: .utility)
@@ -163,13 +165,17 @@ final class CodexSessionObserver: @unchecked Sendable {
     codexHome: URL = FileManager.default.homeDirectoryForCurrentUser
       .appendingPathComponent(".codex", isDirectory: true),
     now: @escaping @Sendable () -> Date = Date.init,
+    pinnedThreadsDidChange: @escaping @Sendable () -> Void = {},
     handler: @escaping @Sendable (ObservedCodexLifecycleEvent) -> Void
   ) {
     self.codexHome = codexHome.standardizedFileURL
     sessionsRoot =
       codexHome.appendingPathComponent("sessions", isDirectory: true)
       .standardizedFileURL
+    pinnedThreadsStateURL =
+      codexHome.appendingPathComponent(".codex-global-state.json").standardizedFileURL
     self.now = now
+    self.pinnedThreadsDidChange = pinnedThreadsDidChange
     self.handler = handler
   }
 
@@ -251,11 +257,15 @@ final class CodexSessionObserver: @unchecked Sendable {
       kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagUserDropped
         | kFSEventStreamEventFlagKernelDropped | kFSEventStreamEventFlagRootChanged)
     if flags.contains(where: { $0 & recoveryFlags != 0 }) {
+      pinnedThreadsDidChange()
       scanRecentFiles(at: sessionsRoot)
     }
     for path in Set(paths) {
       let url = URL(fileURLWithPath: path)
       guard isCodexPath(url) else { continue }
+      if url.standardizedFileURL.path == pinnedThreadsStateURL.path {
+        pinnedThreadsDidChange()
+      }
       var isDirectory: ObjCBool = false
       if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) {
         status = .monitoring

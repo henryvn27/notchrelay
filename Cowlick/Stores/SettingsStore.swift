@@ -72,6 +72,7 @@ final class SettingsStore {
     static let notchLeftWingMetric = "notchLeftWingMetric"
     static let notchSecondaryMetric = "notchSecondaryMetric"
     static let showNotchCurrentWork = "showNotchCurrentWork"
+    static let showOnlyPinnedSessions = "showOnlyPinnedSessions"
     static let showNotchIntegrationAlerts = "showNotchIntegrationAlerts"
     static let showNotchCodexUsage = "showNotchCodexUsage"
     static let showNotchAPICostEstimate = "showNotchAPICostEstimate"
@@ -92,7 +93,7 @@ final class SettingsStore {
     Key.showAPICostEstimate, Key.apiCostWindow, Key.showResetForecast, Key.usageMetricPreference,
     Key.showFiveHourQuotaWindow, Key.showWeeklyQuotaWindow, Key.showSparkQuotaWindow,
     Key.notchLeftWingMetric, Key.notchSecondaryMetric,
-    Key.showNotchCurrentWork, Key.showNotchIntegrationAlerts,
+    Key.showNotchCurrentWork, Key.showOnlyPinnedSessions, Key.showNotchIntegrationAlerts,
     Key.showNotchCodexUsage, Key.showNotchAPICostEstimate, Key.showNotchResetForecast,
     Key.showNotchProviderBilling,
     Key.menuBarPresentation,
@@ -172,6 +173,9 @@ final class SettingsStore {
   var showNotchCurrentWork: Bool {
     didSet { defaults.set(showNotchCurrentWork, forKey: Key.showNotchCurrentWork) }
   }
+  var showOnlyPinnedSessions: Bool {
+    didSet { defaults.set(showOnlyPinnedSessions, forKey: Key.showOnlyPinnedSessions) }
+  }
   var showNotchIntegrationAlerts: Bool {
     didSet { defaults.set(showNotchIntegrationAlerts, forKey: Key.showNotchIntegrationAlerts) }
   }
@@ -234,6 +238,7 @@ final class SettingsStore {
       Key.notchLeftWingMetric: NotchWingMetric.quotaPercentage.rawValue,
       Key.notchSecondaryMetric: NotchWingMetric.blank.rawValue,
       Key.showNotchCurrentWork: true,
+      Key.showOnlyPinnedSessions: false,
       Key.showNotchIntegrationAlerts: true,
       Key.showNotchCodexUsage: true,
       Key.showNotchAPICostEstimate: true,
@@ -286,6 +291,7 @@ final class SettingsStore {
       NotchWingMetric(rawValue: defaults.string(forKey: Key.notchSecondaryMetric) ?? "")
       ?? .blank
     showNotchCurrentWork = defaults.bool(forKey: Key.showNotchCurrentWork)
+    showOnlyPinnedSessions = defaults.bool(forKey: Key.showOnlyPinnedSessions)
     showNotchIntegrationAlerts = defaults.bool(forKey: Key.showNotchIntegrationAlerts)
     showNotchCodexUsage = defaults.bool(forKey: Key.showNotchCodexUsage)
     showNotchAPICostEstimate = defaults.bool(forKey: Key.showNotchAPICostEstimate)
@@ -330,6 +336,7 @@ final class SettingsStore {
     notchLeftWingMetric = replacement.notchLeftWingMetric
     notchSecondaryMetric = replacement.notchSecondaryMetric
     showNotchCurrentWork = replacement.showNotchCurrentWork
+    showOnlyPinnedSessions = replacement.showOnlyPinnedSessions
     showNotchIntegrationAlerts = replacement.showNotchIntegrationAlerts
     showNotchCodexUsage = replacement.showNotchCodexUsage
     showNotchAPICostEstimate = replacement.showNotchAPICostEstimate

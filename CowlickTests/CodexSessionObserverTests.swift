@@ -26,6 +26,17 @@ final class CodexSessionObserverTests: XCTestCase {
     var events: [ObservedCodexLifecycleEvent] { lock.withLock { storage } }
   }
 
+  private final class ChangeRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = 0
+
+    func record() {
+      lock.withLock { storage += 1 }
+    }
+
+    var count: Int { lock.withLock { storage } }
+  }
+
   func testTranscriptLifecycleMapsWorkingCompletionAndFailureWithoutApproval() throws {
     var accumulator = CodexTranscriptAccumulator()
     XCTAssertNil(
@@ -159,6 +170,32 @@ final class CodexSessionObserverTests: XCTestCase {
     }
     XCTAssertEqual(recorder.events.last?.kind, .working)
     XCTAssertEqual(recorder.events.last?.sessionID, "session-1")
+  }
+
+  func testObserverReportsCodexPinnedThreadChanges() async throws {
+    let codexHome = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "Cowlick-Pin-Observer-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: codexHome, withIntermediateDirectories: true)
+    try FileManager.default.setAttributes(
+      [.posixPermissions: 0o700], ofItemAtPath: codexHome.path)
+    defer { try? FileManager.default.removeItem(at: codexHome) }
+    let changes = ChangeRecorder()
+    let observer = CodexSessionObserver(
+      codexHome: codexHome,
+      pinnedThreadsDidChange: changes.record,
+      handler: { _ in })
+    observer.start()
+    defer { observer.stop() }
+    try await Task.sleep(for: .milliseconds(250))
+
+    try Data(#"{"pinned-thread-ids":[]}"#.utf8).write(
+      to: codexHome.appendingPathComponent(".codex-global-state.json"))
+
+    let deadline = Date().addingTimeInterval(2)
+    while changes.count == 0, Date() < deadline {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertGreaterThan(changes.count, 0)
   }
 
   func testObserverRecoversWhenCodexHomeIsCreatedAfterLaunch() async throws {
