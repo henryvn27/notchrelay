@@ -103,6 +103,107 @@ try {
   await page.locator(".macbook-screen").waitFor();
   await page.locator(".screen-notch").waitFor();
   await page.locator(".macbook-base").waitFor();
+  const macbookLauncher = page.getByRole("button", {
+    name: "Open interactive Cowlick MacBook",
+  });
+  await assertMinimumTarget(macbookLauncher);
+  await macbookLauncher.press("Enter");
+
+  const simulator = page.getByRole("dialog", { name: "A MacBook, with Cowlick attached." });
+  await simulator.waitFor();
+  await simulator.evaluate((dialog) =>
+    Promise.all(dialog.getAnimations().map((animation) => animation.finished)),
+  );
+  const simulatedCowlick = simulator.locator("[data-sim-cowlick]");
+  const simulatedTrigger = simulator.getByRole("button", { name: /Cowlick compact view/ });
+  const simulatedDrawer = simulator.locator("[data-sim-drawer]");
+  assert.equal(await simulatedTrigger.getAttribute("aria-expanded"), "false");
+  assert.equal(await simulatedDrawer.getAttribute("aria-hidden"), "true");
+  assert.equal(
+    await simulator.locator("button[aria-label*='Refresh'], button[aria-label*='Reload']").count(),
+    0,
+  );
+
+  const compactGeometry = await simulator.evaluate(() => {
+    const trigger = document.querySelector(".sim-notch-trigger").getBoundingClientRect();
+    const gap = document.querySelector(".sim-hardware-gap").getBoundingClientRect();
+    const wings = Array.from(document.querySelectorAll(".sim-wing"), (wing) =>
+      wing.getBoundingClientRect(),
+    );
+    return {
+      width: trigger.width,
+      height: trigger.height,
+      gapWidth: gap.width,
+      wingWidths: wings.map((wing) => wing.width),
+    };
+  });
+  assert.equal(compactGeometry.width, 296);
+  assert.equal(compactGeometry.height, 38);
+  assert.equal(compactGeometry.gapWidth, 212);
+  assert.deepEqual(compactGeometry.wingWidths, [42, 42]);
+
+  await simulatedTrigger.hover();
+  await page.locator("[data-sim-cowlick][data-expanded='true']").waitFor();
+  await page.mouse.move(120, 46);
+  await page.locator("[data-sim-cowlick][data-expanded='false']").waitFor();
+  await simulatedTrigger.focus();
+  await simulatedTrigger.press("Enter");
+  await page.locator("[data-sim-cowlick][data-expanded='true']").waitFor();
+  assert.equal(await simulatedTrigger.getAttribute("aria-expanded"), "true");
+  assert.equal(await simulatedDrawer.getAttribute("aria-hidden"), "false");
+  assert.match(await simulator.locator("[data-sim-updated]").textContent(), /Updated just now/);
+  const resetLikelihood = simulator.getByLabel("Unofficial reset forecast");
+  assert.match(
+    await resetLikelihood.textContent(),
+    /Reset likelihood.*Unofficial · next 48h.*32%/s,
+  );
+  assert.doesNotMatch(await resetLikelihood.textContent(), /Will Codex Reset/);
+
+  const expandedGeometry = await simulatedCowlick.boundingBox();
+  assert(expandedGeometry);
+  assert.equal(expandedGeometry.width, 332);
+  assert(expandedGeometry.height <= 400);
+  const sessionOverflow = await simulator.locator("[data-session-scroll]").evaluate((scroller) => ({
+    clientHeight: scroller.clientHeight,
+    scrollHeight: scroller.scrollHeight,
+  }));
+  assert(sessionOverflow.scrollHeight > sessionOverflow.clientHeight);
+
+  const drawerOverflow = await simulator.locator("[data-sim-scroll]").evaluate((scroller) => ({
+    clientHeight: scroller.clientHeight,
+    scrollHeight: scroller.scrollHeight,
+  }));
+  assert(drawerOverflow.scrollHeight > drawerOverflow.clientHeight);
+  await simulator.locator("[data-sim-scroll]").evaluate((scroller) => {
+    scroller.scrollTop = scroller.scrollHeight;
+  });
+  const settings = simulator.getByRole("button", { name: "Settings" });
+  const quit = simulator.getByRole("button", { name: "Quit" });
+  await settings.click();
+  await simulator.getByRole("status").getByText(/Settings would open/).waitFor();
+  assert(await quit.isVisible());
+  const endActionGeometry = await simulator.evaluate(() => {
+    const drawer = document.querySelector("[data-sim-drawer]").getBoundingClientRect();
+    const controls = document.querySelector(".sim-end-actions").getBoundingClientRect();
+    const buttons = Array.from(document.querySelectorAll(".sim-end-actions button"), (button) =>
+      button.getBoundingClientRect(),
+    );
+    return {
+      drawerCenter: drawer.x + drawer.width / 2,
+      controlsLeft: controls.x,
+      firstButtonLeft: buttons[0].x,
+      totalButtonWidth: buttons.reduce((total, button) => total + button.width, 0),
+    };
+  });
+  assert(endActionGeometry.firstButtonLeft > endActionGeometry.drawerCenter);
+  assert(endActionGeometry.totalButtonWidth < 140);
+
+  await page.keyboard.press("Escape");
+  await page.locator("[data-sim-cowlick][data-expanded='false']").waitFor();
+  assert.equal(await simulator.getAttribute("open"), "");
+  await simulator.getByRole("button", { name: "Close interactive MacBook" }).click();
+  await simulator.waitFor({ state: "hidden" });
+  assert.equal(await macbookLauncher.evaluate((button) => button === document.activeElement), true);
   assert.match(
     await page.locator(".usage-capture figcaption").textContent(),
     /July 20, 2026.*third-party data.*not a\s+Cowlick estimate/s,

@@ -75,6 +75,141 @@ stateSwitcher?.addEventListener("keydown", (event) => {
   showPreview(previewNames[nextIndex], { moveFocus: true });
 });
 
+const simulator = document.querySelector("[data-simulator]");
+const simulatorOpeners = Array.from(document.querySelectorAll("[data-open-simulator]"));
+const simulatorCloser = document.querySelector("[data-close-simulator]");
+const simulatedCowlick = document.querySelector("[data-sim-cowlick]");
+const simulatedTrigger = simulatedCowlick?.querySelector(".sim-notch-trigger");
+const simulatedDrawer = document.querySelector("[data-sim-drawer]");
+const simulatedScroll = document.querySelector("[data-sim-scroll]");
+const simulatedUpdatedLabel = document.querySelector("[data-sim-updated]");
+const simulatedToast = document.querySelector("[data-sim-toast]");
+const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+let simulatorReturnFocus = null;
+let simulatorHoverTimer = 0;
+let simulatorToastTimer = 0;
+let simulatorPinned = false;
+
+function simulatorIsExpanded() {
+  return simulatedCowlick?.dataset.expanded === "true";
+}
+
+function refreshSimulatorState() {
+  if (!simulatedUpdatedLabel) return;
+  simulatedUpdatedLabel.textContent = "Updated just now";
+  simulatedUpdatedLabel.setAttribute("datetime", new Date().toISOString());
+}
+
+function setSimulatorExpanded(expanded, { announce = false } = {}) {
+  if (!simulatedCowlick || !simulatedTrigger || !simulatedDrawer) return;
+
+  simulatedCowlick.dataset.expanded = String(expanded);
+  simulatedTrigger.setAttribute("aria-expanded", String(expanded));
+  simulatedDrawer.setAttribute("aria-hidden", String(!expanded));
+  simulatedDrawer.inert = !expanded;
+
+  if (expanded) {
+    refreshSimulatorState();
+  } else if (simulatedScroll) {
+    simulatedScroll.scrollTop = 0;
+  }
+
+  if (announce) {
+    showSimulatorToast(expanded ? "Cowlick expanded with current local state." : "Cowlick minimized.");
+  }
+}
+
+function showSimulatorToast(message) {
+  if (!simulatedToast) return;
+  window.clearTimeout(simulatorToastTimer);
+  simulatedToast.textContent = message;
+  simulatorToastTimer = window.setTimeout(() => {
+    simulatedToast.textContent = "";
+  }, 2600);
+}
+
+function openSimulator(event) {
+  if (!simulator) return;
+  simulatorReturnFocus = event?.currentTarget ?? document.activeElement;
+  refreshSimulatorState();
+  document.documentElement.setAttribute("data-simulator-open", "");
+  if (typeof simulator.showModal === "function") {
+    simulator.showModal();
+  } else {
+    simulator.setAttribute("open", "");
+  }
+  window.requestAnimationFrame(() => simulatedTrigger?.focus());
+}
+
+function closeSimulator() {
+  if (!simulator) return;
+  simulatorPinned = false;
+  setSimulatorExpanded(false);
+  if (typeof simulator.close === "function") {
+    simulator.close();
+  } else {
+    simulator.removeAttribute("open");
+    document.documentElement.removeAttribute("data-simulator-open");
+    simulatorReturnFocus?.focus?.();
+  }
+}
+
+simulatorOpeners.forEach((opener) => opener.addEventListener("click", openSimulator));
+simulatorCloser?.addEventListener("click", closeSimulator);
+
+simulator?.addEventListener("close", () => {
+  document.documentElement.removeAttribute("data-simulator-open");
+  simulatorReturnFocus?.focus?.();
+  simulatorReturnFocus = null;
+});
+
+simulator?.addEventListener("cancel", (event) => {
+  if (!simulatorIsExpanded()) return;
+  event.preventDefault();
+  simulatorPinned = false;
+  setSimulatorExpanded(false, { announce: true });
+  simulatedTrigger?.focus();
+});
+
+simulatedTrigger?.addEventListener("click", (event) => {
+  if (!simulatorIsExpanded()) {
+    simulatorPinned = true;
+    setSimulatorExpanded(true, { announce: event.detail === 0 });
+  } else if (simulatorPinned) {
+    simulatorPinned = false;
+    setSimulatorExpanded(false, { announce: event.detail === 0 });
+  } else {
+    simulatorPinned = true;
+    refreshSimulatorState();
+  }
+});
+
+simulatedCowlick?.addEventListener("mouseenter", () => {
+  if (!finePointer.matches || simulatorPinned) return;
+  window.clearTimeout(simulatorHoverTimer);
+  simulatorHoverTimer = window.setTimeout(() => setSimulatorExpanded(true), 50);
+});
+
+simulatedCowlick?.addEventListener("mouseleave", () => {
+  if (!finePointer.matches || simulatorPinned) return;
+  window.clearTimeout(simulatorHoverTimer);
+  simulatorHoverTimer = window.setTimeout(() => setSimulatorExpanded(false), 160);
+});
+
+document.querySelectorAll("[data-sim-action]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.dataset.simAction === "settings") {
+      showSimulatorToast("Settings would open as a separate Cowlick window.");
+      return;
+    }
+
+    simulatorPinned = false;
+    setSimulatorExpanded(false);
+    showSimulatorToast("Cowlick quit in the demo. Select the notch to continue trying it.");
+    simulatedTrigger?.focus();
+  });
+});
+
 function updateViewportState() {
   const scrollY = window.scrollY;
   header?.toggleAttribute("data-scrolled", scrollY > 48);

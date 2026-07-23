@@ -20,7 +20,8 @@ enum UsageMetricPreference: String, CaseIterable, Codable, Sendable {
   }
 }
 
-enum NotchSecondaryMetric: String, CaseIterable, Identifiable, Sendable {
+enum NotchWingMetric: String, CaseIterable, Identifiable, Sendable {
+  case quotaPercentage
   case blank
   case usageMeaning
   case windowProgress
@@ -33,6 +34,7 @@ enum NotchSecondaryMetric: String, CaseIterable, Identifiable, Sendable {
 
   var label: String {
     switch self {
+    case .quotaPercentage: "Quota percentage"
     case .blank: "Blank"
     case .usageMeaning: "Used / left label"
     case .windowProgress: "Window progress"
@@ -45,7 +47,8 @@ enum NotchSecondaryMetric: String, CaseIterable, Identifiable, Sendable {
 
   var detail: String {
     switch self {
-    case .blank: "Keeps the right wing empty."
+    case .quotaPercentage: "Shows the primary Codex quota percentage."
+    case .blank: "Leaves this wing empty."
     case .usageMeaning: "Clarifies whether the primary percentage is used or remaining."
     case .windowProgress: "Shows how far through the longest quota window you are."
     case .paceBalance: "Shows points banked (+) or behind pace (-)."
@@ -55,6 +58,8 @@ enum NotchSecondaryMetric: String, CaseIterable, Identifiable, Sendable {
     }
   }
 }
+
+typealias NotchSecondaryMetric = NotchWingMetric
 
 enum CompactUsageTone: Equatable, Sendable {
   case neutral
@@ -71,13 +76,21 @@ struct CompactUsageSecondaryValue: Equatable, Sendable {
 
 enum CompactUsageSecondaryFormatter {
   static func value(
-    for metric: NotchSecondaryMetric,
+    for metric: NotchWingMetric,
     snapshot: CodexUsageSnapshot?,
     preference: UsageMetricPreference,
     forecast: ResetForecast?,
     now: Date = .init()
   ) -> CompactUsageSecondaryValue? {
     switch metric {
+    case .quotaPercentage:
+      guard let limit = snapshot?.primaryLimit else { return nil }
+      let percent = Int(limit.displayedPercent(for: preference).rounded())
+      return .init(
+        text: "\(percent)%",
+        accessibilityLabel: "Primary quota, \(percent) percent \(preference.accessibilityLabel)",
+        tone: .neutral
+      )
     case .blank:
       return nil
     case .usageMeaning:
@@ -119,7 +132,7 @@ enum CompactUsageSecondaryFormatter {
         let duration = compactDuration(resetsAt.timeIntervalSince(now))
       else { return nil }
       return .init(
-        text: "reset \(duration)",
+        text: duration,
         accessibilityLabel: "Quota resets in \(duration)",
         tone: .neutral
       )

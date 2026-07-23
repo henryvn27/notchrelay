@@ -264,7 +264,23 @@ button {
 }
 
 .macbook {
+  display: block;
   width: min(calc(100% - 2.5rem), 46rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: initial;
+}
+
+.macbook:focus-visible {
+  outline: 0;
+}
+
+.macbook:focus-visible .macbook-lid {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
 }
 
 .macbook-lid {
@@ -342,6 +358,33 @@ button {
     0 7.35rem 0 rgb(17 17 15 / 6%),
     3rem 8.4rem 0 rgb(17 17 15 / 5%);
   content: "";
+}
+
+.macbook-launch-hint {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 5;
+  min-height: 2rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgb(17 17 15 / 14%);
+  border-radius: 0.45rem;
+  align-content: center;
+  background: rgb(241 238 231 / 88%);
+  box-shadow: 0 0.35rem 1rem rgb(17 17 15 / 8%);
+  color: #3c3b37;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  transition: transform 180ms var(--ease-out), background-color 180ms ease;
+}
+
+.macbook:hover .macbook-launch-hint,
+.macbook:focus-visible .macbook-launch-hint {
+  background: var(--paper-raised);
+  transform: translateY(-0.125rem);
 }
 
 .island-stage {
@@ -594,6 +637,819 @@ button {
 
 .state-switcher button:active {
   background: #242421;
+}
+
+/* The immersive demo uses the app's actual logical geometry: 212 pt hardware gap,
+   two 42 pt wings, a 332 pt information drawer, and a 400 pt total height cap. */
+.simulator-dialog {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: #d8d5cd;
+  color: #171714;
+}
+
+.simulator-dialog::backdrop {
+  background: rgb(17 17 15 / 72%);
+}
+
+.simulator-dialog[open] {
+  animation: simulator-enter 320ms var(--ease-out) both;
+}
+
+.simulator-frame {
+  display: grid;
+  height: 100%;
+  padding: var(--space-4);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+}
+
+.simulator-toolbar {
+  display: flex;
+  width: min(100%, 88rem);
+  min-height: 3.5rem;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.simulator-toolbar h2,
+.simulator-toolbar p {
+  margin: 0;
+}
+
+.simulator-toolbar h2 {
+  font-family: var(--display);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  letter-spacing: -0.025em;
+}
+
+.simulator-kicker {
+  color: #6a6861;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.simulator-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.simulator-toolbar-actions > p {
+  color: #68665f;
+  font-size: var(--text-xs);
+}
+
+.simulator-close {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid rgb(17 17 15 / 16%);
+  border-radius: 50%;
+  background: #e7e4dc;
+  color: #2a2925;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  place-items: center;
+  transition: background-color 180ms ease, transform 180ms var(--ease-out);
+}
+
+.simulator-close:hover {
+  background: #f1eee7;
+  transform: rotate(4deg);
+}
+
+.simulator-close:active {
+  background: #c9c5bc;
+  transform: scale(0.96);
+}
+
+.simulator-bezel {
+  width: min(calc(100vw - 2rem), calc((100dvh - 8.75rem) * 1.6), 88rem);
+  min-width: 0;
+  margin: auto;
+  padding: 0.45rem;
+  border: 1px solid #30302d;
+  border-radius: 0.85rem;
+  background: #151513;
+  box-shadow: 0 2rem 5rem rgb(17 17 15 / 24%);
+}
+
+.simulator-display {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 0.48rem;
+  background: #c8c5bd;
+  box-shadow: inset 0 0 0 1px rgb(241 238 231 / 7%);
+}
+
+.simulator-menubar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  display: flex;
+  height: 1.75rem;
+  padding-inline: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+  background: rgb(226 223 216 / 92%);
+  color: #2b2a27;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.simulator-menu-left,
+.simulator-menu-right {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.simulator-menu-left {
+  padding-right: 7rem;
+}
+
+.simulator-apple {
+  color: #23221f;
+  font-size: 0.56rem;
+}
+
+.simulator-wallpaper {
+  position: absolute;
+  inset: 1.75rem 0 0;
+  overflow: hidden;
+  background: #b7b4ac;
+}
+
+.simulator-wallpaper span {
+  position: absolute;
+  display: block;
+  width: 58%;
+  height: 72%;
+  background: #cbc8c0;
+  transform: rotate(-14deg);
+}
+
+.simulator-wallpaper span:first-child {
+  top: 2%;
+  left: -12%;
+}
+
+.simulator-wallpaper span:nth-child(2) {
+  right: -19%;
+  bottom: -18%;
+  background: #a5a29b;
+  transform: rotate(23deg);
+}
+
+.simulator-wallpaper span:last-child {
+  top: 20%;
+  right: 17%;
+  width: 26%;
+  height: 48%;
+  background: #c1beb6;
+  transform: rotate(7deg);
+}
+
+.simulator-workspace {
+  position: absolute;
+  top: 17%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: min(58%, 42rem);
+  height: 62%;
+  overflow: hidden;
+  border: 1px solid rgb(17 17 15 / 14%);
+  border-radius: 0.75rem;
+  background: rgb(235 232 225 / 88%);
+  box-shadow: 0 1.5rem 3rem rgb(17 17 15 / 12%);
+  transform: translateX(-50%);
+  grid-template-columns: 28% 1fr;
+}
+
+.simulator-sidebar {
+  display: flex;
+  padding: var(--space-5) var(--space-4);
+  border-right: 1px solid rgb(17 17 15 / 9%);
+  flex-direction: column;
+  background: rgb(205 202 194 / 78%);
+  gap: 0.35rem;
+  color: #65635d;
+  font-size: 0.72rem;
+}
+
+.simulator-sidebar strong {
+  margin-bottom: var(--space-3);
+  color: #24231f;
+  font-family: var(--display);
+  font-size: 0.9rem;
+}
+
+.simulator-sidebar span {
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.35rem;
+}
+
+.simulator-sidebar .is-selected {
+  background: rgb(241 238 231 / 62%);
+  color: #2d2c28;
+  font-weight: 650;
+}
+
+.simulator-document {
+  padding: clamp(1rem, 3vw, 2.5rem);
+  color: #3b3935;
+}
+
+.simulator-document > strong,
+.simulator-document > p {
+  display: block;
+  max-width: 27rem;
+}
+
+.simulator-document > strong {
+  margin-top: 0.4rem;
+  color: #201f1c;
+  font-family: var(--display);
+  font-size: clamp(0.9rem, 1.7vw, 1.35rem);
+}
+
+.simulator-document > p {
+  margin: var(--space-2) 0 var(--space-5);
+  color: #6b6861;
+  font-size: clamp(0.62rem, 1vw, 0.8rem);
+}
+
+.simulator-eyebrow {
+  color: #85827a;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.simulator-document-lines {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.simulator-document-lines span {
+  height: 1px;
+  background: rgb(17 17 15 / 10%);
+}
+
+.simulator-document-lines span:nth-child(2) {
+  width: 82%;
+}
+
+.simulator-document-lines span:last-child {
+  width: 66%;
+}
+
+.sim-cowlick {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 8;
+  width: 332px;
+  height: 38px;
+  color: #f2f0ea;
+  transform: translateX(-50%);
+  transform-origin: top center;
+  transition: height 320ms var(--ease-out);
+}
+
+.sim-cowlick[data-expanded="true"] {
+  height: min(400px, calc(100% - 1rem));
+}
+
+.sim-notch-trigger {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 296px;
+  height: 38px;
+  margin-inline: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0 0 0.7rem 0.7rem;
+  background: #000;
+  color: #f2f0ea;
+  cursor: pointer;
+  grid-template-columns: 42px 212px 42px;
+  transition: background-color 160ms ease;
+}
+
+.sim-notch-trigger:hover,
+.sim-notch-trigger:focus-visible {
+  background: #060606;
+}
+
+.sim-notch-trigger:active {
+  background: #0d0d0d;
+}
+
+.sim-notch-trigger:focus-visible {
+  outline: 0;
+}
+
+.sim-notch-trigger:focus-visible .sim-wing {
+  background: rgb(211 160 102 / 12%);
+  box-shadow: inset 0 0 0 1px rgb(211 160 102 / 82%);
+}
+
+.sim-wing {
+  display: grid;
+  height: 38px;
+  align-items: center;
+  color: rgb(242 240 234 / 94%);
+  font-family: var(--body);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.sim-wing-left {
+  justify-content: center;
+}
+
+.sim-wing-right {
+  justify-content: center;
+  color: #a8d3b3;
+}
+
+.sim-hardware-gap {
+  position: relative;
+  display: block;
+  height: 38px;
+  background: #000;
+}
+
+.sim-camera {
+  position: absolute;
+  top: 9px;
+  right: 11px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #212720;
+  border-radius: 50%;
+  background: #0c100d;
+  box-shadow: inset 0 0 0 1px #060706;
+}
+
+.sim-notch-drawer {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  width: 332px;
+  max-height: 0;
+  overflow: hidden;
+  border-radius: 0 0 22px 22px;
+  background: #000;
+  box-shadow: 0 1rem 2.6rem rgb(17 17 15 / 22%);
+  opacity: 0;
+  transform: scaleY(0.96);
+  transform-origin: top;
+  transition:
+    max-height 320ms var(--ease-out),
+    opacity 150ms ease,
+    transform 320ms var(--ease-out);
+}
+
+.sim-cowlick[data-expanded="true"] .sim-notch-drawer {
+  max-height: min(366px, calc(100dvh - 10rem));
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.sim-drawer-content {
+  max-height: min(366px, calc(100dvh - 10rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 4px;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.sim-drawer-content::-webkit-scrollbar,
+.sim-session-viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.sim-drawer-content:focus-visible,
+.sim-session-viewport:focus-visible {
+  outline: 2px solid #d3a066;
+  outline-offset: -3px;
+}
+
+.sim-activity,
+.sim-quota,
+.sim-compact-row,
+.sim-end-actions {
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+
+.sim-activity {
+  padding-top: 2px;
+}
+
+.sim-section-heading {
+  display: flex;
+  height: 40px;
+  padding-inline: 14px;
+  align-items: center;
+  gap: 9px;
+}
+
+.sim-section-heading h3,
+.sim-section-heading p,
+.sim-section-title-row h3 {
+  margin: 0;
+}
+
+.sim-section-heading h3 {
+  color: rgb(255 255 255 / 94%);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.sim-section-heading p {
+  margin-top: 2px;
+  color: rgb(255 255 255 / 58%);
+  font-size: 10.5px;
+  line-height: 1.1;
+}
+
+.sim-working-mark {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border: 2px solid #8bc39c;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sim-spin 1.1s linear infinite;
+}
+
+.sim-session-viewport {
+  max-height: 93px;
+  padding: 4px 14px 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.sim-session {
+  display: grid;
+  width: 100%;
+  height: 31px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  align-items: center;
+  background: transparent;
+  color: rgb(255 255 255 / 94%);
+  grid-template-columns: 20px minmax(0, 1fr);
+  text-align: left;
+}
+
+.sim-session.is-current {
+  background: rgb(255 255 255 / 6%);
+}
+
+.sim-session > span:last-child,
+.sim-session strong,
+.sim-session small {
+  display: block;
+  min-width: 0;
+}
+
+.sim-session strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-session small {
+  overflow: hidden;
+  margin-top: 1px;
+  color: rgb(255 255 255 / 56%);
+  font-size: 9px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-session-status {
+  width: 7px;
+  height: 7px;
+  margin-left: 4px;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 50%;
+  color: #e2b367;
+  font-size: 9px;
+  line-height: 7px;
+  text-align: center;
+}
+
+.sim-session-status.is-working {
+  border: 2px solid #8bc39c;
+  border-top-color: transparent;
+}
+
+.sim-session-status.is-waiting {
+  border: 0;
+}
+
+.sim-session-status.is-complete {
+  border: 0;
+  color: #8bc39c;
+}
+
+.sim-quota {
+  padding: 7px 14px 8px;
+}
+
+.sim-section-title-row,
+.sim-quota-window > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sim-section-title-row {
+  margin-bottom: 5px;
+}
+
+.sim-section-title-row h3,
+.sim-quota-window span,
+.sim-quota-window strong {
+  color: rgb(255 255 255 / 92%);
+  font-size: 10px;
+}
+
+.sim-section-title-row h3,
+.sim-quota-window strong {
+  font-weight: 650;
+}
+
+.sim-section-title-row > span,
+.sim-section-title-row > time,
+.sim-quota-window small {
+  color: rgb(255 255 255 / 54%);
+  font-size: 8.5px;
+}
+
+.sim-quota-window + .sim-quota-window {
+  margin-top: 6px;
+}
+
+.sim-quota-track {
+  --quota: 50%;
+  --pace: 50%;
+  position: relative;
+  height: 4px;
+  margin-block: 3px 2px;
+  overflow: visible;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 13%);
+}
+
+.sim-quota-track > span {
+  display: block;
+  width: var(--quota);
+  height: 100%;
+  border-radius: inherit;
+  background: #c9c7bf;
+}
+
+.sim-quota-track > i {
+  position: absolute;
+  top: -2px;
+  left: var(--pace);
+  width: 1px;
+  height: 8px;
+  background: rgb(255 255 255 / 56%);
+}
+
+.sim-quota-weekly {
+  --quota: 78%;
+  --pace: 67%;
+}
+
+.sim-quota-five-hour {
+  --quota: 64%;
+  --pace: 58%;
+}
+
+.sim-quota-spark {
+  --quota: 91%;
+  --pace: 84%;
+}
+
+.sim-quota-window .is-ahead {
+  color: #8bc39c;
+}
+
+.sim-compact-row {
+  display: flex;
+  min-height: 38px;
+  padding: 6px 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sim-compact-row span,
+.sim-compact-row strong,
+.sim-compact-row small {
+  display: block;
+}
+
+.sim-compact-row strong {
+  color: rgb(255 255 255 / 92%);
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.sim-compact-row small {
+  margin-top: 2px;
+  color: rgb(255 255 255 / 54%);
+  font-size: 8.5px;
+}
+
+.sim-end-actions {
+  display: flex;
+  min-height: 28px;
+  padding-inline: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.sim-end-actions button {
+  display: inline-flex;
+  min-height: 28px;
+  padding: 7px 4px;
+  border: 0;
+  border-radius: 4px;
+  align-items: center;
+  background: transparent;
+  color: rgb(255 255 255 / 72%);
+  cursor: pointer;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.sim-end-actions button:hover,
+.sim-end-actions button:focus-visible {
+  background: rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 92%);
+}
+
+.sim-end-actions button:active {
+  background: rgb(255 255 255 / 13%);
+}
+
+.simulator-toast {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 10;
+  max-width: 18rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgb(17 17 15 / 12%);
+  border-radius: 0.45rem;
+  background: rgb(241 238 231 / 92%);
+  box-shadow: 0 0.75rem 2rem rgb(17 17 15 / 12%);
+  color: #45433e;
+  font-size: 0.68rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.4rem);
+  transition: opacity 180ms ease, transform 180ms var(--ease-out);
+}
+
+.simulator-toast:not(:empty) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.simulator-dock {
+  position: absolute;
+  bottom: 1.1rem;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  padding: 0.4rem;
+  border: 1px solid rgb(255 255 255 / 36%);
+  border-radius: 0.7rem;
+  background: rgb(229 226 219 / 62%);
+  box-shadow: 0 0.6rem 1.5rem rgb(17 17 15 / 10%);
+  gap: 0.35rem;
+  transform: translateX(-50%);
+}
+
+.simulator-dock span {
+  position: relative;
+  display: block;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 0.35rem;
+  background: #77746d;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
+}
+
+.simulator-dock span:nth-child(2) {
+  background: #565c57;
+}
+
+.simulator-dock span:nth-child(3) {
+  background: #191917;
+}
+
+.simulator-dock span:nth-child(4) {
+  background: #8a8176;
+}
+
+.simulator-dock span:last-child {
+  background: #6d7476;
+}
+
+.simulator-dock .is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.27rem;
+  left: 0;
+  width: 0.2rem;
+  height: 0.2rem;
+  margin: auto;
+  border-radius: 50%;
+  background: #292824;
+  content: "";
+}
+
+.simulator-note {
+  display: flex;
+  min-height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  color: #69665f;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+}
+
+.simulator-note strong {
+  color: #2b2a26;
+}
+
+html[data-simulator-open] {
+  overflow: hidden;
+}
+
+@keyframes simulator-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sim-spin {
+  to {
+    transform: rotate(1turn);
+  }
 }
 
 .hero-copy {
@@ -1321,6 +2177,23 @@ button {
 }
 
 @media (max-width: 720px) {
+  .simulator-frame {
+    padding: var(--space-3);
+  }
+
+  .simulator-toolbar-actions > p {
+    display: none;
+  }
+
+  .simulator-bezel {
+    width: min(calc(100vw - 1.5rem), calc((100dvh - 8rem) * 1.6));
+  }
+
+  .simulator-note {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+  }
+
   .state-proof {
     grid-template-columns: 1fr;
   }
@@ -1360,6 +2233,81 @@ button {
   .hero {
     padding: 6rem 1rem var(--space-7);
     gap: var(--space-6);
+  }
+
+  .simulator-frame {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .simulator-toolbar {
+    min-height: 3rem;
+  }
+
+  .simulator-toolbar h2 {
+    font-size: 0.95rem;
+  }
+
+  .simulator-kicker,
+  .simulator-note {
+    font-size: 0.52rem;
+  }
+
+  .simulator-close {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .simulator-bezel {
+    width: calc(100vw - 1rem);
+    padding: 0.3rem;
+    border-radius: 0.65rem;
+  }
+
+  .simulator-menubar {
+    height: 1.35rem;
+    padding-inline: 0.45rem;
+    font-size: 0.54rem;
+  }
+
+  .simulator-menu-left {
+    padding-right: 4.5rem;
+  }
+
+  .simulator-menu-left span:not(.simulator-apple),
+  .simulator-menu-right span {
+    display: none;
+  }
+
+  .simulator-wallpaper {
+    inset-block-start: 1.35rem;
+  }
+
+  .simulator-workspace {
+    top: 20%;
+    width: 76%;
+    height: 59%;
+    grid-template-columns: 1fr;
+  }
+
+  .simulator-sidebar {
+    display: none;
+  }
+
+  .simulator-dock,
+  .simulator-toast {
+    transform: translateX(-50%) scale(0.78);
+    transform-origin: bottom center;
+  }
+
+  .simulator-toast {
+    right: auto;
+    left: 50%;
+    width: min(18rem, calc(100% - 1rem));
+  }
+
+  .simulator-toast:not(:empty) {
+    transform: translateX(-50%) scale(0.78);
   }
 
   .island-stage {
@@ -1510,6 +2458,16 @@ button {
 
   .footer-content nav {
     gap: var(--space-4);
+  }
+}
+
+@media (max-width: 350px) {
+  .sim-cowlick {
+    transform: translateX(-50%) scale(0.82);
+  }
+
+  .simulator-note span:last-child {
+    display: none;
   }
 }
 

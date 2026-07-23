@@ -183,7 +183,12 @@ struct MenuBarContentView: View {
     .onAppear {
       services.usageStore.refreshForMenuPresentation()
       Task { await refreshHookTrust() }
-      Task { await services.providerAccountsController.load() }
+      Task {
+        await services.providerAccountsController.load()
+        if !services.providerAccountsController.accounts.isEmpty {
+          await services.providerAccountsController.refreshAll()
+        }
+      }
     }
   }
 
@@ -207,8 +212,7 @@ struct MenuBarContentView: View {
           showAPICostEstimate: services.settings.showAPICostEstimate,
           showForecast: services.settings.showResetForecast,
           metricPreference: services.settings.usageMetricPreference,
-          density: .detailed,
-          refresh: { services.usageStore.refreshOfficial(force: true) }
+          density: .detailed
         )
       }
 
@@ -364,7 +368,7 @@ struct MenuBarContentView: View {
         WindowCoordinator.shared.openDiagnostics()
       }
       if services.updateService.canCheckForUpdates {
-        actionButton("Check for Updates", systemImage: "arrow.triangle.2.circlepath") {
+        actionButton("Check for Updates", systemImage: "arrow.down.circle") {
           services.updateService.checkForUpdates()
         }
       }
@@ -524,26 +528,6 @@ struct ProviderBillingSectionView: View {
           Text(billingAmount(for: selectedAccount.id, presentation: selectedPresentation))
             .font(.caption.weight(.semibold).monospacedDigit())
         }
-        Button {
-          Task { await controller.refreshSelected() }
-        } label: {
-          if let selectedID = controller.selectedAccountID,
-            services.providerBillingStore.refreshingAccountIDs.contains(selectedID)
-          {
-            ProgressView()
-              .controlSize(.mini)
-          } else {
-            Image(systemName: "arrow.clockwise")
-          }
-        }
-        .buttonStyle(.plain)
-        .disabled(
-          controller.selectedAccount == nil
-            || controller.selectedAccountID.map(
-              services.providerBillingStore.refreshingAccountIDs.contains) == true
-        )
-        .help("Refresh selected billing account")
-        .accessibilityLabel("Refresh selected billing account")
       }
 
       if let selected = selectedAccount {

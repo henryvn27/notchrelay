@@ -30,9 +30,6 @@ struct ProviderAccountsView: View {
             ProgressView()
               .controlSize(.small)
               .accessibilityLabel("Refreshing Codex quota")
-          } else {
-            Button("Refresh") { usageStore.refreshIfNeeded(force: true) }
-              .accessibilityLabel("Refresh local Codex quota")
           }
         }
         Text(
@@ -69,7 +66,6 @@ struct ProviderAccountsView: View {
               isRefreshing: billingStore.refreshingAccountIDs.contains(account.id),
               isRemoving: removingAccountID == account.id,
               select: { _ = controller.selectAccount(id: account.id) },
-              refresh: { refresh(account) },
               rename: { editorPurpose = .rename(account) },
               replaceCredential: { editorPurpose = .replaceCredential(account) },
               remove: { pendingRemoval = account }
@@ -77,21 +73,10 @@ struct ProviderAccountsView: View {
           }
         }
 
-        HStack {
-          Button {
-            editorPurpose = .add
-          } label: {
-            Label("Add Account", systemImage: "plus")
-          }
-          Spacer()
-          Button("Refresh All") {
-            noticeMessage = nil
-            Task { await controller.refreshAll() }
-          }
-          .disabled(controller.accounts.isEmpty || !billingStore.refreshingAccountIDs.isEmpty)
-          .accessibilityHint(
-            controller.accounts.isEmpty
-              ? "Add a billing account first" : "Refreshes every saved billing account")
+        Button {
+          editorPurpose = .add
+        } label: {
+          Label("Add Account", systemImage: "plus")
         }
 
         if let errorMessage = controller.errorMessage {
@@ -114,6 +99,7 @@ struct ProviderAccountsView: View {
     }
     .formStyle(.grouped)
     .task {
+      usageStore.refreshForMenuPresentation()
       await controller.load()
       guard !controller.accounts.isEmpty else { return }
       await controller.refreshAll()
@@ -223,7 +209,6 @@ private struct ProviderAccountRow: View {
   let isRefreshing: Bool
   let isRemoving: Bool
   let select: () -> Void
-  let refresh: () -> Void
   let rename: () -> Void
   let replaceCredential: () -> Void
   let remove: () -> Void
@@ -254,9 +239,6 @@ private struct ProviderAccountRow: View {
       .accessibilityHint("Selects this billing account")
 
       Menu {
-        Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
-          .disabled(isRefreshing || isRemoving)
-        Divider()
         Button("Rename…", systemImage: "pencil", action: rename)
           .disabled(isRemoving)
         Button("Replace Admin Key…", systemImage: "key", action: replaceCredential)

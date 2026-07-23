@@ -34,20 +34,23 @@ struct SettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-        Section("Menu bar") {
-          Picker("Display", selection: $settings.menuBarPresentation) {
-            ForEach(MenuBarPresentation.allCases) { presentation in
-              Text(presentation.label).tag(presentation)
+        Section("Notch wings") {
+          Picker("Left wing", selection: $settings.notchLeftWingMetric) {
+            ForEach(NotchWingMetric.allCases) { metric in
+              Text(metric.label).tag(metric)
             }
           }
-          Text(settings.menuBarPresentation.guidance)
+          Text(wingMetricGuidance(settings.notchLeftWingMetric))
             .font(.caption)
             .foregroundStyle(.secondary)
-          Text(
-            "Used automatically on Macs without a notch, or whenever Menu bar is selected above."
-          )
-          .font(.caption)
-          .foregroundStyle(.secondary)
+          Picker("Right wing", selection: $settings.notchSecondaryMetric) {
+            ForEach(NotchWingMetric.allCases) { metric in
+              Text(metric.label).tag(metric)
+            }
+          }
+          Text(wingMetricGuidance(settings.notchSecondaryMetric))
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
         Section("Expanded notch") {
           Toggle("Current work", isOn: $settings.showNotchCurrentWork)
@@ -62,8 +65,21 @@ struct SettingsView: View {
             .accessibilityIdentifier("settings-notch-reset-forecast")
           Toggle("Provider billing", isOn: $settings.showNotchProviderBilling)
             .accessibilityIdentifier("settings-notch-provider-billing")
+          Text("Choose what appears when the notch expands.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        Section("Menu bar") {
+          Picker("Display", selection: $settings.menuBarPresentation) {
+            ForEach(MenuBarPresentation.allCases) { presentation in
+              Text(presentation.label).tag(presentation)
+            }
+          }
+          Text(settings.menuBarPresentation.guidance)
+            .font(.caption)
+            .foregroundStyle(.secondary)
           Text(
-            "Choose exactly what appears after the notch expands. These switches affect only the expanded notch; quota sources must also be enabled in the Quota tab."
+            "Used automatically on Macs without a notch, or whenever Menu bar is selected above."
           )
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -102,7 +118,7 @@ struct SettingsView: View {
           }
           Toggle("Reduce Cowlick animation", isOn: $settings.reducedAnimation)
         }
-        Section("System") {
+        Section("Startup") {
           Toggle(
             "Launch at login",
             isOn: Binding(
@@ -116,44 +132,42 @@ struct SettingsView: View {
       .tabItem { Label("General", systemImage: "slider.horizontal.3") }
 
       Form {
-        Section("Codex integration") {
-          if hookTrust.state != .trusted && hookTrust.state != .notChecked {
-            Label(integrationAttentionTitle, systemImage: "exclamationmark.triangle.fill")
-              .font(.headline)
-              .foregroundStyle(NotchTheme.warning)
-            Text(CodexIntegrationPresentation.guidance(for: hookTrust.state))
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .fixedSize(horizontal: false, vertical: true)
-            HStack {
-              if hookTrust.state == .needsReview {
-                Button("Copy /hooks") { CodexIntegrationPresentation.copyReviewCommand() }
-              }
-              if case .unavailable = hookTrust.state {
-                Button("Open Diagnostics") { WindowCoordinator.shared.openDiagnostics() }
-              }
-              Button("Check Again") { Task { await refreshHookTrust() } }
+        Section("Codex connection") {
+          Label(integrationStatusTitle, systemImage: integrationStatusSymbol)
+            .font(.headline)
+            .foregroundStyle(integrationStatusColor)
+          Text(integrationStatusMessage)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+          Button("Check & Repair Connection") { checkAndRepairIntegration() }
+            .disabled(integrationTaskInProgress)
+
+          if hookTrust.state == .needsReview {
+            Button("Copy /hooks & Open Codex") {
+              CodexIntegrationPresentation.copyReviewCommand()
+              CodexActivationService.openCodex(fallbackDirectory: nil)
             }
           }
-          LabeledContent("Configuration", value: hookStatus.summary)
-          LabeledContent("Codex trust", value: hookTrust.state.summary)
-          Stepper(value: $settings.approvalTimeout, in: 5...60, step: 5) {
-            LabeledContent("Approval fallback", value: "\(Int(settings.approvalTimeout)) seconds")
+          if case .unavailable = hookTrust.state {
+            Button("Open Diagnostics") { WindowCoordinator.shared.openDiagnostics() }
           }
-          HStack {
-            Button("Install or Repair") { installHooks() }
-            Button("Remove Integration") { removeIntegration() }
-            Button("Reveal Configuration") { revealHooks() }
-          }
-          .disabled(integrationTaskInProgress)
           if !integrationMessage.isEmpty {
             Text(integrationMessage).font(.caption).foregroundStyle(.secondary)
           }
-          if hookTrust.state == .trusted || hookTrust.state == .notChecked {
-            Text(hookTrustGuidance)
-              .font(.caption)
-              .foregroundStyle(.secondary)
+        }
+        Section("Advanced") {
+          DisclosureGroup("Integration options") {
+            Stepper(value: $settings.approvalTimeout, in: 5...60, step: 5) {
+              LabeledContent(
+                "Approval fallback", value: "\(Int(settings.approvalTimeout)) seconds")
+            }
+            LabeledContent("Hook configuration", value: hookStatus.summary)
+            LabeledContent("Codex review", value: hookTrust.state.summary)
+            Button("Reveal Hook Configuration") { revealHooks() }
+            Button("Remove Cowlick Hooks", role: .destructive) { removeIntegration() }
           }
+          .disabled(integrationTaskInProgress)
         }
         Section("Test integration") {
           HStack {
@@ -179,34 +193,33 @@ struct SettingsView: View {
                 services.usageStore.settingsDidChange()
               }
             ))
-          Picker("Primary quota metric", selection: $settings.usageMetricPreference) {
+          Picker("Quota percentage", selection: $settings.usageMetricPreference) {
             ForEach(UsageMetricPreference.allCases, id: \.self) { preference in
               Text(preference.label).tag(preference)
             }
           }
           .pickerStyle(.segmented)
-          Text("Cowlick uses this percentage in the menu bar and quota views.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-          Picker("Notch right wing", selection: $settings.notchSecondaryMetric) {
-            ForEach(NotchSecondaryMetric.allCases) { metric in
-              Text(metric.label).tag(metric)
-            }
-          }
           .disabled(!settings.showCodexUsage)
-          Text(
-            settings.notchSecondaryMetric == .resetProbability && !settings.showResetForecast
-              ? "\(settings.notchSecondaryMetric.detail) Enable the unofficial forecast below."
-              : settings.notchSecondaryMetric.detail
-          )
-          .font(.caption)
-          .foregroundStyle(.secondary)
           LabeledContent("Status", value: services.usageStore.officialStatus)
           Text(
-            "Cowlick reads this from the Codex app installed on your Mac. It does not read your Codex account file or save quota history."
+            "Cowlick reads quota from the Codex app on this Mac. It does not read your Codex account file or save quota history."
           )
           .font(.caption)
           .foregroundStyle(.secondary)
+        }
+        Section("Quota windows") {
+          Group {
+            Toggle("5-hour window", isOn: $settings.showFiveHourQuotaWindow)
+              .accessibilityIdentifier("settings-quota-five-hour")
+            Toggle("Weekly window", isOn: $settings.showWeeklyQuotaWindow)
+              .accessibilityIdentifier("settings-quota-weekly")
+            Toggle("GPT-5.3-Codex Spark window", isOn: $settings.showSparkQuotaWindow)
+              .accessibilityIdentifier("settings-quota-spark")
+          }
+          .disabled(!settings.showCodexUsage)
+          Text("Choose each official Codex window Cowlick shows.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
         Section("API-price equivalent") {
           Toggle(
@@ -257,10 +270,6 @@ struct SettingsView: View {
           )
           .font(.caption)
           .foregroundStyle(.secondary)
-        }
-        Section {
-          Button("Refresh Now") { services.usageStore.refreshIfNeeded(force: true) }
-            .disabled(services.usageStore.isRefreshing)
         }
       }
       .formStyle(.grouped)
@@ -361,10 +370,10 @@ struct SettingsView: View {
     hookTrust = await services.hookTrustService.inspect()
   }
 
-  private func installHooks() {
+  private func checkAndRepairIntegration() {
     guard !integrationTaskInProgress else { return }
     integrationTaskInProgress = true
-    integrationMessage = "Installing…"
+    integrationMessage = "Checking Cowlick's Codex connection…"
     Task {
       defer { integrationTaskInProgress = false }
       let result = await Task.detached { () -> HookTaskResult in
@@ -382,7 +391,7 @@ struct SettingsView: View {
         services.settings.integrationIntentionallyRemoved = false
       }
       hookTrust = await services.hookTrustService.inspect()
-      integrationMessage = result.errorMessage ?? ""
+      integrationMessage = result.errorMessage ?? successfulIntegrationMessage
     }
   }
 
@@ -419,16 +428,51 @@ struct SettingsView: View {
     }
   }
 
-  private var hookTrustGuidance: String {
-    CodexIntegrationPresentation.guidance(for: hookTrust.state)
+  private func wingMetricGuidance(_ metric: NotchWingMetric) -> String {
+    if metric == .resetProbability && !services.settings.showResetForecast {
+      return "\(metric.detail) Enable the unofficial forecast in Quota."
+    }
+    return metric.detail
   }
 
-  private var integrationAttentionTitle: String {
+  private var integrationStatusTitle: String {
+    guard hookStatus.isHealthy else { return "Connection needs repair" }
+    return switch hookTrust.state {
+    case .trusted: "Cowlick is connected"
+    case .needsReview: "Review needed in Codex"
+    case .incomplete: "Connection needs repair"
+    case .unavailable: "Connection could not be checked"
+    case .notChecked: "Connection not checked"
+    }
+  }
+
+  private var integrationStatusMessage: String {
+    guard hookStatus.isHealthy else {
+      return
+        "Cowlick can safely install or repair its local hooks without replacing unrelated Codex configuration."
+    }
+    return CodexIntegrationPresentation.guidance(for: hookTrust.state)
+  }
+
+  private var integrationStatusSymbol: String {
+    if hookStatus.isHealthy, hookTrust.state == .trusted { return "checkmark.circle.fill" }
+    if hookTrust.state == .notChecked { return "questionmark.circle" }
+    return "exclamationmark.triangle.fill"
+  }
+
+  private var integrationStatusColor: Color {
+    if hookStatus.isHealthy, hookTrust.state == .trusted { return .green }
+    if hookTrust.state == .notChecked { return .secondary }
+    return NotchTheme.warning
+  }
+
+  private var successfulIntegrationMessage: String {
     switch hookTrust.state {
-    case .needsReview: "Codex is skipping Cowlick"
-    case .incomplete: "Integration needs repair"
-    case .unavailable: "Integration could not be verified"
-    case .notChecked, .trusted: ""
+    case .trusted: "Connection checked. Cowlick is ready."
+    case .needsReview: "Hooks are installed. Open Codex, paste /hooks, and approve Cowlick once."
+    case .incomplete: "Codex still reports incomplete hooks. Check again or open Diagnostics."
+    case .unavailable: "Hooks are installed, but Codex trust could not be checked."
+    case .notChecked: "Hooks are installed."
     }
   }
 
@@ -453,6 +497,7 @@ struct SettingsView: View {
       let result = await services.capsLockService.testSignal()
       capsStatus = result == .available ? "Native HID signal test passed" : result.summary
       services.settings.capsLockEnabled = result == .available
+      if result == .available { services.sessionStore.refreshCapsLockAttention(force: true) }
     }
   }
 

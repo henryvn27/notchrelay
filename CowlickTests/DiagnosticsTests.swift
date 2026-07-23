@@ -1218,7 +1218,9 @@ final class DiagnosticsTests: XCTestCase {
     XCTAssertTrue(detail.contains("Usage and local activity"), detail)
     XCTAssertTrue(detail.contains("Approval actions"), detail)
     XCTAssertFalse(detail.contains("fully connected"), detail)
-    XCTAssertTrue(instruction.contains("Paste /hooks in Codex"), instruction)
+    XCTAssertTrue(instruction.contains("Paste the copied command"), instruction)
+    XCTAssertTrue(instruction.contains("approve Cowlick once"), instruction)
+    XCTAssertTrue(instruction.contains("checks automatically"), instruction)
     XCTAssertTrue(instruction.contains("then return"), instruction)
   }
 

@@ -6,13 +6,19 @@ enum UsageSectionDensity {
 }
 
 struct UsageSectionView: View {
+  enum QuotaWindowKind: Equatable {
+    case fiveHour
+    case weekly
+    case spark
+    case other
+  }
+
   let store: UsageStore
   let showOfficialUsage: Bool
   let showAPICostEstimate: Bool
   let showForecast: Bool
   let metricPreference: UsageMetricPreference
   let density: UsageSectionDensity
-  let refresh: () -> Void
   @State private var presentationDate = Date()
 
   var body: some View {
@@ -50,12 +56,11 @@ struct UsageSectionView: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        Spacer()
-        officialRefreshButton
+        Spacer(minLength: 0)
       }
 
       if let snapshot = store.snapshot {
-        ForEach(snapshot.limits) { limit in
+        ForEach(visibleQuotaLimits(snapshot.limits)) { limit in
           compactQuotaWindow(limit, observedAt: snapshot.fetchedAt)
         }
       } else if let error = store.officialError {
@@ -123,7 +128,6 @@ struct UsageSectionView: View {
           )
           .font(.caption.weight(.semibold).monospacedDigit())
         }
-        apiCostRefreshButton
       }
 
       if let estimate = store.apiCostEstimate {
@@ -143,15 +147,14 @@ struct UsageSectionView: View {
   private var compactForecast: some View {
     VStack(alignment: .leading, spacing: 2) {
       HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Text("Reset forecast")
+        Text("Reset likelihood")
           .font(.caption.weight(.semibold))
         Spacer()
         if let forecast = store.forecast {
-          Text(forecast.resetAnnounced ? "Announced" : "\(Int(forecast.score.rounded()))%")
+          Text(Self.compactForecastPrimaryText(forecast))
             .font(.caption.weight(.semibold).monospacedDigit())
             .foregroundStyle(forecast.resetAnnounced ? NotchTheme.success : .primary)
         }
-        forecastRefreshButton
       }
 
       if let forecast = store.forecast {
@@ -165,6 +168,20 @@ struct UsageSectionView: View {
       }
     }
     .accessibilityElement(children: .contain)
+    .accessibilityLabel("Unofficial reset forecast")
+    .accessibilityValue(
+      store.forecast.map(Self.compactForecastAccessibilityValue) ?? "Unavailable"
+    )
+  }
+
+  nonisolated static func compactForecastPrimaryText(_ forecast: ResetForecast) -> String {
+    forecast.resetAnnounced ? "Announced" : "\(Int(forecast.score.rounded()))%"
+  }
+
+  nonisolated static func compactForecastAccessibilityValue(_ forecast: ResetForecast) -> String {
+    forecast.resetAnnounced
+      ? "A Codex quota reset has been announced"
+      : "\(Int(forecast.score.rounded())) percent likelihood in the next 48 hours"
   }
 
   private func compactPaceLabel(_ pace: QuotaPace) -> String {
@@ -198,7 +215,7 @@ struct UsageSectionView: View {
       forecast.fetchedAt.map {
         " · updated \(RelativeTimeLabel.string(for: $0, relativeTo: presentationDate))"
       } ?? ""
-    return "Will Codex Reset? · next 48h\(freshness)"
+    return "Next 48h\(freshness)"
   }
 
   private var apiEquivalentCost: some View {
@@ -211,8 +228,7 @@ struct UsageSectionView: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        Spacer()
-        apiCostRefreshButton
+        Spacer(minLength: 0)
       }
 
       if let estimate = store.apiCostEstimate {
@@ -245,7 +261,7 @@ struct UsageSectionView: View {
             .foregroundStyle(.orange)
         }
         if store.apiCostError != nil {
-          Label("Refresh failed · showing the last estimate", systemImage: "arrow.clockwise.circle")
+          Label("Refresh failed · showing the last estimate", systemImage: "exclamationmark.circle")
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
@@ -277,8 +293,7 @@ struct UsageSectionView: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        Spacer()
-        officialRefreshButton
+        Spacer(minLength: 0)
       }
 
       if let snapshot = store.snapshot {
@@ -286,11 +301,11 @@ struct UsageSectionView: View {
           .font(.caption2)
           .foregroundStyle(store.officialError == nil ? Color.secondary : Color.orange)
         if store.officialError != nil {
-          Label("Refresh failed", systemImage: "arrow.clockwise.circle")
+          Label("Refresh failed", systemImage: "exclamationmark.circle")
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        ForEach(snapshot.limits) { limit in
+        ForEach(visibleQuotaLimits(snapshot.limits)) { limit in
           VStack(alignment: .leading, spacing: 4) {
             HStack {
               Text(limit.name)
@@ -338,27 +353,21 @@ struct UsageSectionView: View {
   }
 
   private var thirdPartyForecast: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
         VStack(alignment: .leading, spacing: 1) {
-          Text("Unofficial reset forecast")
+          Text("Reset likelihood")
             .font(.caption.weight(.semibold))
-          Link(ResetForecast.sourceName, destination: ResetForecast.sourceURL)
+          Text("Unofficial · next 48h")
             .font(.caption2)
+            .foregroundStyle(.secondary)
         }
         Spacer()
         if let forecast = store.forecast {
-          if forecast.resetAnnounced {
-            Label("Reset announced", systemImage: "checkmark.circle.fill")
-              .font(.caption.weight(.semibold))
-              .foregroundStyle(.green)
-          } else {
-            Text(forecast.scoreLabel)
-              .font(.caption.weight(.medium))
-              .monospacedDigit()
-          }
+          Text(Self.compactForecastPrimaryText(forecast))
+            .font(.caption.weight(.semibold).monospacedDigit())
+            .foregroundStyle(forecast.resetAnnounced ? NotchTheme.success : .primary)
         }
-        forecastRefreshButton
       }
 
       if store.forecast == nil {
@@ -371,8 +380,9 @@ struct UsageSectionView: View {
 
       if let fetchedAt = store.forecast?.fetchedAt {
         HStack(spacing: 4) {
+          Link(ResetForecast.sourceName, destination: ResetForecast.sourceURL)
           Text(
-            "Source updated \(RelativeTimeLabel.string(for: fetchedAt, relativeTo: presentationDate))"
+            "· updated \(RelativeTimeLabel.string(for: fetchedAt, relativeTo: presentationDate))"
           )
           if let checkedAt = store.lastForecastRefresh {
             Text(
@@ -382,77 +392,36 @@ struct UsageSectionView: View {
         }
         .font(.caption2)
         .foregroundStyle(store.forecastError == nil ? Color.secondary : Color.orange)
+        .lineLimit(1)
+      } else if store.forecast != nil {
+        Link(ResetForecast.sourceName, destination: ResetForecast.sourceURL)
+          .font(.caption2)
       }
 
       if let error = store.forecastError, store.forecast != nil {
-        Label("Stale data · \(error)", systemImage: "arrow.clockwise.circle")
+        Label("Stale data · \(error)", systemImage: "exclamationmark.circle")
           .font(.caption2)
           .foregroundStyle(.orange)
           .fixedSize(horizontal: false, vertical: true)
       }
 
       if store.forecastError == ResetForecastServiceError.unavailable.errorDescription {
-        Text(ResetForecast.outageNote)
+        Text("Source outage · Cowlick does not use the website's fallback snapshot.")
           .font(.caption2)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
       }
 
-      Text(ResetForecast.disclaimer)
+      Text("Third-party data as provided · not a Cowlick estimate or guarantee.")
         .font(.caption2)
         .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
+        .lineLimit(2)
     }
     .accessibilityElement(children: .contain)
-  }
-
-  private var officialRefreshButton: some View {
-    Button(action: refresh) {
-      if store.isOfficialRefreshing {
-        ProgressView()
-          .controlSize(.mini)
-      } else {
-        Image(systemName: "arrow.clockwise")
-      }
-    }
-    .buttonStyle(.plain)
-    .disabled(store.isOfficialRefreshing)
-    .help("Refresh quota")
-    .accessibilityLabel("Refresh quota")
-  }
-
-  private var apiCostRefreshButton: some View {
-    Button {
-      store.refreshAPICost(force: true)
-    } label: {
-      if store.isAPICostRefreshing {
-        ProgressView()
-          .controlSize(.mini)
-      } else {
-        Image(systemName: "arrow.clockwise")
-      }
-    }
-    .buttonStyle(.plain)
-    .disabled(store.isAPICostRefreshing)
-    .help("Refresh API-price equivalent")
-    .accessibilityLabel("Refresh API-price equivalent")
-  }
-
-  private var forecastRefreshButton: some View {
-    Button {
-      store.refreshForecast(force: true)
-    } label: {
-      if store.isForecastRefreshing {
-        ProgressView()
-          .controlSize(.mini)
-      } else {
-        Image(systemName: "arrow.clockwise")
-      }
-    }
-    .buttonStyle(.plain)
-    .disabled(store.isForecastRefreshing)
-    .help("Refresh unofficial reset forecast")
-    .accessibilityLabel("Refresh unofficial reset forecast")
+    .accessibilityLabel("Unofficial reset forecast")
+    .accessibilityValue(
+      store.forecast.map(Self.compactForecastAccessibilityValue) ?? "Unavailable"
+    )
   }
 
   private func loadingRow(_ text: String) -> some View {
@@ -474,6 +443,53 @@ struct UsageSectionView: View {
   private func percentLabel(for limit: CodexUsageLimit) -> String {
     let percent = Int(limit.displayedPercent(for: metricPreference).rounded())
     return "\(percent)% \(metricPreference.accessibilityLabel)"
+  }
+
+  private func visibleQuotaLimits(_ limits: [CodexUsageLimit]) -> [CodexUsageLimit] {
+    Self.visibleQuotaLimits(
+      limits,
+      showFiveHour: store.settings.showFiveHourQuotaWindow,
+      showWeekly: store.settings.showWeeklyQuotaWindow,
+      showSpark: store.settings.showSparkQuotaWindow
+    )
+  }
+
+  nonisolated static func visibleQuotaLimits(
+    _ limits: [CodexUsageLimit],
+    showFiveHour: Bool,
+    showWeekly: Bool,
+    showSpark: Bool
+  ) -> [CodexUsageLimit] {
+    limits.filter { limit in
+      switch quotaWindowKind(for: limit) {
+      case .fiveHour: showFiveHour
+      case .weekly: showWeekly
+      case .spark: showSpark
+      case .other: true
+      }
+    }
+  }
+
+  nonisolated static func quotaWindowKind(for limit: CodexUsageLimit) -> QuotaWindowKind {
+    let words = "\(limit.id) \(limit.name)".lowercased().split { !$0.isLetter && !$0.isNumber }
+    let wordSet = Set(words.map(String.init))
+
+    let compactName = words.joined()
+    if wordSet.contains("spark") || compactName.contains("codexspark") { return .spark }
+    if limit.windowDurationMinutes == 300 { return .fiveHour }
+    if limit.windowDurationMinutes == 10_080 { return .weekly }
+
+    if compactName.contains("5hour") || compactName.contains("fivehour")
+      || compactName.contains("5hr") || compactName.contains("fivehr")
+    {
+      return .fiveHour
+    }
+    if wordSet.contains("weekly") || compactName.contains("7day")
+      || compactName.contains("1week")
+    {
+      return .weekly
+    }
+    return .other
   }
 
   private func officialFreshness(_ snapshot: CodexUsageSnapshot) -> String {

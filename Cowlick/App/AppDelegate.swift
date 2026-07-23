@@ -197,16 +197,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     sleepObservers.append(
       center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) {
         _ in
-        Task { @MainActor in await services.capsLockService.cancelAndRestore() }
+        Task { @MainActor in
+          await services.capsLockService.cancelAndRestore()
+        }
       })
     sleepObservers.append(
-      center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+      center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) {
+        _ in
         Task { @MainActor in
           services.localLifecycleObserver.stop()
           services.localLifecycleObserver.start()
-          if services.settings.capsLockEnabled, services.sessionStore.currentApproval != nil {
-            await services.capsLockService.start(.approval)
-          }
+          services.usageStore.refreshForMenuPresentation()
+          services.sessionStore.refreshCapsLockAttention(force: true)
         }
       })
   }

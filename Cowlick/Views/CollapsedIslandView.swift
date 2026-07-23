@@ -13,6 +13,7 @@ struct CollapsedIslandView: View {
   let action: () -> Void
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isHovering = false
+  @State private var presentationDate = Date()
 
   var body: some View {
     Group {
@@ -50,17 +51,27 @@ struct CollapsedIslandView: View {
         session: session,
         activeCount: activeCount,
         activeSubagentCount: activeSubagentCount,
-        usageLabel: usageAccessibilityLabel,
+        usageLabel: leftUsageValue?.accessibilityLabel,
         secondaryUsageLabel: showsCompletionIndicator
-          ? nil : secondaryUsageValue?.accessibilityLabel
+          ? nil : rightUsageValue?.accessibilityLabel
       )
     )
+    .background {
+      MenuPresentationObserver {
+        let now = Date()
+        presentationDate = now
+        usageStore.refreshForMenuPresentation(now: now)
+      }
+      .frame(width: 0, height: 0)
+    }
   }
 
   private func header(session: AgentSession?, showsHoverFeedback: Bool) -> some View {
     IslandHeaderView(
-      usageText: usageText,
-      secondaryUsageValue: secondaryUsageValue,
+      leftUsageValue: leftUsageValue,
+      rightUsageValue: rightUsageValue,
+      leftMetric: usageStore.settings.notchLeftWingMetric,
+      rightMetric: usageStore.settings.notchSecondaryMetric,
       showsCompletionIndicator: showsCompletionIndicator,
       notchGapWidth: notchGapWidth,
       isAttached: isAttached,
@@ -116,26 +127,37 @@ struct CollapsedIslandView: View {
     reduceMotion || reducedAnimation
   }
 
-  private var usageText: String? {
-    Self.usageText(
-      showCodexUsage: usageStore.settings.showCodexUsage,
-      percent: usageStore.primaryDisplayedPercent
-    )
+  private var leftUsageValue: CompactUsageSecondaryValue? {
+    wingValue(for: usageStore.settings.notchLeftWingMetric)
   }
 
-  private var secondaryUsageValue: CompactUsageSecondaryValue? {
+  private var rightUsageValue: CompactUsageSecondaryValue? {
+    wingValue(for: usageStore.settings.notchSecondaryMetric)
+  }
+
+  private func wingValue(for metric: NotchWingMetric) -> CompactUsageSecondaryValue? {
     guard usageStore.settings.showCodexUsage else { return nil }
     return CompactUsageSecondaryFormatter.value(
-      for: usageStore.settings.notchSecondaryMetric,
-      snapshot: usageStore.snapshot,
+      for: metric,
+      snapshot: visibleQuotaSnapshot,
       preference: usageStore.settings.usageMetricPreference,
-      forecast: usageStore.settings.showResetForecast ? usageStore.forecast : nil
+      forecast: usageStore.settings.showResetForecast ? usageStore.forecast : nil,
+      now: presentationDate
     )
   }
 
-  private var usageAccessibilityLabel: String? {
-    guard usageText != nil else { return nil }
-    return usageStore.primaryMetricAccessibilityLabel
+  private var visibleQuotaSnapshot: CodexUsageSnapshot? {
+    guard let snapshot = usageStore.snapshot else { return nil }
+    return CodexUsageSnapshot(
+      limits: UsageSectionView.visibleQuotaLimits(
+        snapshot.limits,
+        showFiveHour: usageStore.settings.showFiveHourQuotaWindow,
+        showWeekly: usageStore.settings.showWeeklyQuotaWindow,
+        showSpark: usageStore.settings.showSparkQuotaWindow
+      ),
+      planType: snapshot.planType,
+      fetchedAt: snapshot.fetchedAt
+    )
   }
 
   private var showsCompletionIndicator: Bool {

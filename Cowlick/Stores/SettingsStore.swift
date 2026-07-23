@@ -65,6 +65,10 @@ final class SettingsStore {
     static let apiCostWindow = "apiCostWindow"
     static let showResetForecast = "showResetForecast"
     static let usageMetricPreference = "usageMetricPreference"
+    static let showFiveHourQuotaWindow = "showFiveHourQuotaWindow"
+    static let showWeeklyQuotaWindow = "showWeeklyQuotaWindow"
+    static let showSparkQuotaWindow = "showSparkQuotaWindow"
+    static let notchLeftWingMetric = "notchLeftWingMetric"
     static let notchSecondaryMetric = "notchSecondaryMetric"
     static let showNotchCurrentWork = "showNotchCurrentWork"
     static let showNotchIntegrationAlerts = "showNotchIntegrationAlerts"
@@ -85,7 +89,9 @@ final class SettingsStore {
     Key.reducedAnimation,
     Key.automaticUpdateChecks, Key.automaticUpdateDownloads, Key.showCodexUsage,
     Key.showAPICostEstimate, Key.apiCostWindow, Key.showResetForecast, Key.usageMetricPreference,
-    Key.notchSecondaryMetric, Key.showNotchCurrentWork, Key.showNotchIntegrationAlerts,
+    Key.showFiveHourQuotaWindow, Key.showWeeklyQuotaWindow, Key.showSparkQuotaWindow,
+    Key.notchLeftWingMetric, Key.notchSecondaryMetric,
+    Key.showNotchCurrentWork, Key.showNotchIntegrationAlerts,
     Key.showNotchCodexUsage, Key.showNotchAPICostEstimate, Key.showNotchResetForecast,
     Key.showNotchProviderBilling,
     Key.menuBarPresentation,
@@ -145,7 +151,19 @@ final class SettingsStore {
   var usageMetricPreference: UsageMetricPreference {
     didSet { defaults.set(usageMetricPreference.rawValue, forKey: Key.usageMetricPreference) }
   }
-  var notchSecondaryMetric: NotchSecondaryMetric {
+  var showFiveHourQuotaWindow: Bool {
+    didSet { defaults.set(showFiveHourQuotaWindow, forKey: Key.showFiveHourQuotaWindow) }
+  }
+  var showWeeklyQuotaWindow: Bool {
+    didSet { defaults.set(showWeeklyQuotaWindow, forKey: Key.showWeeklyQuotaWindow) }
+  }
+  var showSparkQuotaWindow: Bool {
+    didSet { defaults.set(showSparkQuotaWindow, forKey: Key.showSparkQuotaWindow) }
+  }
+  var notchLeftWingMetric: NotchWingMetric {
+    didSet { defaults.set(notchLeftWingMetric.rawValue, forKey: Key.notchLeftWingMetric) }
+  }
+  var notchSecondaryMetric: NotchWingMetric {
     didSet { defaults.set(notchSecondaryMetric.rawValue, forKey: Key.notchSecondaryMetric) }
   }
   var showNotchCurrentWork: Bool {
@@ -206,7 +224,11 @@ final class SettingsStore {
       Key.apiCostWindow: APICostWindow.last30Days.rawValue,
       Key.showResetForecast: false,
       Key.usageMetricPreference: UsageMetricPreference.remaining.rawValue,
-      Key.notchSecondaryMetric: NotchSecondaryMetric.blank.rawValue,
+      Key.showFiveHourQuotaWindow: true,
+      Key.showWeeklyQuotaWindow: true,
+      Key.showSparkQuotaWindow: true,
+      Key.notchLeftWingMetric: NotchWingMetric.quotaPercentage.rawValue,
+      Key.notchSecondaryMetric: NotchWingMetric.blank.rawValue,
       Key.showNotchCurrentWork: true,
       Key.showNotchIntegrationAlerts: true,
       Key.showNotchCodexUsage: true,
@@ -245,8 +267,14 @@ final class SettingsStore {
     usageMetricPreference =
       UsageMetricPreference(rawValue: defaults.string(forKey: Key.usageMetricPreference) ?? "")
       ?? .remaining
+    showFiveHourQuotaWindow = defaults.bool(forKey: Key.showFiveHourQuotaWindow)
+    showWeeklyQuotaWindow = defaults.bool(forKey: Key.showWeeklyQuotaWindow)
+    showSparkQuotaWindow = defaults.bool(forKey: Key.showSparkQuotaWindow)
+    notchLeftWingMetric =
+      NotchWingMetric(rawValue: defaults.string(forKey: Key.notchLeftWingMetric) ?? "")
+      ?? .quotaPercentage
     notchSecondaryMetric =
-      NotchSecondaryMetric(rawValue: defaults.string(forKey: Key.notchSecondaryMetric) ?? "")
+      NotchWingMetric(rawValue: defaults.string(forKey: Key.notchSecondaryMetric) ?? "")
       ?? .blank
     showNotchCurrentWork = defaults.bool(forKey: Key.showNotchCurrentWork)
     showNotchIntegrationAlerts = defaults.bool(forKey: Key.showNotchIntegrationAlerts)
@@ -286,6 +314,10 @@ final class SettingsStore {
     apiCostWindow = replacement.apiCostWindow
     showResetForecast = replacement.showResetForecast
     usageMetricPreference = replacement.usageMetricPreference
+    showFiveHourQuotaWindow = replacement.showFiveHourQuotaWindow
+    showWeeklyQuotaWindow = replacement.showWeeklyQuotaWindow
+    showSparkQuotaWindow = replacement.showSparkQuotaWindow
+    notchLeftWingMetric = replacement.notchLeftWingMetric
     notchSecondaryMetric = replacement.notchSecondaryMetric
     showNotchCurrentWork = replacement.showNotchCurrentWork
     showNotchIntegrationAlerts = replacement.showNotchIntegrationAlerts

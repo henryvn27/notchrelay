@@ -32,6 +32,10 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(first.apiCostWindow, .last30Days)
     XCTAssertFalse(first.showResetForecast)
     XCTAssertEqual(first.usageMetricPreference, .remaining)
+    XCTAssertTrue(first.showFiveHourQuotaWindow)
+    XCTAssertTrue(first.showWeeklyQuotaWindow)
+    XCTAssertTrue(first.showSparkQuotaWindow)
+    XCTAssertEqual(first.notchLeftWingMetric, .quotaPercentage)
     XCTAssertEqual(first.notchSecondaryMetric, .blank)
     XCTAssertTrue(first.showNotchCurrentWork)
     XCTAssertTrue(first.showNotchIntegrationAlerts)
@@ -46,6 +50,10 @@ final class SettingsStoreTests: XCTestCase {
     first.showChatNames = false
     first.approvalTimeout = 35
     first.usageMetricPreference = .used
+    first.showFiveHourQuotaWindow = false
+    first.showWeeklyQuotaWindow = false
+    first.showSparkQuotaWindow = false
+    first.notchLeftWingMetric = .resetCountdown
     first.notchSecondaryMetric = .paceBalance
     first.showAPICostEstimate = true
     first.apiCostWindow = .today
@@ -64,6 +72,10 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertTrue(second.showPromptPreviews)
     XCTAssertEqual(second.approvalTimeout, 35)
     XCTAssertEqual(second.usageMetricPreference, .used)
+    XCTAssertFalse(second.showFiveHourQuotaWindow)
+    XCTAssertFalse(second.showWeeklyQuotaWindow)
+    XCTAssertFalse(second.showSparkQuotaWindow)
+    XCTAssertEqual(second.notchLeftWingMetric, .resetCountdown)
     XCTAssertEqual(second.notchSecondaryMetric, .paceBalance)
     XCTAssertTrue(second.showAPICostEstimate)
     XCTAssertEqual(second.apiCostWindow, .today)
@@ -89,6 +101,10 @@ final class SettingsStoreTests: XCTestCase {
     settings.apiCostWindow = .monthToDate
     settings.showResetForecast = true
     settings.usageMetricPreference = .used
+    settings.showFiveHourQuotaWindow = false
+    settings.showWeeklyQuotaWindow = false
+    settings.showSparkQuotaWindow = false
+    settings.notchLeftWingMetric = .projectedRunway
     settings.notchSecondaryMetric = .resetProbability
     settings.menuBarPresentation = .statusAndPercentage
     settings.integrationIntentionallyRemoved = true
@@ -109,6 +125,10 @@ final class SettingsStoreTests: XCTestCase {
     XCTAssertEqual(settings.apiCostWindow, .last30Days)
     XCTAssertFalse(settings.showResetForecast)
     XCTAssertEqual(settings.usageMetricPreference, .remaining)
+    XCTAssertTrue(settings.showFiveHourQuotaWindow)
+    XCTAssertTrue(settings.showWeeklyQuotaWindow)
+    XCTAssertTrue(settings.showSparkQuotaWindow)
+    XCTAssertEqual(settings.notchLeftWingMetric, .quotaPercentage)
     XCTAssertEqual(settings.notchSecondaryMetric, .blank)
     XCTAssertEqual(settings.presentationPreference, .automatic)
     XCTAssertEqual(settings.menuBarPresentation, .percentageOnly)
@@ -167,6 +187,20 @@ final class SettingsStoreTests: XCTestCase {
     defaults.set("horoscope", forKey: SettingsStore.Key.notchSecondaryMetric)
 
     XCTAssertEqual(SettingsStore(defaults: defaults).notchSecondaryMetric, .blank)
+  }
+
+  func testExistingRightWingPreferenceIsPreservedWhenLeftWingPreferenceIsIntroduced() {
+    let suite = "com.henryvn27.CowlickTests.Settings.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defaults.set(
+      NotchWingMetric.paceBalance.rawValue,
+      forKey: SettingsStore.Key.notchSecondaryMetric)
+
+    let settings = SettingsStore(defaults: defaults)
+
+    XCTAssertEqual(settings.notchLeftWingMetric, .quotaPercentage)
+    XCTAssertEqual(settings.notchSecondaryMetric, .paceBalance)
   }
 
   func testInvalidMenuBarPresentationFallsBackToPercentageOnly() {

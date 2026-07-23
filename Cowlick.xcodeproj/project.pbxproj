@@ -10,6 +10,7 @@
 		05D61ACA5A9CA6965279E6AD /* CodexExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30CA3AE3DD687EA18FEE2B26 /* CodexExecutableLocator.swift */; };
 		0623B67E78A2A77DF886F15E /* IslandHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8FA3750EC1FB2649AF3C0B /* IslandHeaderView.swift */; };
 		0850DA451FE4E4197BD94F1D /* PresentationPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA62A5F798CBAB04A4F9598 /* PresentationPreference.swift */; };
+		0DAEB01CC1E8DE0157234040 /* CompactNotchPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D3345F63A7335620EDE6F8 /* CompactNotchPresentationTests.swift */; };
 		0EAA1301D37949643D13F5B6 /* ProviderAccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 855F997D51121756D7C809CA /* ProviderAccountStore.swift */; };
 		0FA8B27F0A574E26A4F7DCA5 /* NotchPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8B8AD9C5C611B47BEB6F84 /* NotchPanelController.swift */; };
 		1102B961B8EAD8789FEE3E07 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A141A55413F617D2206DC2 /* SessionStoreTests.swift */; };
@@ -183,6 +184,7 @@
 		16AA23683DDD8FCF0E50599B /* ExpandedIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedIslandView.swift; sourceTree = "<group>"; };
 		17CB3752D75079A36E6788A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1885FC0364F9F325FCC77F16 /* RelativeTimeLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTimeLabelTests.swift; sourceTree = "<group>"; };
+		19D3345F63A7335620EDE6F8 /* CompactNotchPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactNotchPresentationTests.swift; sourceTree = "<group>"; };
 		1A58695F1EBE5049F02915B8 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		1A8FA3750EC1FB2649AF3C0B /* IslandHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandHeaderView.swift; sourceTree = "<group>"; };
 		1CAAB05E62D69052440C36A1 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
@@ -313,6 +315,7 @@
 				D5C65529170871AC05F06533 /* CodexSessionObserverTests.swift */,
 				2D50A500D490CEDC9F630B9B /* CodexThreadTitleReaderTests.swift */,
 				6344453156A3CDC276DB49CF /* CodexUsageTests.swift */,
+				19D3345F63A7335620EDE6F8 /* CompactNotchPresentationTests.swift */,
 				F5B1F188BE42E3AB02A69CBB /* DiagnosticsTests.swift */,
 				5B878E474CB8E0BDC72B1A5C /* HookBridgeClientTests.swift */,
 				FCDAEED31699C9CB31C4504D /* HookInstallerTests.swift */,
@@ -847,6 +850,7 @@
 				3CE1CDE580055CA221102DD1 /* CodexSessionObserverTests.swift in Sources */,
 				2FE65300D112EDDC88474BCE /* CodexThreadTitleReaderTests.swift in Sources */,
 				9EC14FDFFC2E6F445E58228C /* CodexUsageTests.swift in Sources */,
+				0DAEB01CC1E8DE0157234040 /* CompactNotchPresentationTests.swift in Sources */,
 				25C2DF15A65005AD8036D52E /* DiagnosticsTests.swift in Sources */,
 				D4576E7B62C4577E365A3B69 /* HookBridgeClient.swift in Sources */,
 				CC21B909A29D2D152CE25718 /* HookBridgeClientTests.swift in Sources */,

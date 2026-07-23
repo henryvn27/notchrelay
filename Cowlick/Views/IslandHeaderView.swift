@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct IslandHeaderView: View {
-  let usageText: String?
-  let secondaryUsageValue: CompactUsageSecondaryValue?
+  let leftUsageValue: CompactUsageSecondaryValue?
+  let rightUsageValue: CompactUsageSecondaryValue?
+  let leftMetric: NotchWingMetric
+  let rightMetric: NotchWingMetric
   let showsCompletionIndicator: Bool
   let notchGapWidth: CGFloat?
   let isAttached: Bool
@@ -15,11 +17,11 @@ struct IslandHeaderView: View {
     Group {
       if let notchGapWidth {
         HStack(spacing: 0) {
-          statusGroup
+          metricGroup(leftUsageValue, metric: leftMetric)
             .frame(maxWidth: .infinity, alignment: .center)
             .clipped()
           Color.clear.frame(width: notchGapWidth)
-          secondaryGroup
+          rightGroup
             .frame(maxWidth: .infinity, alignment: .center)
             .clipped()
         }
@@ -30,8 +32,8 @@ struct IslandHeaderView: View {
         .offset(y: -1)
       } else {
         HStack(spacing: 9) {
-          statusGroup
-          secondaryGroup
+          metricGroup(leftUsageValue, metric: leftMetric)
+          rightGroup
         }
         .padding(.horizontal, 13)
       }
@@ -39,38 +41,43 @@ struct IslandHeaderView: View {
     .accessibilityElement(children: .contain)
   }
 
-  private var statusGroup: some View {
-    Group {
-      if let usageText {
-        Text(usageText)
-          .font(.system(size: 11, weight: .semibold))
-          .monospacedDigit()
-          .lineLimit(1)
-          .fixedSize(horizontal: true, vertical: false)
-          .foregroundStyle(primaryTextColor)
-      }
-    }
-  }
-
-  private var secondaryGroup: some View {
+  private var rightGroup: some View {
     ZStack {
       if showsCompletionIndicator {
         Image(systemName: "checkmark")
           .font(.system(size: 10, weight: .semibold))
           .foregroundStyle(NotchTheme.success)
           .transition(statusTransition)
-      } else if let secondaryUsageValue {
-        Text(secondaryUsageValue.text)
-          .font(.system(size: 11, weight: .semibold))
-          .monospacedDigit()
-          .foregroundStyle(color(for: secondaryUsageValue.tone))
-          .lineLimit(1)
-          .minimumScaleFactor(0.72)
-          .allowsTightening(true)
+      } else {
+        metricGroup(rightUsageValue, metric: rightMetric)
           .transition(statusTransition)
       }
     }
     .animation(statusAnimation, value: showsCompletionIndicator)
+  }
+
+  @ViewBuilder
+  private func metricGroup(_ value: CompactUsageSecondaryValue?, metric: NotchWingMetric)
+    -> some View
+  {
+    if let value {
+      HStack(spacing: 2) {
+        if metric == .resetCountdown {
+          Image(systemName: "clock")
+            .font(.system(size: 8, weight: .semibold))
+            .accessibilityHidden(true)
+        }
+        Text(value.text)
+          .font(.system(size: 11, weight: .semibold))
+          .monospacedDigit()
+          .lineLimit(1)
+          .minimumScaleFactor(0.72)
+          .allowsTightening(true)
+      }
+      .foregroundStyle(color(for: value.tone))
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(value.accessibilityLabel)
+    }
   }
 
   private var motionReduced: Bool { reduceMotion || reducedAnimation }
@@ -87,13 +94,9 @@ struct IslandHeaderView: View {
     isAttached ? .white.opacity(increasedContrast ? 1 : 0.94) : .primary
   }
 
-  private var secondaryTextColor: Color {
-    isAttached ? .white.opacity(increasedContrast ? 0.84 : 0.60) : .secondary
-  }
-
   private func color(for tone: CompactUsageTone) -> Color {
     switch tone {
-    case .neutral: secondaryTextColor
+    case .neutral: primaryTextColor
     case .positive: NotchTheme.success
     case .caution: NotchTheme.warning
     case .critical: NotchTheme.failure

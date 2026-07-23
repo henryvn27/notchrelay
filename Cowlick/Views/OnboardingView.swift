@@ -196,13 +196,13 @@ struct OnboardingView: View {
           Button("Continue") { step = 2 }
             .buttonStyle(.borderedProminent)
         case _ where integrationTrust.state == .needsReview:
-          Button("Review in Codex") { reviewHooksInCodex() }
+          Button("Copy /hooks & Open Codex") { reviewHooksInCodex() }
             .buttonStyle(.borderedProminent)
         case .failed:
-          Button("Retry integration") { Task { await installIntegration() } }
+          Button("Retry connection") { Task { await installIntegration(openReview: true) } }
             .buttonStyle(.borderedProminent)
         case .notStarted, .installed:
-          Button("Install integration") { Task { await installIntegration() } }
+          Button("Connect Codex") { Task { await installIntegration(openReview: true) } }
             .buttonStyle(.borderedProminent)
         }
       default:
@@ -292,7 +292,7 @@ struct OnboardingView: View {
   private var integrationStatusIcon: String {
     switch integrationInstallState {
     case .notStarted: "circle"
-    case .installing: "arrow.triangle.2.circlepath"
+    case .installing: "hourglass"
     case .installed: "checkmark.circle"
     case .failed: "exclamationmark.triangle"
     }
@@ -321,7 +321,7 @@ struct OnboardingView: View {
     advanceWhenTrusted()
   }
 
-  private func installIntegration() async {
+  private func installIntegration(openReview: Bool = false) async {
     integrationStatus = "Installing all six hooks…"
     integrationInstallState = .installing
     let result = await Task.detached { () -> IntegrationInstallResult in
@@ -347,6 +347,9 @@ struct OnboardingView: View {
     }
     integrationTrust = await services.hookTrustService.inspect()
     advanceWhenTrusted()
+    if openReview, integrationTrust.state == .needsReview {
+      reviewHooksInCodex()
+    }
   }
 
   private func advanceWhenTrusted() {
@@ -357,6 +360,7 @@ struct OnboardingView: View {
 
   private func reviewHooksInCodex() {
     CodexIntegrationPresentation.copyReviewCommand()
+    integrationStatus = "Waiting for Codex review. Cowlick checks again when you return."
     CodexActivationService.openCodex(fallbackDirectory: nil)
   }
 
@@ -390,7 +394,7 @@ struct OnboardingView: View {
   static func finishInstruction(trustState: CodexHookTrustState) -> String {
     if trustState == .needsReview {
       return
-        "Codex requires you to confirm new hooks. Paste /hooks in Codex, review Cowlick, then return."
+        "Choose Copy /hooks & Open Codex. Paste the copied command, approve Cowlick once, then return; Cowlick checks automatically."
     }
     return CodexIntegrationPresentation.guidance(for: trustState)
   }

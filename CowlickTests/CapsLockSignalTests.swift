@@ -56,25 +56,51 @@ final class CapsLockSignalTests: XCTestCase {
     XCTAssertEqual(reportedSupport, .unavailable(reason))
   }
 
-  func testCompletionRestoresOriginalOffState() async {
+  func testCompletionPersistsUntilAttentionClearsThenRestoresOriginalOffState() async {
     let controller = FakeCapsLockController(initialState: false)
     let service = NativeCapsLockSignalService(controller: controller)
-    await service.start(.completion)
-    try? await Task.sleep(for: .milliseconds(300))
+    await service.setPersistentAttention(.completion)
 
+    XCTAssertTrue(controller.state)
+    await service.setPersistentAttention(nil)
     XCTAssertFalse(controller.state)
-    XCTAssertEqual(controller.recordedWrites.prefix(2), [true, false])
+    XCTAssertEqual(controller.recordedWrites, [true, false])
   }
 
-  func testCancellationRestoresOriginalOnState() async {
+  func testApprovalPersistsInvertedAndCancellationRestoresOriginalOnState() async {
     let controller = FakeCapsLockController(initialState: true)
     let service = NativeCapsLockSignalService(controller: controller)
-    await service.start(.approval)
-    try? await Task.sleep(for: .milliseconds(40))
+    await service.setPersistentAttention(.approval)
+
+    XCTAssertFalse(controller.state)
     await service.cancelAndRestore()
 
     XCTAssertTrue(controller.state)
     XCTAssertEqual(controller.recordedWrites.last, true)
+  }
+
+  func testPersistentAttentionWinsOverFailurePulse() async {
+    let controller = FakeCapsLockController(initialState: false)
+    let service = NativeCapsLockSignalService(controller: controller)
+    await service.setPersistentAttention(.completion)
+    await service.start(.failure)
+    try? await Task.sleep(for: .milliseconds(300))
+
+    XCTAssertTrue(controller.state)
+    XCTAssertEqual(controller.recordedWrites, [true])
+  }
+
+  func testSuccessfulSelfTestReappliesPersistentAttention() async {
+    let controller = FakeCapsLockController(initialState: false)
+    let service = NativeCapsLockSignalService(controller: controller)
+    await service.setPersistentAttention(.completion)
+
+    let result = await service.testSignal()
+
+    XCTAssertEqual(result, .available)
+    XCTAssertTrue(controller.state)
+    await service.cancelAndRestore()
+    XCTAssertFalse(controller.state)
   }
 
   func testFailureUsesTwoPulsesAndRestores() async {

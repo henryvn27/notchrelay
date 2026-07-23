@@ -47,6 +47,13 @@
     <title>Cowlick - Codex at the MacBook notch</title>
   </head>
   <body>
+    <!--
+      Interactive demo flow:
+      1. Landing-page MacBook opens the simulated desktop.
+      2. Cowlick begins in its 296 x 38 compact, hardware-attached state.
+      3. Hover, click, Enter, or Space expands the 332-point information drawer.
+      4. Session rows scroll independently; Settings and Quit live at the end of the drawer.
+    -->
     <a class="skip-link" href="#main-content">Skip to main content</a>
 
     <header class="site-header" data-site-header>
@@ -68,7 +75,17 @@
     <main id="main-content">
       <section class="hero" id="top" aria-labelledby="hero-title">
         <div class="device-demo">
-          <div class="macbook" aria-label="Interactive Cowlick MacBook mockup">
+          <button
+            class="macbook macbook-launch"
+            type="button"
+            data-open-simulator
+            aria-haspopup="dialog"
+            aria-label="Open interactive Cowlick MacBook"
+            aria-describedby="macbook-launch-description"
+          >
+            <span class="sr-only" id="macbook-launch-description">
+              Opens a simulated MacBook where you can expand and try the Cowlick notch.
+            </span>
             <div class="macbook-lid">
               <div class="macbook-screen">
                 <div class="screen-notch" aria-hidden="true"><span></span></div>
@@ -121,11 +138,12 @@
 
                     <p class="island-caption" id="island-caption">Working. Quietly present.</p>
                   </div>
+                  <span class="macbook-launch-hint" aria-hidden="true">Try the notch</span>
                 </div>
               </div>
             </div>
             <div class="macbook-base" aria-hidden="true"><span></span></div>
-          </div>
+          </button>
 
           <div
             class="state-switcher"
@@ -188,6 +206,173 @@
           <li>Notch or one menu-bar item, never both</li>
         </ul>
       </section>
+
+      <dialog class="simulator-dialog" data-simulator aria-labelledby="simulator-title">
+        <div class="simulator-frame">
+          <header class="simulator-toolbar">
+            <div>
+              <p class="simulator-kicker">Interactive product demo</p>
+              <h2 id="simulator-title">A MacBook, with Cowlick attached.</h2>
+            </div>
+            <div class="simulator-toolbar-actions">
+              <p id="simulator-help">Hover or select the notch to open it. Escape collapses first.</p>
+              <button class="simulator-close" type="button" data-close-simulator>
+                <span aria-hidden="true">×</span>
+                <span class="sr-only">Close interactive MacBook</span>
+              </button>
+            </div>
+          </header>
+
+          <div class="simulator-bezel">
+            <div class="simulator-display">
+              <div class="simulator-menubar" aria-hidden="true">
+                <div class="simulator-menu-left">
+                  <span class="simulator-apple">●</span>
+                  <strong>Finder</strong>
+                  <span>File</span>
+                  <span>Edit</span>
+                  <span>View</span>
+                  <span>Go</span>
+                  <span>Window</span>
+                </div>
+                <div class="simulator-menu-right">
+                  <span>⌁</span>
+                  <span>▰</span>
+                  <time datetime="2026-07-22T18:46:00-04:00">Wed Jul 22&nbsp;&nbsp;6:46 PM</time>
+                </div>
+              </div>
+
+              <div class="simulator-wallpaper" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+
+              <div class="simulator-workspace" aria-hidden="true">
+                <aside class="simulator-sidebar">
+                  <strong>Codex</strong>
+                  <span class="is-selected">Cowlick</span>
+                  <span>Scoutly</span>
+                  <span>ActivityPilot</span>
+                </aside>
+                <div class="simulator-document">
+                  <span class="simulator-eyebrow">CURRENT TASK</span>
+                  <strong>Polish the notch experience</strong>
+                  <p>Keeping quota visible while active work stays one gesture away.</p>
+                  <div class="simulator-document-lines"><span></span><span></span><span></span></div>
+                </div>
+              </div>
+
+              <div
+                class="sim-cowlick"
+                data-sim-cowlick
+                data-expanded="false"
+              >
+                <button
+                  class="sim-notch-trigger"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="sim-notch-drawer"
+                  aria-describedby="simulator-help"
+                  aria-label="Cowlick compact view. 78 percent weekly quota remaining. Resets in 2 days 4 hours."
+                >
+                  <span class="sim-wing sim-wing-left" aria-hidden="true">78%</span>
+                  <span class="sim-hardware-gap" aria-hidden="true"><span class="sim-camera"></span></span>
+                  <span class="sim-wing sim-wing-right" aria-hidden="true">2d 4h</span>
+                </button>
+
+                <div
+                  class="sim-notch-drawer"
+                  id="sim-notch-drawer"
+                  data-sim-drawer
+                  aria-hidden="true"
+                  inert
+                >
+                  <div class="sim-drawer-content" data-sim-scroll tabindex="0">
+                    <section class="sim-activity" aria-labelledby="sim-activity-title">
+                      <div class="sim-section-heading">
+                        <span class="sim-working-mark" aria-hidden="true"></span>
+                        <div>
+                          <h3 id="sim-activity-title">Codex is working</h3>
+                          <p>2 sessions · 1 subagent</p>
+                        </div>
+                      </div>
+                      <div class="sim-session-viewport" data-session-scroll tabindex="0">
+                        <div class="sim-session is-current">
+                          <span class="sim-session-status is-working" aria-hidden="true"></span>
+                          <span><strong>Cowlick</strong><small>Website · Building the interactive MacBook</small></span>
+                        </div>
+                        <div class="sim-session">
+                          <span class="sim-session-status is-waiting" aria-hidden="true">!</span>
+                          <span><strong>Scoutly</strong><small>Waiting for your response</small></span>
+                        </div>
+                        <div class="sim-session">
+                          <span class="sim-session-status is-complete" aria-hidden="true">✓</span>
+                          <span><strong>ActivityPilot</strong><small>Release verification complete</small></span>
+                        </div>
+                        <div class="sim-session">
+                          <span class="sim-session-status" aria-hidden="true"></span>
+                          <span><strong>Meetily</strong><small>Idle · ready for work</small></span>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="sim-quota" aria-labelledby="sim-quota-title">
+                      <div class="sim-section-title-row">
+                        <h3 id="sim-quota-title">Codex quota</h3>
+                        <time data-sim-updated>Updated just now</time>
+                      </div>
+                      <div class="sim-quota-window">
+                        <div><span>Weekly</span><strong>78% left</strong></div>
+                        <div class="sim-quota-track sim-quota-weekly"><span></span><i></i></div>
+                        <small class="is-ahead">+11% vs pace · resets in 2d 4h</small>
+                      </div>
+                      <div class="sim-quota-window">
+                        <div><span>5 hour</span><strong>64% left</strong></div>
+                        <div class="sim-quota-track sim-quota-five-hour"><span></span><i></i></div>
+                        <small class="is-ahead">+6% vs pace · resets in 1h 18m</small>
+                      </div>
+                      <div class="sim-quota-window">
+                        <div><span>GPT-5.3-Codex Spark</span><strong>91% left</strong></div>
+                        <div class="sim-quota-track sim-quota-spark"><span></span><i></i></div>
+                        <small class="is-ahead">+7% vs pace · resets tomorrow</small>
+                      </div>
+                    </section>
+
+                    <section class="sim-compact-row" aria-label="API price estimate">
+                      <span><strong>API-price estimate</strong><small>This week · partial · not a bill</small></span>
+                      <strong>$18.42</strong>
+                    </section>
+
+                    <section class="sim-compact-row" aria-label="Unofficial reset forecast">
+                      <span><strong>Reset likelihood</strong><small>Unofficial · next 48h</small></span>
+                      <strong>32%</strong>
+                    </section>
+
+                    <div class="sim-end-actions" aria-label="Cowlick controls">
+                      <button type="button" data-sim-action="settings">
+                        <span aria-hidden="true">⚙︎</span>Settings
+                      </button>
+                      <button type="button" data-sim-action="quit">
+                        <span aria-hidden="true">⏻</span>Quit
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p class="simulator-toast" data-sim-toast role="status" aria-live="polite"></p>
+              <div class="simulator-dock" aria-hidden="true">
+                <span></span><span></span><span class="is-active"></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+
+          <footer class="simulator-note">
+            <span><strong>Compact:</strong> 296 × 38 pt</span>
+            <span><strong>Hardware gap:</strong> 212 pt</span>
+            <span><strong>Expanded:</strong> 332 pt · 400 pt max</span>
+          </footer>
+        </div>
+      </dialog>
 
       <section class="states-section" id="product" aria-labelledby="states-title">
         <div class="section-intro">

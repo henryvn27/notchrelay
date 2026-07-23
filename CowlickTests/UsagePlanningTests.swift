@@ -308,7 +308,7 @@ final class UsagePlanningTests: XCTestCase {
         forecast: forecast,
         now: now
       )?.text,
-      "reset 4d"
+      "4d"
     )
     XCTAssertEqual(
       CompactUsageSecondaryFormatter.value(
@@ -392,7 +392,7 @@ final class UsagePlanningTests: XCTestCase {
         forecast: nil,
         now: now
       )?.text,
-      "reset 7d"
+      "7d"
     )
     XCTAssertNil(
       CompactUsageSecondaryFormatter.value(

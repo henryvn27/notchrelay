@@ -130,7 +130,6 @@ final class CowlickUITests: XCTestCase {
     XCTAssertEqual(
       failedSession.label,
       "Repair bridge health, Scoutly, Failed, Bridge self-test failed")
-    XCTAssertTrue(app.buttons["Diagnostics"].exists)
   }
 
   func testMultipleSessionListIsAccessible() {
@@ -144,18 +143,18 @@ final class CowlickUITests: XCTestCase {
 
   }
 
-  func testOverflowSessionListScrollsWithoutMovingActionBar() {
+  func testOverflowSessionListKeepsEndActionsAtTheLogicalBottom() {
     let app = launch(state: "overflow")
     let scrollView = app.scrollViews["session-scroll-view"]
-    let settings = app.buttons["Settings"]
     XCTAssertTrue(scrollView.waitForExistence(timeout: 3))
-    XCTAssertTrue(settings.waitForExistence(timeout: 3))
-    let actionBarY = settings.frame.minY
 
     scrollView.scroll(byDeltaX: 0, deltaY: 80)
 
     XCTAssertTrue(sessionRow(in: app, id: "demo-overflow-1").waitForExistence(timeout: 2))
-    XCTAssertEqual(settings.frame.minY, actionBarY, accuracy: 1)
+    let endActions = app.descendants(matching: .any)
+      .matching(identifier: "notch-end-actions").firstMatch
+    XCTAssertTrue(endActions.waitForExistence(timeout: 2))
+    XCTAssertGreaterThanOrEqual(endActions.frame.minY, scrollView.frame.maxY - 1)
   }
 
   func testExpandedNotchIncludesMenuBarInformation() {
@@ -176,12 +175,10 @@ final class CowlickUITests: XCTestCase {
         .exists)
     XCTAssertFalse(app.popUpButtons["provider-billing-account"].exists)
     XCTAssertFalse(app.staticTexts["Platform"].exists)
-    XCTAssertTrue(app.buttons["Open Codex"].exists)
     let compactHeader = app.buttons["compact-notch-button"]
     let settings = app.buttons["Settings"]
     XCTAssertTrue(compactHeader.exists)
     XCTAssertTrue(settings.exists)
-    XCTAssertTrue(app.buttons["Diagnostics"].exists)
     let quit = app.buttons["Quit"]
     XCTAssertTrue(quit.exists)
     XCTAssertLessThanOrEqual(compactHeader.frame.width, 300)
@@ -197,7 +194,7 @@ final class CowlickUITests: XCTestCase {
         "--hide-notch-reset-forecast", "--hide-notch-provider-billing",
       ])
 
-    XCTAssertTrue(app.buttons["Open Codex"].waitForExistence(timeout: 3))
+    XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 3))
     XCTAssertFalse(
       app.descendants(matching: .any).matching(identifier: "notch-activity-header").firstMatch
         .exists)
@@ -209,8 +206,6 @@ final class CowlickUITests: XCTestCase {
     XCTAssertFalse(
       app.descendants(matching: .any).matching(identifier: "codex-integration-attention")
         .firstMatch.exists)
-    XCTAssertTrue(app.buttons["Settings"].exists)
-    XCTAssertTrue(app.buttons["Diagnostics"].exists)
     XCTAssertTrue(app.buttons["Quit"].exists)
   }
 

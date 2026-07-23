@@ -28,6 +28,9 @@ struct ExpandedIslandView: View {
     .task {
       services.usageStore.refreshForMenuPresentation()
       await services.providerAccountsController.load()
+      if !services.providerAccountsController.accounts.isEmpty {
+        await services.providerAccountsController.refreshAll()
+      }
     }
     .task(id: services.settings.showNotchIntegrationAlerts) {
       if services.settings.showNotchIntegrationAlerts {
@@ -39,16 +42,11 @@ struct ExpandedIslandView: View {
   }
 
   private var informationView: some View {
-    VStack(spacing: 0) {
-      informationViewport
-        .layoutPriority(1)
-
-      NotchActionBar(services: services, isAttached: isAttached)
-        .frame(height: NotchTheme.actionBarHeight)
-    }
-    .onPreferenceChange(ExpandedInformationHeightKey.self) { informationHeight in
-      contentHeightDidChange(informationHeight + NotchTheme.actionBarHeight)
-    }
+    informationViewport
+      .layoutPriority(1)
+      .onPreferenceChange(ExpandedInformationHeightKey.self) { informationHeight in
+        contentHeightDidChange(informationHeight)
+      }
   }
 
   @ViewBuilder
@@ -97,8 +95,7 @@ struct ExpandedIslandView: View {
           showAPICostEstimate: showsAPICostEstimate,
           showForecast: showsForecast,
           metricPreference: services.settings.usageMetricPreference,
-          density: .compact,
-          refresh: { services.usageStore.refreshOfficial(force: true) }
+          density: .compact
         )
       }
 
@@ -108,6 +105,10 @@ struct ExpandedIslandView: View {
         Divider()
         ProviderBillingSectionView(services: services, density: .compact)
       }
+
+      Divider()
+      NotchEndActions(isAttached: isAttached)
+        .frame(height: NotchTheme.actionBarHeight)
     }
     .background {
       GeometryReader { proxy in
@@ -144,20 +145,6 @@ struct ExpandedIslandView: View {
         .foregroundStyle(.secondary)
       }
       Spacer()
-      if services.updateService.canCheckForUpdates {
-        Button {
-          services.updateService.checkForUpdates()
-        } label: {
-          Image(systemName: "arrow.triangle.2.circlepath")
-            .font(.system(size: 11, weight: .medium))
-            .frame(width: 24, height: 24)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .help("Check for Updates")
-        .accessibilityLabel("Check for Updates")
-      }
     }
     .padding(.horizontal, 14)
     .frame(height: NotchTheme.informationHeaderHeight)
@@ -221,34 +208,21 @@ private struct ExpandedInformationHeightKey: PreferenceKey {
   }
 }
 
-private struct NotchActionBar: View {
-  let services: AppServices
+private struct NotchEndActions: View {
   let isAttached: Bool
 
-  private var store: SessionStore { services.sessionStore }
-
   var body: some View {
-    HStack(spacing: 2) {
-      action("Open Codex", systemImage: "macwindow") {
-        CodexActivationService.openCodex(fallbackDirectory: store.displaySession?.workingDirectory)
-      }
+    HStack(spacing: 4) {
+      Spacer(minLength: 0)
       action("Settings", systemImage: "gearshape") {
         WindowCoordinator.shared.openSettingsForTesting()
-      }
-      action("Diagnostics", systemImage: "stethoscope") {
-        WindowCoordinator.shared.openDiagnostics()
       }
       action("Quit", systemImage: "power") {
         NSApplication.shared.terminate(nil)
       }
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding(.horizontal, 8)
-    .overlay(alignment: .top) {
-      Rectangle()
-        .fill(isAttached ? NotchTheme.hairline : Color.secondary.opacity(0.18))
-        .frame(height: 0.5)
-    }
+    .padding(.horizontal, 10)
+    .accessibilityIdentifier("notch-end-actions")
   }
 
   private func action(
@@ -268,7 +242,6 @@ private struct NotchActionBar: View {
       .padding(.vertical, 7)
       .contentShape(Rectangle())
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .buttonStyle(.plain)
     .help(title)
     .accessibilityLabel(title)

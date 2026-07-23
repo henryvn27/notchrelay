@@ -25,7 +25,18 @@ protocol CapsLockSignalService: Sendable {
   func supportStatus() async -> CapsLockSupport
   func testSignal() async -> CapsLockSupport
   func start(_ pattern: CapsLockPattern) async
+  func setPersistentAttention(_ pattern: CapsLockPattern?) async
   func cancelAndRestore() async
+}
+
+extension CapsLockSignalService {
+  func setPersistentAttention(_ pattern: CapsLockPattern?) async {
+    if let pattern {
+      await start(pattern)
+    } else {
+      await cancelAndRestore()
+    }
+  }
 }
 
 protocol CapsLockControlling: AnyObject, Sendable {
@@ -91,6 +102,8 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
   private var patternTask: Task<Void, Never>?
   private var originalState: Bool?
   private var verificationFailure: String?
+  private var persistentPattern: CapsLockPattern?
+  private var signalGeneration: UInt64 = 0
 
   init(controller: (any CapsLockControlling)? = nil) {
     if let controller {
@@ -121,8 +134,11 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
   }
 
   func testSignal() async -> CapsLockSupport {
+    let attentionToRestore = persistentPattern
+    signalGeneration &+= 1
     patternTask?.cancel()
     patternTask = nil
+    persistentPattern = nil
     restoreOriginalState()
 
     guard let controller else {
@@ -130,7 +146,11 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
     }
     do {
       let initialState = try controller.readState()
-      defer { try? controller.setState(initialState) }
+      var shouldRestoreAttention = false
+      defer {
+        try? controller.setState(initialState)
+        if shouldRestoreAttention { setPersistentAttention(attentionToRestore) }
+      }
 
       try controller.setState(!initialState)
       try await Task.sleep(for: .milliseconds(80))
@@ -144,6 +164,7 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
         throw CapsLockError.verificationFailed("the original state was not restored")
       }
       verificationFailure = nil
+      shouldRestoreAttention = attentionToRestore != nil
       return .available
     } catch {
       let reason = error.localizedDescription
@@ -153,42 +174,67 @@ actor NativeCapsLockSignalService: CapsLockSignalService {
   }
 
   func start(_ pattern: CapsLockPattern) {
+    if pattern == .approval || pattern == .completion {
+      setPersistentAttention(pattern)
+      return
+    }
+    guard persistentPattern == nil else { return }
+
+    signalGeneration &+= 1
+    let generation = signalGeneration
     patternTask?.cancel()
     restoreOriginalState()
 
     guard let controller, let original = try? controller.readState() else { return }
     originalState = original
     patternTask = Task { [weak self] in
-      await self?.execute(pattern)
+      await self?.execute(pattern, generation: generation)
+    }
+  }
+
+  func setPersistentAttention(_ pattern: CapsLockPattern?) {
+    guard persistentPattern != pattern else { return }
+
+    signalGeneration &+= 1
+    patternTask?.cancel()
+    patternTask = nil
+    persistentPattern = nil
+    restoreOriginalState()
+
+    guard let pattern, let controller, let original = try? controller.readState() else { return }
+    originalState = original
+    do {
+      try controller.setState(!original)
+      persistentPattern = pattern
+    } catch {
+      restoreOriginalState()
     }
   }
 
   func cancelAndRestore() {
+    signalGeneration &+= 1
     patternTask?.cancel()
     patternTask = nil
+    persistentPattern = nil
     restoreOriginalState()
   }
 
-  private func execute(_ pattern: CapsLockPattern) async {
+  private func execute(_ pattern: CapsLockPattern, generation: UInt64) async {
     defer {
-      restoreOriginalState()
-      patternTask = nil
+      if generation == signalGeneration, persistentPattern == nil {
+        restoreOriginalState()
+        patternTask = nil
+      }
     }
     guard originalState != nil else { return }
 
     switch pattern {
-    case .completion:
-      await pulse(on: .milliseconds(140), off: .zero)
     case .failure:
       await pulse(on: .milliseconds(105), off: .milliseconds(115))
       guard !Task.isCancelled else { return }
       await pulse(on: .milliseconds(105), off: .zero)
-    case .approval:
-      while !Task.isCancelled {
-        await pulse(on: .milliseconds(120), off: .milliseconds(100))
-        guard !Task.isCancelled else { break }
-        await pulse(on: .milliseconds(120), off: .milliseconds(700))
-      }
+    case .approval, .completion:
+      break
     }
   }
 
